@@ -18,6 +18,6 @@ This repo's own `.claude/settings.json` carries a `SessionStart` hook that shoul
 
 Himinbjorg is **backend-only EF persistence** — `Norse.Identity`: entities, conventions, and migrations for ASP.NET Identity and OpenIddict. It never crosses to WASM or MAUI — that boundary is load-bearing, not a convenience. In the dependency chain it rides on Urdarbrunnr's EF foundation and everything below; Heimdall rides on it.
 
-This repo is currently a bare shell (LICENSE only) — no specs have converged here yet. Before writing any code: brainstorm → spec → plan, recorded in `../Glitnir/docs/Himinbjorg/`, per the org's spec-first discipline. Do not scaffold a project structure ahead of a converged spec.
+This repo is currently a bare shell (LICENSE only) — no specs have converged here yet. Before writing any code: brainstorm → spec → plan, recorded in `../Glitnir/docs/Himinbjorg/`, per the org's spec-first discipline. Do not scaffold a project structure ahead of a converged spec. When that plan is written, its REQUIRED SUB-SKILL line names `superpowers:subagent-driven-development` as the default (not a recommendation among equals — `executing-plans` is the narrow fallback for separate-session review checkpoints) paired with `superpowers:test-driven-development` — implementation here is subagent-orchestrated and test-driven, never one without the other (`../Glitnir/CLAUDE.md` §2.8).
 
 See `../Bifrost/CLAUDE.md` (§2 The Naming Model) and `../Glitnir/CLAUDE.md` (§1 Bounded Context Map) for the full realm table and how Himinbjorg fits the rest of the cosmos.
