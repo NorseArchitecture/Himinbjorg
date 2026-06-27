@@ -2,6 +2,10 @@
 
 > Himinbjörg — Heimdall's hall at the head of Bifrost.
 
+<img width="720" height="960" alt="Himinbjörg — Heimdall's hall where heaven meets the bridge, standing watch at the edge of the nine realms" src="https://github.com/user-attachments/assets/d38e6d83-bbdd-465b-93ed-ad42b06934af" />
+
+*Image credit: [@norsemythologyclips](https://www.instagram.com/norsemythologyclips/) — go follow them.*
+
 The backend-only identity store of the Norse Architecture — **`Norse.Identity`**: EF Core model, conventions, and migrations for ASP.NET Identity and OpenIddict. Entities stay server-side and never cross into WASM or MAUI — that boundary is load-bearing, not a convenience. In the dependency chain it rides on Urdarbrunnr's EF foundation and everything below; Heimdall rides on it.
 
 ## Status
