@@ -2,7 +2,7 @@
 
 > Himinbjörg — Heimdall's hall at the head of Bifrost.
 
-<img width="720" height="960" alt="Himinbjörg — Heimdall's hall where heaven meets the bridge, standing watch at the edge of the nine realms" src="https://github.com/user-attachments/assets/d38e6d83-bbdd-465b-93ed-ad42b06934af" />
+![Himinbjörg — Heimdall's hall where heaven meets the bridge, standing watch at the edge of the nine realms](https://github.com/user-attachments/assets/d38e6d83-bbdd-465b-93ed-ad42b06934af "Himinbjörg — Heimdall's hall at the head of Bifrost")
 
 *Image credit: [@norsemythologyclips](https://www.instagram.com/norsemythologyclips/) — go follow them.*
 
