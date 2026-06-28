@@ -1,4 +1,4 @@
-# Himinbjorg
+# Himinbjörg
 
 > Himinbjörg — Heimdall's hall at the head of Bifrost.
 
