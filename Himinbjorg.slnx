@@ -1,0 +1,23 @@
+<Solution>
+	<Folder Name="/Solution Items/">
+		<File Path=".editorconfig" />
+		<File Path=".gitattributes" />
+		<File Path=".gitignore" />
+		<File Path="CLAUDE.md" />
+		<File Path="Directory.Build.props" />
+		<File Path="global.json" />
+		<File Path="LICENSE" />
+		<File Path="nuget.config" />
+		<File Path="README.md" />
+	</Folder>
+	<Folder Name="/src/">
+		<File Path="src/Directory.Build.props" />
+		<File Path="src/Directory.Build.targets" />
+		<Project Path="src/Identity/Identity.csproj" />
+	</Folder>
+	<Folder Name="/tests/">
+		<File Path="tests/Directory.Build.props" />
+		<File Path="tests/Directory.Build.targets" />
+		<Project Path="tests/Identity.Tests/Identity.Tests.csproj" />
+	</Folder>
+</Solution>
