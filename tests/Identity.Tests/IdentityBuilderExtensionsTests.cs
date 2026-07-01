@@ -8,7 +8,7 @@ namespace Norse.Identity.Tests;
 public sealed class IdentityBuilderExtensionsTests
 {
 	[Fact]
-	public void AddNorseIdentity_registers_NorseUserStore_as_IUserStore()
+	void AddNorseIdentity_registers_NorseUserStore_as_IUserStore()
 	{
 		ServiceCollection services = new();
 
@@ -20,7 +20,7 @@ public sealed class IdentityBuilderExtensionsTests
 	}
 
 	[Fact]
-	public void AddNorseIdentity_returns_same_services_for_chaining()
+	void AddNorseIdentity_returns_same_services_for_chaining()
 	{
 		ServiceCollection services = new();
 
@@ -30,7 +30,7 @@ public sealed class IdentityBuilderExtensionsTests
 	}
 
 	[Fact]
-	public void AddNorseIdentity_configures_SchemaVersion_to_Version3()
+	void AddNorseIdentity_configures_SchemaVersion_to_Version3()
 	{
 		ServiceCollection services = new();
 		services.AddDbContext<NorseIdentityDbContext>(o => o.UseSqlite("Data Source=:memory:"));

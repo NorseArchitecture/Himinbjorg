@@ -5,7 +5,7 @@ namespace Norse.Identity.Migrations.Tests;
 public sealed class NorseIdentityDbContextFactoryTests
 {
 	[Fact]
-	public void CreateDbContext_configures_schema_version_3_with_passkeys()
+	void CreateDbContext_configures_schema_version_3_with_passkeys()
 	{
 		NorseIdentityDbContextFactory factory = new();
 		using var context = factory.CreateDbContext([]);
