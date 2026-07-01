@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace Norse.Identity.Tests;
 
@@ -25,5 +27,19 @@ public sealed class IdentityBuilderExtensionsTests
 		var result = services.AddNorseIdentity();
 
 		result.ShouldBeSameAs(services);
+	}
+
+	[Fact]
+	public void AddNorseIdentity_configures_SchemaVersion_to_Version3()
+	{
+		ServiceCollection services = new();
+		services.AddDbContext<NorseIdentityDbContext>(o => o.UseSqlite("Data Source=:memory:"));
+
+		services.AddNorseIdentity();
+
+		using var provider = services.BuildServiceProvider();
+		var options = provider.GetRequiredService<IOptions<IdentityOptions>>();
+
+		options.Value.Stores.SchemaVersion.ShouldBe(IdentitySchemaVersions.Version3);
 	}
 }

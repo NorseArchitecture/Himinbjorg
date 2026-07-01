@@ -17,6 +17,8 @@ public static class IdentityBuilderExtensions
 	/// <returns>The same <paramref name="services"/> for chaining.</returns>
 	public static IServiceCollection AddNorseIdentity(this IServiceCollection services)
 	{
+		services.Configure<IdentityOptions>(o => o.Stores.SchemaVersion = IdentitySchemaVersions.Version3);
+
 		services
 			.AddIdentity<NorseUser, NorseRole>()
 			.AddUserStore<NorseUserStore>()
