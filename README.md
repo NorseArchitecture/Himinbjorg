@@ -10,7 +10,7 @@ The backend-only identity store of the Norse Architecture — **`Norse.Identity`
 
 ## Status
 
-This realm is currently a bare shell — no code, no specs converged yet. Design happens first: brainstorm → spec → plan, recorded in Glitnir's `docs/Himinbjorg/`, before any project is scaffolded here.
+**Live:** `Norse.Identity` and `Norse.Identity.Migrations` — the full ASP.NET Core Identity v3 + OpenIddict entity set, `NorseIdentityDbContext`, `NorseUserStore`, and a real EF migration (`InitialCreate`) that stands up `norse_identity` end to end via the platform migrations service (the full story is on [Bifröst's README](https://github.com/NorseArchitecture/Bifrost#readme)). Identity was chosen as the proving vehicle for the whole migrations framework precisely because its schema is well-known and its base classes are unforgiving — if the framework survives ASP.NET Core Identity, it survives anything. Design for what comes next (Heimdall's auth surface rides on this) happens first: brainstorm → spec → plan, recorded in Glitnir's `docs/Himinbjorg/`.
 
 ## The cosmos
 
