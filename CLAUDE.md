@@ -24,4 +24,4 @@ Identity was chosen as this framework's proving vehicle deliberately: its schema
 
 Every subsequent plan for this realm follows the same discipline: brainstorm → spec → plan, recorded in `../Glitnir/docs/Himinbjorg/`, per the org's spec-first discipline. Do not scaffold ahead of a converged spec. When that plan is written, its REQUIRED SUB-SKILL line names `superpowers:subagent-driven-development` as the default (not a recommendation among equals — `executing-plans` is the narrow fallback for separate-session review checkpoints) paired with `superpowers:test-driven-development` — implementation here is subagent-orchestrated and test-driven, never one without the other (`../Glitnir/CLAUDE.md` §2.8).
 
-See `../Bifrost/CLAUDE.md` (§2 The Naming Model) and `../Glitnir/CLAUDE.md` (§1 Bounded Context Map) for the full realm table and how Himinbjorg fits the rest of the cosmos.
+See `../Bifrost/CLAUDE.md` (§2 The Naming Model) and `../Glitnir/CLAUDE.md` (§3 Bounded Context Map) for the full realm table and how Himinbjorg fits the rest of the cosmos.
