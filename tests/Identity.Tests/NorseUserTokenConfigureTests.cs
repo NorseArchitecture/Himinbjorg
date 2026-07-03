@@ -5,7 +5,7 @@ namespace Norse.Identity.Tests;
 public sealed class NorseUserTokenConfigureTests
 {
 	[Fact]
-	public void Configure_bounds_LoginProvider_and_Name()
+	void Configure_bounds_LoginProvider_and_Name()
 	{
 		ModelBuilder builder = new();
 		builder.Entity<NorseUserToken>(NorseUserToken.Configure);
@@ -16,7 +16,7 @@ public sealed class NorseUserTokenConfigureTests
 	}
 
 	[Fact]
-	public void Configure_declares_Value_explicitly_unbounded()
+	void Configure_declares_Value_explicitly_unbounded()
 	{
 		ModelBuilder builder = new();
 		builder.Entity<NorseUserToken>(NorseUserToken.Configure);

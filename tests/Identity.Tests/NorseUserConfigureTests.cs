@@ -5,7 +5,7 @@ namespace Norse.Identity.Tests;
 public sealed class NorseUserConfigureTests
 {
 	[Fact]
-	public void Configure_sets_table_name()
+	void Configure_sets_table_name()
 	{
 		var entityType = BuildEntityType();
 
@@ -13,7 +13,7 @@ public sealed class NorseUserConfigureTests
 	}
 
 	[Fact]
-	public void Configure_bounds_PasswordHash_and_converts_it()
+	void Configure_bounds_PasswordHash_and_converts_it()
 	{
 		var entityType = BuildEntityType();
 		var property = entityType.FindProperty(nameof(NorseUser.PasswordHash))!;
@@ -23,7 +23,7 @@ public sealed class NorseUserConfigureTests
 	}
 
 	[Fact]
-	public void Configure_bounds_PhoneNumber()
+	void Configure_bounds_PhoneNumber()
 	{
 		var entityType = BuildEntityType();
 
@@ -31,7 +31,7 @@ public sealed class NorseUserConfigureTests
 	}
 
 	[Fact]
-	public void Configure_converts_ConcurrencyStamp_and_SecurityStamp()
+	void Configure_converts_ConcurrencyStamp_and_SecurityStamp()
 	{
 		var entityType = BuildEntityType();
 
@@ -40,7 +40,7 @@ public sealed class NorseUserConfigureTests
 	}
 
 	[Fact]
-	public void Configure_wires_Claims_relationship_through_the_User_navigation()
+	void Configure_wires_Claims_relationship_through_the_User_navigation()
 	{
 		var model = BuildModel();
 		var claimType = model.FindEntityType(typeof(NorseUserClaim))!;
@@ -51,7 +51,7 @@ public sealed class NorseUserConfigureTests
 	}
 
 	[Fact]
-	public void Configure_sets_unique_index_on_NormalizedUserName()
+	void Configure_sets_unique_index_on_NormalizedUserName()
 	{
 		var entityType = BuildEntityType();
 		var index = entityType.GetIndexes().Single(i => i.GetDatabaseName() == "ix_users_normalized_user_name");
