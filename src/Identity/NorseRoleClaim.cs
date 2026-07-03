@@ -12,7 +12,7 @@ public sealed class NorseRoleClaim : IdentityRoleClaim<Guid>, INorseEntity<Norse
 	/// <summary>
 	/// The role this claim belongs to.
 	/// </summary>
-	public NorseRole? Role { get; init; }
+	public NorseRole Role { get; init; } = null!;
 
 	/// <inheritdoc />
 	public static void Configure(EntityTypeBuilder<NorseRoleClaim> builder)

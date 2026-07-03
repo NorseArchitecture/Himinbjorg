@@ -10,5 +10,5 @@ public sealed class NorseUserPasskey : IdentityUserPasskey<Guid>
 	/// <summary>
 	/// The user this passkey belongs to.
 	/// </summary>
-	public NorseUser? User { get; init; }
+	public NorseUser User { get; init; } = null!;
 }

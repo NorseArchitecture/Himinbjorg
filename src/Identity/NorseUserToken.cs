@@ -10,5 +10,5 @@ public sealed class NorseUserToken : IdentityUserToken<Guid>
 	/// <summary>
 	/// The user this token belongs to.
 	/// </summary>
-	public NorseUser? User { get; init; }
+	public NorseUser User { get; init; } = null!;
 }

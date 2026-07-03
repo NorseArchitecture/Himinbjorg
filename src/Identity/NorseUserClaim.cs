@@ -12,7 +12,7 @@ public sealed class NorseUserClaim : IdentityUserClaim<Guid>, INorseEntity<Norse
 	/// <summary>
 	/// The user this claim belongs to.
 	/// </summary>
-	public NorseUser? User { get; init; }
+	public NorseUser User { get; init; } = null!;
 
 	/// <inheritdoc />
 	public static void Configure(EntityTypeBuilder<NorseUserClaim> builder)

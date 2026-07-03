@@ -10,5 +10,5 @@ public sealed class NorseUserLogin : IdentityUserLogin<Guid>
 	/// <summary>
 	/// The user this external login belongs to.
 	/// </summary>
-	public NorseUser? User { get; init; }
+	public NorseUser User { get; init; } = null!;
 }
