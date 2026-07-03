@@ -431,9 +431,8 @@ namespace Norse.Identity.Migrations.Migrations
 
                     b.Property<string>("SecurityStamp")
                         .HasMaxLength(32)
-                        .HasColumnType("character(32)")
-                        .HasColumnName("security_stamp")
-                        .IsFixedLength();
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("security_stamp");
 
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("boolean")

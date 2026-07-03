@@ -38,8 +38,11 @@ public sealed class NorseUser : IdentityUser<Guid>, INorseEntity<NorseUser>
 		// UserManager.NewSecurityStamp() is Base32.GenerateBase32() -- always exactly 32 base32
 		// characters, never Guid-shaped -- so this must stay a plain bounded string, not go through
 		// IdentityValueConverters.Stamp (Guid.Parse would throw FormatException on every real stamp).
-		// Fixed-length, not "up to 32" -- the output length never varies.
-		builder.Property(u => u.SecurityStamp).HasMaxLength(32).IsFixedLength();
+		// The value is genuinely fixed-length, but deliberately NOT .IsFixedLength() (-> Postgres
+		// character(n)): Postgres's own docs say character(n) has no storage/perf advantage over
+		// character varying(n) on this engine (unlike SQL Server/MySQL) and is usually the slower
+		// of the two -- pure downside, no upside, for a Postgres-only deployment.
+		builder.Property(u => u.SecurityStamp).HasMaxLength(32);
 		builder.Property(u => u.PasswordHash).HasConversion(IdentityValueConverters.Hash).HasMaxLength(128);
 		builder.Property(u => u.PhoneNumber).HasMaxLength(20);
 
