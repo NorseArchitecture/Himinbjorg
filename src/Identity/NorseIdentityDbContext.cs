@@ -8,9 +8,11 @@ namespace Norse.Identity;
 
 /// <summary>
 /// Norse platform Identity <see cref="IdentityDbContext{TUser,TRole,TKey,TUserClaim,TUserRole,TUserLogin,TRoleClaim,TUserToken,TUserPasskey}"/>,
-/// combining ASP.NET Core Identity and OpenIddict entity sets. Applies snake_case naming conventions
-/// via <see cref="NorseDbContextOptionsExtensions.ApplyNorseConventions"/> since it cannot inherit
-/// <see cref="NorseDbContext"/> directly.
+/// combining ASP.NET Core Identity and OpenIddict entity sets. Naming conventions are applied by
+/// whichever provider registration extension registers this context (see
+/// <c>Norse.EntityFramework.PostgreSQL.NorsePostgresContextExtensions</c> and its SQL Server
+/// counterpart) — this class replicates <see cref="NorseDbContext"/>'s fixed-length provider check
+/// independently since it inherits <c>IdentityDbContext</c>, not <see cref="NorseDbContext"/>.
 /// </summary>
 /// <param name="options">The options for this context.</param>
 public sealed class NorseIdentityDbContext(DbContextOptions<NorseIdentityDbContext> options)
@@ -38,23 +40,23 @@ public sealed class NorseIdentityDbContext(DbContextOptions<NorseIdentityDbConte
 		base.OnConfiguring(optionsBuilder);
 
 		// Pooled hosts freeze options before OnConfiguring runs, and EF Core forbids OnConfiguring
-		// from mutating frozen options at all -- both calls below mutate, so both must be skipped
-		// together for a pooled context. A pooled host's real DI container is expected to apply
-		// naming conventions itself at pool-template-build time (see AddNorsePostgresContext's
-		// configureDbContextOptions parameter) and configure SchemaVersion correctly (see
-		// AddNorseIdentity), so skipping both here is correct, not a loss, for that path.
+		// from mutating frozen options at all -- the call below mutates, so it must be skipped for a
+		// pooled context. A pooled host's real DI container is expected to configure SchemaVersion
+		// correctly itself (see AddNorseIdentity), so skipping it here is correct, not a loss, for
+		// that path.
 		if (!optionsBuilder.Options.IsFrozen)
-		{
-			NorseDbContextOptionsExtensions.ApplyNorseConventions(optionsBuilder);
 			optionsBuilder.UseApplicationServiceProvider(_fallbackIdentityServices);
-		}
 	}
 
 	/// <inheritdoc />
 	protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
 	{
 		base.ConfigureConventions(configurationBuilder);
-		NorseModelConventions.Apply(configurationBuilder);
+
+		// Fixed-length storage (char(n)/nchar(n)) only pays off on SQL Server -- see
+		// Norse.EntityFramework.FixedLengthAttribute's remarks.
+		NorseModelConventions.Apply(configurationBuilder,
+			applyFixedLength: Database.ProviderName == NorseDbContextOptionsExtensions.SqlServerProviderName);
 	}
 
 	/// <inheritdoc />

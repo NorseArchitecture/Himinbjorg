@@ -18,4 +18,16 @@ public sealed class NorseIdentityDbContextFactoryTests
 		entityType.ShouldNotBeNull();
 		entityType.GetTableName().ShouldBe("AspNetUserPasskeys");
 	}
+
+	[Fact]
+	void CreateDbContext_applies_snake_case_naming()
+	{
+		NorseIdentityDbContextFactory factory = new();
+		using var context = factory.CreateDbContext([]);
+
+		var entityType = context.Model.FindEntityType(typeof(NorseOpenIddictApplication));
+
+		entityType.ShouldNotBeNull();
+		entityType.FindProperty(nameof(NorseOpenIddictApplication.ClientId))!.GetColumnName().ShouldBe("client_id");
+	}
 }

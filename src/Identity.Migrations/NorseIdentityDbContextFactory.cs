@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.DependencyInjection;
+using Norse.EntityFramework;
 
 namespace Norse.Identity.Migrations;
 
@@ -30,11 +31,17 @@ public sealed class NorseIdentityDbContextFactory : IDesignTimeDbContextFactory<
 			.Configure<IdentityOptions>(o => o.Stores.SchemaVersion = IdentitySchemaVersions.Version3)
 			.BuildServiceProvider();
 
-		var options = new DbContextOptionsBuilder<NorseIdentityDbContext>()
+		var optionsBuilder = new DbContextOptionsBuilder<NorseIdentityDbContext>()
 			.UseApplicationServiceProvider(applicationServices)
 			.UseNpgsql(connectionString,
-				o => o.MigrationsAssembly(typeof(NorseIdentityDbContextFactory).Assembly.GetName().Name))
-			.Options;
+				o => o.MigrationsAssembly(typeof(NorseIdentityDbContextFactory).Assembly.GetName().Name));
+
+		// This factory only ever targets Postgres (the connection string above is Npgsql-style), so
+		// applying snake_case naming unconditionally here is correct -- unlike the DI-registration
+		// extensions elsewhere in this codebase, there's no provider ambiguity to gate it behind.
+		NorseDbContextOptionsExtensions.ApplyNorseConventions(optionsBuilder);
+
+		var options = optionsBuilder.Options;
 
 		return new NorseIdentityDbContext(options);
 	}
