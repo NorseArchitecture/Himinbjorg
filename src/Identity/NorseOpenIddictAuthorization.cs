@@ -24,6 +24,7 @@ public sealed class NorseOpenIddictAuthorization
 	public static void Configure(EntityTypeBuilder<NorseOpenIddictAuthorization> builder)
 	{
 		builder.Property(a => a.Scopes).HasMaxLength(-1);
+		builder.Property(a => a.Properties).HasMaxLength(-1);
 		builder.HasOne(a => a.Application).WithMany(app => app.Authorizations).HasForeignKey(a => a.ApplicationId);
 	}
 }

@@ -17,7 +17,12 @@ public sealed class NorseRoleClaim : IdentityRoleClaim<Guid>, INorseEntity<Norse
 	/// <inheritdoc />
 	public static void Configure(EntityTypeBuilder<NorseRoleClaim> builder)
 	{
-		// ClaimType/ClaimValue are already bounded by IdentityDbContext's own base OnModelCreating.
-		// Configure exists to satisfy RequireEntityConfigurationConvention and colocate for discoverability.
+		// Contrary to Task 9's assumption, IdentityDbContext's own base OnModelCreating leaves
+		// ClaimType/ClaimValue unbounded -- the RequireExplicitLengthConvention integration test
+		// (Task 14) caught this. ClaimType is a URI-shaped identifier (bounded like
+		// NorseUserLogin.ProviderDisplayName); ClaimValue is genuinely open-ended payload (unbounded
+		// like NorseUserToken.Value).
+		builder.Property(c => c.ClaimType).HasMaxLength(256);
+		builder.Property(c => c.ClaimValue).HasMaxLength(-1);
 	}
 }

@@ -28,8 +28,8 @@ public sealed class NorseUserStoreTests
 			Email = "test@example.com",
 			NormalizedUserName = "TEST@EXAMPLE.COM",
 			NormalizedEmail = "TEST@EXAMPLE.COM",
-			SecurityStamp = "stamp",
-			ConcurrencyStamp = "stamp"
+			SecurityStamp = Guid.NewGuid().ToString(),
+			ConcurrencyStamp = Guid.NewGuid().ToString()
 		});
 		await ctx.SaveChangesAsync(TestContext.Current.CancellationToken);
 
