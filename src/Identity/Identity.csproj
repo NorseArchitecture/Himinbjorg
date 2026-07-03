@@ -14,6 +14,7 @@
 	<ItemGroup>
 		<NorseRef Include="EntityFramework">
 			<Repo>Urdarbrunnr</Repo>
+			<Generator>true</Generator>
 		</NorseRef>
 	</ItemGroup>
 </Project>

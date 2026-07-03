@@ -5,7 +5,7 @@ namespace Norse.Identity.Tests;
 public sealed class NorseUserLoginConfigureTests
 {
 	[Fact]
-	public void Configure_bounds_LoginProvider_ProviderKey_and_ProviderDisplayName()
+	void Configure_bounds_LoginProvider_ProviderKey_and_ProviderDisplayName()
 	{
 		ModelBuilder builder = new();
 		builder.Entity<NorseUserLogin>(NorseUserLogin.Configure);

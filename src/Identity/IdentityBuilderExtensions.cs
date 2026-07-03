@@ -30,7 +30,9 @@ public static class IdentityBuilderExtensions
 			.AddCore(o => o
 				.UseEntityFrameworkCore()
 				.UseDbContext<NorseIdentityDbContext>()
-				.ReplaceDefaultEntities<Guid>());
+				.ReplaceDefaultEntities<
+					NorseOpenIddictApplication, NorseOpenIddictAuthorization,
+					NorseOpenIddictScope, NorseOpenIddictToken, Guid>());
 
 		return services;
 	}

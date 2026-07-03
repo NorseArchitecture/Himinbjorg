@@ -51,9 +51,20 @@ public sealed class NorseIdentityDbContext(DbContextOptions<NorseIdentityDbConte
 	}
 
 	/// <inheritdoc />
+	protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+	{
+		base.ConfigureConventions(configurationBuilder);
+		NorseModelConventions.Apply(configurationBuilder);
+	}
+
+	/// <inheritdoc />
 	protected override void OnModelCreating(ModelBuilder builder)
 	{
 		base.OnModelCreating(builder);
-		builder.UseOpenIddict<Guid>();
+		builder.HasDefaultSchema("identity");
+		builder.UseOpenIddict<
+			NorseOpenIddictApplication, NorseOpenIddictAuthorization,
+			NorseOpenIddictScope, NorseOpenIddictToken, Guid>();
+		builder.ApplyNorseConfigurations();
 	}
 }

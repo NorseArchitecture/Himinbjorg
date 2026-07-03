@@ -5,7 +5,7 @@ namespace Norse.Identity.Tests;
 public sealed class NorseOpenIddictEntitiesConfigureTests
 {
 	[Fact]
-	public void Application_Configure_bounds_ClientSecret_and_DisplayName()
+	void Application_Configure_bounds_ClientSecret_and_DisplayName()
 	{
 		var entityType = BuildApplicationModel().FindEntityType(typeof(NorseOpenIddictApplication))!;
 
@@ -14,7 +14,7 @@ public sealed class NorseOpenIddictEntitiesConfigureTests
 	}
 
 	[Fact]
-	public void Authorization_Configure_bounds_Scopes_and_declares_explicit_ApplicationId()
+	void Authorization_Configure_bounds_Scopes_and_declares_explicit_ApplicationId()
 	{
 		var model = BuildAuthorizationModel();
 		var entityType = model.FindEntityType(typeof(NorseOpenIddictAuthorization))!;
@@ -26,7 +26,7 @@ public sealed class NorseOpenIddictEntitiesConfigureTests
 	}
 
 	[Fact]
-	public void Scope_Configure_bounds_Description_and_DisplayName()
+	void Scope_Configure_bounds_Description_and_DisplayName()
 	{
 		var entityType = BuildScopeModel().FindEntityType(typeof(NorseOpenIddictScope))!;
 
@@ -35,7 +35,7 @@ public sealed class NorseOpenIddictEntitiesConfigureTests
 	}
 
 	[Fact]
-	public void Token_Configure_bounds_Payload_and_declares_explicit_FKs()
+	void Token_Configure_bounds_Payload_and_declares_explicit_FKs()
 	{
 		var model = BuildTokenModel();
 		var entityType = model.FindEntityType(typeof(NorseOpenIddictToken))!;
