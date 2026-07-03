@@ -35,7 +35,11 @@ public sealed class NorseUser : IdentityUser<Guid>, INorseEntity<NorseUser>
 	{
 		builder.ToTable("users");
 		builder.Property(u => u.ConcurrencyStamp).HasConversion(IdentityValueConverters.Stamp);
-		builder.Property(u => u.SecurityStamp).HasConversion(IdentityValueConverters.Stamp);
+		// UserManager.NewSecurityStamp() is Base32.GenerateBase32() -- always exactly 32 base32
+		// characters, never Guid-shaped -- so this must stay a plain bounded string, not go through
+		// IdentityValueConverters.Stamp (Guid.Parse would throw FormatException on every real stamp).
+		// Fixed-length, not "up to 32" -- the output length never varies.
+		builder.Property(u => u.SecurityStamp).HasMaxLength(32).IsFixedLength();
 		builder.Property(u => u.PasswordHash).HasConversion(IdentityValueConverters.Hash).HasMaxLength(128);
 		builder.Property(u => u.PhoneNumber).HasMaxLength(20);
 

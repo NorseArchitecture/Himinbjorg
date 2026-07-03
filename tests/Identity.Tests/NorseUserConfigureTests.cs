@@ -31,12 +31,26 @@ public sealed class NorseUserConfigureTests
 	}
 
 	[Fact]
-	void Configure_converts_ConcurrencyStamp_and_SecurityStamp()
+	void Configure_converts_ConcurrencyStamp()
 	{
 		var entityType = BuildEntityType();
 
 		entityType.FindProperty(nameof(NorseUser.ConcurrencyStamp))!.GetValueConverter().ShouldNotBeNull();
-		entityType.FindProperty(nameof(NorseUser.SecurityStamp))!.GetValueConverter().ShouldNotBeNull();
+	}
+
+	[Fact]
+	void Configure_bounds_SecurityStamp_as_fixed_length_without_converting_it()
+	{
+		var entityType = BuildEntityType();
+		var property = entityType.FindProperty(nameof(NorseUser.SecurityStamp))!;
+
+		// UserManager.NewSecurityStamp() is Base32.GenerateBase32() -- always exactly 32 base32
+		// characters, never Guid-shaped -- so this must NOT go through IdentityValueConverters.Stamp
+		// (Guid.Parse), unlike ConcurrencyStamp, which Identity always sets to a real Guid string.
+		// Fixed-length, not "up to 32" -- the output length never varies.
+		property.GetMaxLength().ShouldBe(32);
+		property.IsFixedLength().ShouldBe(true);
+		property.GetValueConverter().ShouldBeNull();
 	}
 
 	[Fact]

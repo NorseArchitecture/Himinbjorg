@@ -89,7 +89,7 @@ namespace Norse.Identity.Migrations.Migrations
                     normalized_email = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
                     email_confirmed = table.Column<bool>(type: "boolean", nullable: false),
                     password_hash = table.Column<byte[]>(type: "bytea", maxLength: 128, nullable: true),
-                    security_stamp = table.Column<Guid>(type: "uuid", nullable: true),
+                    security_stamp = table.Column<string>(type: "character(32)", fixedLength: true, maxLength: 32, nullable: true),
                     concurrency_stamp = table.Column<Guid>(type: "uuid", nullable: true),
                     phone_number = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
                     phone_number_confirmed = table.Column<bool>(type: "boolean", nullable: false),

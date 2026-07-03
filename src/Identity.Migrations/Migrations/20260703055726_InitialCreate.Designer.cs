@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Norse.Identity.Migrations.Migrations
 {
     [DbContext(typeof(NorseIdentityDbContext))]
-    [Migration("20260703053857_InitialCreate")]
+    [Migration("20260703055726_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -432,9 +432,11 @@ namespace Norse.Identity.Migrations.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("phone_number_confirmed");
 
-                    b.Property<Guid?>("SecurityStamp")
-                        .HasColumnType("uuid")
-                        .HasColumnName("security_stamp");
+                    b.Property<string>("SecurityStamp")
+                        .HasMaxLength(32)
+                        .HasColumnType("character(32)")
+                        .HasColumnName("security_stamp")
+                        .IsFixedLength();
 
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("boolean")
