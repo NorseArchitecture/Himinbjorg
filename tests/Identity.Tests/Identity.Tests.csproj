@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<ItemGroup>
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="*" />
+		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="*" />
 		<PackageReference Include="NSubstitute" Version="*" />
 		<ProjectReference Include="../../src/Identity/Identity.csproj" />
 	</ItemGroup>

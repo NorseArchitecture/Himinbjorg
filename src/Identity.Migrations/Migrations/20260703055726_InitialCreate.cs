@@ -12,65 +12,30 @@ namespace Norse.Identity.Migrations.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.CreateTable(
-                name: "AspNetRoles",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
-                    normalized_name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
-                    concurrency_stamp = table.Column<string>(type: "text", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("pk_asp_net_roles", x => x.id);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "AspNetUsers",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    user_name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
-                    normalized_user_name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
-                    email = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
-                    normalized_email = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
-                    email_confirmed = table.Column<bool>(type: "boolean", nullable: false),
-                    password_hash = table.Column<string>(type: "text", nullable: true),
-                    security_stamp = table.Column<string>(type: "text", nullable: true),
-                    concurrency_stamp = table.Column<string>(type: "text", nullable: true),
-                    phone_number = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
-                    phone_number_confirmed = table.Column<bool>(type: "boolean", nullable: false),
-                    two_factor_enabled = table.Column<bool>(type: "boolean", nullable: false),
-                    lockout_end = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    lockout_enabled = table.Column<bool>(type: "boolean", nullable: false),
-                    access_failed_count = table.Column<int>(type: "integer", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("pk_asp_net_users", x => x.id);
-                });
+            migrationBuilder.EnsureSchema(
+                name: "identity");
 
             migrationBuilder.CreateTable(
                 name: "OpenIddictApplications",
+                schema: "identity",
                 columns: table => new
                 {
                     id = table.Column<Guid>(type: "uuid", nullable: false),
                     application_type = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
                     client_id = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    client_secret = table.Column<string>(type: "text", nullable: true),
+                    client_secret = table.Column<string>(type: "text", maxLength: -1, nullable: true),
                     client_type = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
                     concurrency_token = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
                     consent_type = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
-                    display_name = table.Column<string>(type: "text", nullable: true),
-                    display_names = table.Column<string>(type: "text", nullable: true),
-                    json_web_key_set = table.Column<string>(type: "text", nullable: true),
-                    permissions = table.Column<string>(type: "text", nullable: true),
-                    post_logout_redirect_uris = table.Column<string>(type: "text", nullable: true),
-                    properties = table.Column<string>(type: "text", nullable: true),
-                    redirect_uris = table.Column<string>(type: "text", nullable: true),
-                    requirements = table.Column<string>(type: "text", nullable: true),
-                    settings = table.Column<string>(type: "text", nullable: true)
+                    display_name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
+                    display_names = table.Column<string>(type: "text", maxLength: -1, nullable: true),
+                    json_web_key_set = table.Column<string>(type: "text", maxLength: -1, nullable: true),
+                    permissions = table.Column<string>(type: "text", maxLength: -1, nullable: true),
+                    post_logout_redirect_uris = table.Column<string>(type: "text", maxLength: -1, nullable: true),
+                    properties = table.Column<string>(type: "text", maxLength: -1, nullable: true),
+                    redirect_uris = table.Column<string>(type: "text", maxLength: -1, nullable: true),
+                    requirements = table.Column<string>(type: "text", maxLength: -1, nullable: true),
+                    settings = table.Column<string>(type: "text", maxLength: -1, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -79,17 +44,18 @@ namespace Norse.Identity.Migrations.Migrations
 
             migrationBuilder.CreateTable(
                 name: "OpenIddictScopes",
+                schema: "identity",
                 columns: table => new
                 {
                     id = table.Column<Guid>(type: "uuid", nullable: false),
                     concurrency_token = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
-                    description = table.Column<string>(type: "text", nullable: true),
-                    descriptions = table.Column<string>(type: "text", nullable: true),
-                    display_name = table.Column<string>(type: "text", nullable: true),
-                    display_names = table.Column<string>(type: "text", nullable: true),
+                    description = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true),
+                    descriptions = table.Column<string>(type: "text", maxLength: -1, nullable: true),
+                    display_name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
+                    display_names = table.Column<string>(type: "text", maxLength: -1, nullable: true),
                     name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
-                    properties = table.Column<string>(type: "text", nullable: true),
-                    resources = table.Column<string>(type: "text", nullable: true)
+                    properties = table.Column<string>(type: "text", maxLength: -1, nullable: true),
+                    resources = table.Column<string>(type: "text", maxLength: -1, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -97,14 +63,82 @@ namespace Norse.Identity.Migrations.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "roles",
+                schema: "identity",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
+                    normalized_name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
+                    concurrency_stamp = table.Column<Guid>(type: "uuid", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_roles", x => x.id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "users",
+                schema: "identity",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    user_name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
+                    normalized_user_name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
+                    email = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
+                    normalized_email = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
+                    email_confirmed = table.Column<bool>(type: "boolean", nullable: false),
+                    password_hash = table.Column<byte[]>(type: "bytea", maxLength: 128, nullable: true),
+                    security_stamp = table.Column<string>(type: "character(32)", fixedLength: true, maxLength: 32, nullable: true),
+                    concurrency_stamp = table.Column<Guid>(type: "uuid", nullable: true),
+                    phone_number = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
+                    phone_number_confirmed = table.Column<bool>(type: "boolean", nullable: false),
+                    two_factor_enabled = table.Column<bool>(type: "boolean", nullable: false),
+                    lockout_end = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    lockout_enabled = table.Column<bool>(type: "boolean", nullable: false),
+                    access_failed_count = table.Column<int>(type: "integer", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_users", x => x.id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "OpenIddictAuthorizations",
+                schema: "identity",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    application_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    concurrency_token = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    creation_date = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    properties = table.Column<string>(type: "text", maxLength: -1, nullable: true),
+                    scopes = table.Column<string>(type: "text", maxLength: -1, nullable: true),
+                    status = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    subject = table.Column<string>(type: "character varying(400)", maxLength: 400, nullable: true),
+                    type = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_open_iddict_authorizations", x => x.id);
+                    table.ForeignKey(
+                        name: "fk_open_iddict_authorizations_open_iddict_applications_application",
+                        column: x => x.application_id,
+                        principalSchema: "identity",
+                        principalTable: "OpenIddictApplications",
+                        principalColumn: "id");
+                });
+
+            migrationBuilder.CreateTable(
                 name: "AspNetRoleClaims",
+                schema: "identity",
                 columns: table => new
                 {
                     id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     role_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    claim_type = table.Column<string>(type: "text", nullable: true),
-                    claim_value = table.Column<string>(type: "text", nullable: true)
+                    claim_type = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
+                    claim_value = table.Column<string>(type: "text", maxLength: -1, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -112,20 +146,22 @@ namespace Norse.Identity.Migrations.Migrations
                     table.ForeignKey(
                         name: "fk_asp_net_role_claims_asp_net_roles_role_id",
                         column: x => x.role_id,
-                        principalTable: "AspNetRoles",
+                        principalSchema: "identity",
+                        principalTable: "roles",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
                 name: "AspNetUserClaims",
+                schema: "identity",
                 columns: table => new
                 {
                     id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     user_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    claim_type = table.Column<string>(type: "text", nullable: true),
-                    claim_value = table.Column<string>(type: "text", nullable: true)
+                    claim_type = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
+                    claim_value = table.Column<string>(type: "text", maxLength: -1, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -133,18 +169,20 @@ namespace Norse.Identity.Migrations.Migrations
                     table.ForeignKey(
                         name: "fk_asp_net_user_claims_asp_net_users_user_id",
                         column: x => x.user_id,
-                        principalTable: "AspNetUsers",
+                        principalSchema: "identity",
+                        principalTable: "users",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
                 name: "AspNetUserLogins",
+                schema: "identity",
                 columns: table => new
                 {
                     login_provider = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
-                    provider_key = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
-                    provider_display_name = table.Column<string>(type: "text", nullable: true),
+                    provider_key = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                    provider_display_name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
                     user_id = table.Column<Guid>(type: "uuid", nullable: false)
                 },
                 constraints: table =>
@@ -153,13 +191,15 @@ namespace Norse.Identity.Migrations.Migrations
                     table.ForeignKey(
                         name: "fk_asp_net_user_logins_asp_net_users_user_id",
                         column: x => x.user_id,
-                        principalTable: "AspNetUsers",
+                        principalSchema: "identity",
+                        principalTable: "users",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
                 name: "AspNetUserPasskeys",
+                schema: "identity",
                 columns: table => new
                 {
                     credential_id = table.Column<byte[]>(type: "bytea", maxLength: 1024, nullable: false),
@@ -172,43 +212,21 @@ namespace Norse.Identity.Migrations.Migrations
                     table.ForeignKey(
                         name: "fk_asp_net_user_passkeys_asp_net_users_user_id",
                         column: x => x.user_id,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "AspNetUserRoles",
-                columns: table => new
-                {
-                    user_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    role_id = table.Column<Guid>(type: "uuid", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("pk_asp_net_user_roles", x => new { x.user_id, x.role_id });
-                    table.ForeignKey(
-                        name: "fk_asp_net_user_roles_asp_net_roles_role_id",
-                        column: x => x.role_id,
-                        principalTable: "AspNetRoles",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "fk_asp_net_user_roles_asp_net_users_user_id",
-                        column: x => x.user_id,
-                        principalTable: "AspNetUsers",
+                        principalSchema: "identity",
+                        principalTable: "users",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
                 name: "AspNetUserTokens",
+                schema: "identity",
                 columns: table => new
                 {
                     user_id = table.Column<Guid>(type: "uuid", nullable: false),
                     login_provider = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
                     name = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
-                    value = table.Column<string>(type: "text", nullable: true)
+                    value = table.Column<string>(type: "text", maxLength: -1, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -216,37 +234,42 @@ namespace Norse.Identity.Migrations.Migrations
                     table.ForeignKey(
                         name: "fk_asp_net_user_tokens_asp_net_users_user_id",
                         column: x => x.user_id,
-                        principalTable: "AspNetUsers",
+                        principalSchema: "identity",
+                        principalTable: "users",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
-                name: "OpenIddictAuthorizations",
+                name: "user_roles",
+                schema: "identity",
                 columns: table => new
                 {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    application_id = table.Column<Guid>(type: "uuid", nullable: true),
-                    concurrency_token = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
-                    creation_date = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    properties = table.Column<string>(type: "text", nullable: true),
-                    scopes = table.Column<string>(type: "text", nullable: true),
-                    status = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
-                    subject = table.Column<string>(type: "character varying(400)", maxLength: 400, nullable: true),
-                    type = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true)
+                    user_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    role_id = table.Column<Guid>(type: "uuid", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("pk_open_iddict_authorizations", x => x.id);
+                    table.PrimaryKey("pk_user_roles", x => new { x.user_id, x.role_id });
                     table.ForeignKey(
-                        name: "fk_open_iddict_authorizations_open_iddict_applications_application",
-                        column: x => x.application_id,
-                        principalTable: "OpenIddictApplications",
-                        principalColumn: "id");
+                        name: "fk_user_roles_roles_role_id",
+                        column: x => x.role_id,
+                        principalSchema: "identity",
+                        principalTable: "roles",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "fk_user_roles_users_user_id",
+                        column: x => x.user_id,
+                        principalSchema: "identity",
+                        principalTable: "users",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
                 name: "OpenIddictTokens",
+                schema: "identity",
                 columns: table => new
                 {
                     id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -255,8 +278,8 @@ namespace Norse.Identity.Migrations.Migrations
                     concurrency_token = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
                     creation_date = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     expiration_date = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    payload = table.Column<string>(type: "text", nullable: true),
-                    properties = table.Column<string>(type: "text", nullable: true),
+                    payload = table.Column<string>(type: "text", maxLength: -1, nullable: true),
+                    properties = table.Column<string>(type: "text", maxLength: -1, nullable: true),
                     redemption_date = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     reference_id = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
                     status = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
@@ -269,88 +292,104 @@ namespace Norse.Identity.Migrations.Migrations
                     table.ForeignKey(
                         name: "fk_open_iddict_tokens_open_iddict_applications_application_id",
                         column: x => x.application_id,
+                        principalSchema: "identity",
                         principalTable: "OpenIddictApplications",
                         principalColumn: "id");
                     table.ForeignKey(
                         name: "fk_open_iddict_tokens_open_iddict_authorizations_authorization_id",
                         column: x => x.authorization_id,
+                        principalSchema: "identity",
                         principalTable: "OpenIddictAuthorizations",
                         principalColumn: "id");
                 });
 
             migrationBuilder.CreateIndex(
                 name: "ix_asp_net_role_claims_role_id",
+                schema: "identity",
                 table: "AspNetRoleClaims",
                 column: "role_id");
 
             migrationBuilder.CreateIndex(
-                name: "RoleNameIndex",
-                table: "AspNetRoles",
-                column: "normalized_name",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
                 name: "ix_asp_net_user_claims_user_id",
+                schema: "identity",
                 table: "AspNetUserClaims",
                 column: "user_id");
 
             migrationBuilder.CreateIndex(
                 name: "ix_asp_net_user_logins_user_id",
+                schema: "identity",
                 table: "AspNetUserLogins",
                 column: "user_id");
 
             migrationBuilder.CreateIndex(
                 name: "ix_asp_net_user_passkeys_user_id",
+                schema: "identity",
                 table: "AspNetUserPasskeys",
                 column: "user_id");
 
             migrationBuilder.CreateIndex(
-                name: "ix_asp_net_user_roles_role_id",
-                table: "AspNetUserRoles",
-                column: "role_id");
-
-            migrationBuilder.CreateIndex(
-                name: "EmailIndex",
-                table: "AspNetUsers",
-                column: "normalized_email");
-
-            migrationBuilder.CreateIndex(
-                name: "UserNameIndex",
-                table: "AspNetUsers",
-                column: "normalized_user_name",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
                 name: "ix_open_iddict_applications_client_id",
+                schema: "identity",
                 table: "OpenIddictApplications",
                 column: "client_id",
                 unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "ix_open_iddict_authorizations_application_id_status_subject_type",
+                schema: "identity",
                 table: "OpenIddictAuthorizations",
                 columns: new[] { "application_id", "status", "subject", "type" });
 
             migrationBuilder.CreateIndex(
                 name: "ix_open_iddict_scopes_name",
+                schema: "identity",
                 table: "OpenIddictScopes",
                 column: "name",
                 unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "ix_open_iddict_tokens_application_id_status_subject_type",
+                schema: "identity",
                 table: "OpenIddictTokens",
                 columns: new[] { "application_id", "status", "subject", "type" });
 
             migrationBuilder.CreateIndex(
                 name: "ix_open_iddict_tokens_authorization_id",
+                schema: "identity",
                 table: "OpenIddictTokens",
                 column: "authorization_id");
 
             migrationBuilder.CreateIndex(
                 name: "ix_open_iddict_tokens_reference_id",
+                schema: "identity",
                 table: "OpenIddictTokens",
                 column: "reference_id",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "ix_roles_normalized_name",
+                schema: "identity",
+                table: "roles",
+                column: "normalized_name",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "ix_user_roles_role_id",
+                schema: "identity",
+                table: "user_roles",
+                column: "role_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_users_normalized_email",
+                schema: "identity",
+                table: "users",
+                column: "normalized_email");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_users_normalized_user_name",
+                schema: "identity",
+                table: "users",
+                column: "normalized_user_name",
                 unique: true);
         }
 
@@ -358,40 +397,52 @@ namespace Norse.Identity.Migrations.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "AspNetRoleClaims");
+                name: "AspNetRoleClaims",
+                schema: "identity");
 
             migrationBuilder.DropTable(
-                name: "AspNetUserClaims");
+                name: "AspNetUserClaims",
+                schema: "identity");
 
             migrationBuilder.DropTable(
-                name: "AspNetUserLogins");
+                name: "AspNetUserLogins",
+                schema: "identity");
 
             migrationBuilder.DropTable(
-                name: "AspNetUserPasskeys");
+                name: "AspNetUserPasskeys",
+                schema: "identity");
 
             migrationBuilder.DropTable(
-                name: "AspNetUserRoles");
+                name: "AspNetUserTokens",
+                schema: "identity");
 
             migrationBuilder.DropTable(
-                name: "AspNetUserTokens");
+                name: "OpenIddictScopes",
+                schema: "identity");
 
             migrationBuilder.DropTable(
-                name: "OpenIddictScopes");
+                name: "OpenIddictTokens",
+                schema: "identity");
 
             migrationBuilder.DropTable(
-                name: "OpenIddictTokens");
+                name: "user_roles",
+                schema: "identity");
 
             migrationBuilder.DropTable(
-                name: "AspNetRoles");
+                name: "OpenIddictAuthorizations",
+                schema: "identity");
 
             migrationBuilder.DropTable(
-                name: "AspNetUsers");
+                name: "roles",
+                schema: "identity");
 
             migrationBuilder.DropTable(
-                name: "OpenIddictAuthorizations");
+                name: "users",
+                schema: "identity");
 
             migrationBuilder.DropTable(
-                name: "OpenIddictApplications");
+                name: "OpenIddictApplications",
+                schema: "identity");
         }
     }
 }
