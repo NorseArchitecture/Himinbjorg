@@ -39,7 +39,7 @@ public sealed class NorseUserConfigureTests
 	}
 
 	[Fact]
-	void Configure_bounds_SecurityStamp_as_fixed_length_without_converting_it()
+	void Configure_bounds_SecurityStamp_without_converting_it()
 	{
 		var entityType = BuildEntityType();
 		var property = entityType.FindProperty(nameof(NorseUser.SecurityStamp))!;
@@ -47,9 +47,10 @@ public sealed class NorseUserConfigureTests
 		// UserManager.NewSecurityStamp() is Base32.GenerateBase32() -- always exactly 32 base32
 		// characters, never Guid-shaped -- so this must NOT go through IdentityValueConverters.Stamp
 		// (Guid.Parse), unlike ConcurrencyStamp, which Identity always sets to a real Guid string.
-		// Fixed-length, not "up to 32" -- the output length never varies.
+		// Deliberately not .IsFixedLength(): Postgres's character(n) has no storage/perf advantage
+		// over character varying(n) on this engine, unlike SQL Server/MySQL.
 		property.GetMaxLength().ShouldBe(32);
-		property.IsFixedLength().ShouldBe(true);
+		property.IsFixedLength().ShouldNotBe(true);
 		property.GetValueConverter().ShouldBeNull();
 	}
 
