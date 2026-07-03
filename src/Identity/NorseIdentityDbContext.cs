@@ -40,11 +40,10 @@ public sealed class NorseIdentityDbContext(DbContextOptions<NorseIdentityDbConte
 		base.OnConfiguring(optionsBuilder);
 
 		// Pooled hosts freeze options before OnConfiguring runs, and EF Core forbids OnConfiguring
-		// from mutating frozen options at all -- both calls below mutate, so both must be skipped
-		// together for a pooled context. A pooled host's real DI container is expected to apply
-		// naming conventions itself at pool-template-build time (see AddNorsePostgresContext's
-		// configureDbContextOptions parameter) and configure SchemaVersion correctly (see
-		// AddNorseIdentity), so skipping both here is correct, not a loss, for that path.
+		// from mutating frozen options at all -- the call below mutates, so it must be skipped for a
+		// pooled context. A pooled host's real DI container is expected to configure SchemaVersion
+		// correctly itself (see AddNorseIdentity), so skipping it here is correct, not a loss, for
+		// that path.
 		if (!optionsBuilder.Options.IsFrozen)
 			optionsBuilder.UseApplicationServiceProvider(_fallbackIdentityServices);
 	}
