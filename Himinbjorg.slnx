@@ -15,11 +15,13 @@
 		<File Path="src/Directory.Build.targets" />
 		<Project Path="src/Identity.Migrations/Identity.Migrations.csproj" />
 		<Project Path="src/Identity/Identity.csproj" />
+		<Project Path="src/Identity.Web.Server/Identity.Web.Server.csproj" />
 	</Folder>
 	<Folder Name="/tests/">
 		<File Path="tests/Directory.Build.props" />
 		<File Path="tests/Directory.Build.targets" />
 		<Project Path="tests/Identity.Migrations.Tests/Identity.Migrations.Tests.csproj" />
 		<Project Path="tests/Identity.Tests/Identity.Tests.csproj" />
+		<Project Path="tests/Identity.Web.Server.Tests/Identity.Web.Server.Tests.csproj" />
 	</Folder>
 </Solution>

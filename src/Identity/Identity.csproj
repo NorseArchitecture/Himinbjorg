@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<Description>Norse.Identity: ASP.NET Core Identity v3 entity types, NorseIdentityDbContext (Identity + OpenIddict), NorseUserStore with projection overrides, and DI extension. Runtime library — referenced by Norse.Auth.Server; never by migration tooling.</Description>
+		<Description>Norse.Identity: ASP.NET Core Identity v3 entity types, NorseIdentityDbContext (Identity + OpenIddict), NorseUserStore with projection overrides, and DI extension. Runtime library — referenced by Norse.Identity.Web.Server; never by migration tooling.</Description>
 		<!-- ASP.NET Core Identity does not support trimming/AOT; override the src-level default. -->
 		<IsAotCompatible>false</IsAotCompatible>
 	</PropertyGroup>
@@ -15,6 +15,9 @@
 		<NorseRef Include="EntityFramework">
 			<Repo>Urdarbrunnr</Repo>
 			<Generator>true</Generator>
+		</NorseRef>
+		<NorseRef Include="Infrastructure.Web.Server">
+			<Repo>Midgard</Repo>
 		</NorseRef>
 	</ItemGroup>
 </Project>

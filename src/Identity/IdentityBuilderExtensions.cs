@@ -22,6 +22,7 @@ public static class IdentityBuilderExtensions
 		services
 			.AddIdentity<NorseUser, NorseRole>()
 			.AddUserStore<NorseUserStore>()
+			.AddSignInManager<NorseSignInManager>()
 			.AddEntityFrameworkStores<NorseIdentityDbContext>()
 			.AddDefaultTokenProviders();
 
