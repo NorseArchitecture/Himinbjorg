@@ -17,14 +17,17 @@
 		<NorseRef Include="AuthN.Components">
 			<Repo>Heimdall</Repo>
 		</NorseRef>
+		<NorseRef Include="AuthN.Components.FluentUI">
+			<Repo>Heimdall</Repo>
+		</NorseRef>
 		<NorseRef Include="Abstractions.Web.Server">
+			<Repo>Asgard</Repo>
+		</NorseRef>
+		<NorseRef Include="Abstractions.Components">
 			<Repo>Asgard</Repo>
 		</NorseRef>
 		<NorseRef Include="Infrastructure.Web.Server">
 			<Repo>Midgard</Repo>
-		</NorseRef>
-		<NorseRef Include="Hosting.Web.Components">
-			<Repo>Yggdrasil</Repo>
 		</NorseRef>
 	</ItemGroup>
 </Project>
