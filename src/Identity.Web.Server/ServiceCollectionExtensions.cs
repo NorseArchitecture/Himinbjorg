@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Norse.Abstractions.Web.Server.Mediator;
 using Norse.AuthN.Components;
@@ -11,8 +12,10 @@ namespace Norse.Identity.Web.Server;
 public static class ServiceCollectionExtensions
 {
 	/// <summary>
-	/// Registers <see cref="NorseIdentityDbContext"/>, ASP.NET Core Identity, the code-first gRPC host with
-	/// <see cref="OutcomeServerInterceptor"/>, and the mediator handlers backing <see cref="IAuthenticationService"/>.
+	/// Registers <see cref="NorseIdentityDbContext"/>, ASP.NET Core Identity (with the
+	/// <see cref="NorseSignInManager"/> override), the code-first gRPC host with
+	/// <see cref="OutcomeServerInterceptor"/>, and the mediator handlers backing
+	/// <see cref="IAuthenticationService"/>.
 	/// </summary>
 	public static IServiceCollection AddNorseAuthenticationService(this IServiceCollection services, string connectionString)
 	{
@@ -21,7 +24,7 @@ public static class ServiceCollectionExtensions
 			o.UseNpgsql(connectionString);
 			NorseDbContextOptionsExtensions.ApplyNorseConventions(o);
 		});
-		services.AddNorseIdentity();
+		services.AddNorseIdentity().AddSignInManager<NorseSignInManager>();
 		services.AddHttpContextAccessor();
 		services.AddCodeFirstGrpc(o => o.Interceptors.Add<OutcomeServerInterceptor>());
 

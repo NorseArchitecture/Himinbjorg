@@ -20,13 +20,13 @@ public sealed class IdentityBuilderExtensionsTests
 	}
 
 	[Fact]
-	void AddNorseIdentity_returns_same_services_for_chaining()
+	void AddNorseIdentity_returns_the_identity_builder_wrapping_the_same_services()
 	{
 		ServiceCollection services = new();
 
 		var result = services.AddNorseIdentity();
 
-		result.ShouldBeSameAs(services);
+		result.Services.ShouldBeSameAs(services);
 	}
 
 	[Fact]

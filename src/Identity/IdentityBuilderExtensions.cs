@@ -11,18 +11,19 @@ public static class IdentityBuilderExtensions
 	/// <summary>
 	/// Registers ASP.NET Core Identity (with <see cref="NorseUserStore"/> and
 	/// <see cref="NorseIdentityDbContext"/> as its EF stores) and OpenIddict's core services against the
-	/// same context.
+	/// same context. Returns the <see cref="IdentityBuilder"/>, not <see cref="IServiceCollection"/> — this
+	/// project is shared with migration tooling and must not reference a <c>SignInManager</c> override; a
+	/// caller that needs one chains <c>.AddSignInManager&lt;T&gt;()</c> on the returned builder itself.
 	/// </summary>
 	/// <param name="services">The service collection to configure.</param>
-	/// <returns>The same <paramref name="services"/> for chaining.</returns>
-	public static IServiceCollection AddNorseIdentity(this IServiceCollection services)
+	/// <returns>The <see cref="IdentityBuilder"/> for further chaining.</returns>
+	public static IdentityBuilder AddNorseIdentity(this IServiceCollection services)
 	{
 		services.Configure<IdentityOptions>(o => o.Stores.SchemaVersion = IdentitySchemaVersions.Version3);
 
-		services
+		var identityBuilder = services
 			.AddIdentity<NorseUser, NorseRole>()
 			.AddUserStore<NorseUserStore>()
-			.AddSignInManager<NorseSignInManager>()
 			.AddEntityFrameworkStores<NorseIdentityDbContext>()
 			.AddDefaultTokenProviders();
 
@@ -35,6 +36,6 @@ public static class IdentityBuilderExtensions
 					NorseOpenIddictApplication, NorseOpenIddictAuthorization,
 					NorseOpenIddictScope, NorseOpenIddictToken, Guid>());
 
-		return services;
+		return identityBuilder;
 	}
 }

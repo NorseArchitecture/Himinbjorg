@@ -1,12 +1,10 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Norse.Infrastructure.Web.Server.DeferredSignIn;
+using Norse.Abstractions.Web.Server.DeferredSignIn;
 
-namespace Norse.Identity;
+namespace Norse.Identity.Web.Server;
 
 /// <summary>
 /// Overrides every seam ASP.NET Core Identity's sign-in/sign-out paths funnel through to detect when the
@@ -16,6 +14,11 @@ namespace Norse.Identity;
 /// <c>HttpContext.Items</c> for the caller to read back. Every other call path (WASM/MAUI over gRPC-Web,
 /// any static-SSR request) is a real, distinct HTTP request with <c>Response.HasStarted == false</c> and
 /// behaves exactly as the unmodified base class would — zero behavior change for those paths.
+///
+/// Lives in <c>Identity.Web.Server</c>, not the base <c>Identity</c> project — <c>Identity</c> is shared
+/// with <c>Identity.Migrations</c> (a console tool), and everything this type touches
+/// (<see cref="HttpContext"/>, <see cref="AuthenticationProperties"/>, <see cref="IDeferredSignIn"/>) is an
+/// ASP.NET-Core-web-hosting concern migration tooling has no business depending on.
 /// </summary>
 public sealed class NorseSignInManager(
 	UserManager<NorseUser> userManager, IHttpContextAccessor contextAccessor,

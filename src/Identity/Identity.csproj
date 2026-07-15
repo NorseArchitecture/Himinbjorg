@@ -16,8 +16,5 @@
 			<Repo>Urdarbrunnr</Repo>
 			<Generator>true</Generator>
 		</NorseRef>
-		<NorseRef Include="Infrastructure.Web.Server">
-			<Repo>Midgard</Repo>
-		</NorseRef>
 	</ItemGroup>
 </Project>

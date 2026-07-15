@@ -9,10 +9,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using Norse.Infrastructure.Web.Server.DeferredSignIn;
+using Norse.Abstractions.Web.Server.DeferredSignIn;
 using NSubstitute;
 
-namespace Norse.Identity.Tests;
+namespace Norse.Identity.Web.Server.Tests;
 
 /// <summary>
 /// Proves <see cref="NorseSignInManager"/> actually intercepts sign-in/sign-out once
@@ -23,8 +23,7 @@ namespace Norse.Identity.Tests;
 /// minimal ASP.NET Core pipeline via <see cref="TestServer"/> with a real cookie authentication handler
 /// wired in. Writing to the response body before sign-in flips <c>HasStarted</c> for real, the same way
 /// Kestrel does, and the unmodified <see cref="SignInManager{TUser}"/> genuinely throws
-/// <see cref="InvalidOperationException"/> trying to write the Set-Cookie header afterward -- this is the
-/// exact crash the design note (2026-07-14-deferred-signin-fix.md) reports from the live composed system.
+/// <see cref="InvalidOperationException"/> trying to write the Set-Cookie header afterward.
 /// </summary>
 public sealed class NorseSignInManagerTests
 {
