@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<Description>Norse.Identity.Migrations.SqlServer: the SQL Server-targeted IDesignTimeDbContextFactory and checked-in EF migrations for NorseIdentityDbContext. Migration tooling only — never referenced from a runtime container.</Description>
+		<!-- EF Core is not AOT/trim-compatible; override the src-level default. -->
+		<IsAotCompatible>false</IsAotCompatible>
+	</PropertyGroup>
+	<ItemGroup>
+		<ProjectReference Include="../Identity.Migrations/Identity.Migrations.csproj" />
+		<NorseRef Include="Persistence.EntityFramework.Design.SqlServer">
+			<Repo>Urdarbrunnr</Repo>
+		</NorseRef>
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="11.*-*">
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<!-- Ships the DDL scaffolder's own output inside the package DLL, so a DBA can pull the raw
+		     CREATE script out of the NuGet package and run it against a blank instance without the
+		     dotnet-ef CLI. Wildcard, not the literal schema/norse_identity.sql path: self-adapts if
+		     the database name changes again without a csproj edit. -->
+		<EmbeddedResource Include="schema/*.sql">
+			<LogicalName>CreateScript.sql</LogicalName>
+		</EmbeddedResource>
+	</ItemGroup>
+</Project>

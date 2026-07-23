@@ -1,4 +1,5 @@
-using Norse.EntityFramework.Migrations;
+using Norse.Identity.Web.Server;
+using Norse.Persistence.EntityFramework.Design;
 
 namespace Norse.Identity.Migrations;
 

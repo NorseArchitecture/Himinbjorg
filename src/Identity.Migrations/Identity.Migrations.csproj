@@ -1,20 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<Description>Norse.Identity.Migrations: migration contributor, IDesignTimeDbContextFactory, and the EF migration files for NorseIdentityDbContext. Migration tooling only — never referenced from a runtime container.</Description>
+		<Description>Norse.Identity.Migrations: the migration contributor for NorseIdentityDbContext, provider-agnostic. Migration tooling only — never referenced from a runtime container.</Description>
 		<!-- EF Core is not AOT/trim-compatible; override the src-level default. -->
 		<IsAotCompatible>false</IsAotCompatible>
 	</PropertyGroup>
 	<ItemGroup>
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="*">
-			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-		</PackageReference>
-		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="*" />
-	</ItemGroup>
-	<ItemGroup>
-		<ProjectReference Include="../Identity/Identity.csproj" />
-	</ItemGroup>
-	<ItemGroup>
-		<NorseRef Include="EntityFramework.Migrations">
+		<ProjectReference Include="../Identity.Web.Server/Identity.Web.Server.csproj" />
+		<NorseRef Include="Persistence.EntityFramework.Design">
 			<Repo>Urdarbrunnr</Repo>
 		</NorseRef>
 	</ItemGroup>

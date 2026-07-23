@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+	<PropertyGroup>
+		<Description>Norse.Identity.Web.Server: IAuthenticationService's gRPC implementation over NorseUserStore. Handlers work entirely in Outcome&lt;T&gt; (Asgard's mediator law); the forwarder decomposes failure via Midgard's Infrastructure.Web.Server, never by hand. Always runs inside an HTTP context, bound into Yggdrasil's Hosting.Web.Server process.</Description>
+		<IsAotCompatible>false</IsAotCompatible>
+	</PropertyGroup>
+	<ItemGroup>
+		<NorseRef Include="AuthN.Components.FluentUI">
+			<Repo>Heimdall</Repo>
+		</NorseRef>
+		<NorseRef Include="Abstractions.Web.Server">
+			<Repo>Asgard</Repo>
+		</NorseRef>
+		<NorseRef Include="Persistence.EntityFramework">
+			<Repo>Urdarbrunnr</Repo>
+			<Generator>true</Generator>
+		</NorseRef>
+		<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="11.*-*" />
+		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="11.*-*" />
+		<PackageReference Include="OpenIddict.EntityFrameworkCore" Version="7.*" />
+	</ItemGroup>
+</Project>

@@ -1,0 +1,36 @@
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Norse.Abstractions.Web.Server.Mediator;
+using Norse.AuthN.Components;
+using Norse.Persistence.EntityFramework;
+
+namespace Norse.Identity.Web.Server;
+
+/// <summary>Composition-root wiring for Identity.Web.Server's gRPC authentication service.</summary>
+public static class ServiceCollectionExtensions
+{
+	/// <summary>
+	/// Registers <see cref="NorseIdentityDbContext"/>, ASP.NET Core Identity (with the
+	/// <see cref="NorseSignInManager"/> override), the code-first gRPC host with
+	/// <see cref="IAuthenticationService"/>.
+	/// </summary>
+	public static IServiceCollection AddNorseAuthenticationService(this IServiceCollection services, string connectionString)
+	{
+		services.AddDbContext<NorseIdentityDbContext>(o =>
+		{
+			o.UseNpgsql(connectionString);
+			NorseDbContextOptionsExtensions.ApplyNorseConventions(o);
+		});
+		services.AddNorseIdentity().AddSignInManager<NorseSignInManager>();
+		services.AddScoped<LoginRequestValidator>();
+		services.AddScoped<RegisterRequestValidator>();
+
+		services.AddScoped<IRequestHandler<LoginRequest, Outcome<BoolResponse>>, LoginHandler>();
+		services.AddScoped<IRequestHandler<RegisterRequest, Outcome<BoolResponse>>, RegisterHandler>();
+		services.AddScoped<IRequestHandler<LogoutRequest, Outcome>, LogoutHandler>();
+
+		services.AddScoped<IAuthenticationService, AuthenticationService>();
+
+		return services;
+	}
+}
