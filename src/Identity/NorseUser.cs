@@ -33,7 +33,7 @@ public sealed class NorseUser : IdentityUser<Guid>, INorseEntity<NorseUser>
 	/// <inheritdoc />
 	public static void Configure(EntityTypeBuilder<NorseUser> builder)
 	{
-		builder.ToTable("users");
+		builder.ToTable("Users");
 		builder.Property(u => u.ConcurrencyStamp).HasConversion(IdentityValueConverters.Stamp);
 		// UserManager.NewSecurityStamp() is Base32.GenerateBase32() -- always exactly 32 base32
 		// characters, never Guid-shaped -- so this must stay a plain bounded string, not go through
@@ -50,7 +50,7 @@ public sealed class NorseUser : IdentityUser<Guid>, INorseEntity<NorseUser>
 		builder.HasMany(u => u.Logins).WithOne(l => l.User).HasForeignKey(l => l.UserId).IsRequired();
 		builder.HasMany(u => u.Tokens).WithOne(t => t.User).HasForeignKey(t => t.UserId).IsRequired();
 		builder.HasMany(u => u.Passkeys).WithOne(p => p.User).HasForeignKey(p => p.UserId).IsRequired();
-		builder.HasIndex(u => u.NormalizedEmail).HasDatabaseName("ix_users_normalized_email");
-		builder.HasIndex(u => u.NormalizedUserName).IsUnique().HasDatabaseName("ix_users_normalized_user_name");
+		builder.HasIndex(u => u.NormalizedEmail);
+		builder.HasIndex(u => u.NormalizedUserName).IsUnique();
 	}
 }

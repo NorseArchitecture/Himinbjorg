@@ -7,7 +7,7 @@ public sealed class NorseRoleConfigureTests
 	[Fact]
 	void Configure_sets_table_name()
 	{
-		BuildEntityType().GetTableName().ShouldBe("roles");
+		BuildEntityType().GetTableName().ShouldBe("Roles");
 	}
 
 	[Fact]
@@ -20,7 +20,7 @@ public sealed class NorseRoleConfigureTests
 	void Configure_sets_unique_index_on_NormalizedName()
 	{
 		var index = BuildEntityType().GetIndexes()
-			.Single(i => i.GetDatabaseName() == "ix_roles_normalized_name");
+			.Single(i => i.GetDatabaseName() == "IX_Roles_NormalizedName");
 
 		index.IsUnique.ShouldBeTrue();
 	}

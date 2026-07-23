@@ -18,6 +18,7 @@ public sealed class NorseUserPasskey : IdentityUserPasskey<Guid>, INorseEntity<N
 	/// <inheritdoc />
 	public static void Configure(EntityTypeBuilder<NorseUserPasskey> builder)
 	{
+		builder.ToTable("UserPasskeys");
 		builder.HasKey(p => p.CredentialId);
 		builder.OwnsOne(p => p.Data, o => o.ToJson());
 	}

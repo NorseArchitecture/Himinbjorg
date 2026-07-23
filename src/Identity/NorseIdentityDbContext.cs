@@ -10,7 +10,7 @@ namespace Norse.Identity;
 /// Norse platform Identity <see cref="IdentityDbContext{TUser,TRole,TKey,TUserClaim,TUserRole,TUserLogin,TRoleClaim,TUserToken,TUserPasskey}"/>,
 /// combining ASP.NET Core Identity and OpenIddict entity sets. Naming conventions are applied by
 /// whichever provider registration extension registers this context (see
-/// <c>Norse.EntityFramework.PostgreSQL.NorsePostgresContextExtensions</c> and its SQL Server
+/// <c>Norse.Persistence.EntityFramework.PostgreSQL.NorsePostgresContextExtensions</c> and its SQL Server
 /// counterpart) — this class replicates <see cref="NorseDbContext"/>'s fixed-length provider check
 /// independently since it inherits <c>IdentityDbContext</c>, not <see cref="NorseDbContext"/>.
 /// </summary>
@@ -54,7 +54,7 @@ public sealed class NorseIdentityDbContext(DbContextOptions<NorseIdentityDbConte
 		base.ConfigureConventions(configurationBuilder);
 
 		// Fixed-length storage (char(n)/nchar(n)) only pays off on SQL Server -- see
-		// Norse.EntityFramework.FixedLengthAttribute's remarks.
+		// Norse.Persistence.EntityFramework.FixedLengthAttribute's remarks.
 		NorseModelConventions.Apply(configurationBuilder,
 			applyFixedLength: Database.ProviderName == NorseDbContextOptionsExtensions.SqlServerProviderName);
 	}

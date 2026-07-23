@@ -16,7 +16,7 @@ public sealed class NorseIdentityDbContextFactoryTests
 		// missing entirely (exactly what happens when SchemaVersion silently falls back to Version1
 		// and Ignore<TUserPasskey>() strips it from the model) — assert not-null first.
 		entityType.ShouldNotBeNull();
-		entityType.GetTableName().ShouldBe("AspNetUserPasskeys");
+		entityType.GetTableName().ShouldBe("user_passkeys");
 	}
 
 	[Fact]

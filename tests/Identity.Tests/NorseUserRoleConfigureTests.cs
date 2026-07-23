@@ -7,7 +7,7 @@ public sealed class NorseUserRoleConfigureTests
 	[Fact]
 	void Configure_sets_table_name()
 	{
-		BuildEntityType().GetTableName().ShouldBe("user_roles");
+		BuildEntityType().GetTableName().ShouldBe("UserRoles");
 	}
 
 	[Fact]

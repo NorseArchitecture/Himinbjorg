@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Norse.Persistence.EntityFramework;
 
@@ -17,6 +18,7 @@ public sealed class NorseUserLogin : IdentityUserLogin<Guid>, INorseEntity<Norse
 	/// <inheritdoc />
 	public static void Configure(EntityTypeBuilder<NorseUserLogin> builder)
 	{
+		builder.ToTable("UserLogins");
 		builder.Property(l => l.LoginProvider).HasMaxLength(128);
 		builder.Property(l => l.ProviderKey).HasMaxLength(256);
 		builder.Property(l => l.ProviderDisplayName).HasMaxLength(256);

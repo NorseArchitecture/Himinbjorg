@@ -9,7 +9,7 @@ public sealed class NorseUserConfigureTests
 	{
 		var entityType = BuildEntityType();
 
-		entityType.GetTableName().ShouldBe("users");
+		entityType.GetTableName().ShouldBe("Users");
 	}
 
 	[Fact]
@@ -69,7 +69,7 @@ public sealed class NorseUserConfigureTests
 	void Configure_sets_unique_index_on_NormalizedUserName()
 	{
 		var entityType = BuildEntityType();
-		var index = entityType.GetIndexes().Single(i => i.GetDatabaseName() == "ix_users_normalized_user_name");
+		var index = entityType.GetIndexes().Single(i => i.GetDatabaseName() == "IX_Users_NormalizedUserName");
 
 		index.IsUnique.ShouldBeTrue();
 	}
