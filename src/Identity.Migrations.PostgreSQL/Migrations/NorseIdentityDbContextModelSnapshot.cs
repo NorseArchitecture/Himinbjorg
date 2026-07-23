@@ -8,7 +8,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace Norse.Identity.Migrations.Migrations
+namespace Norse.Identity.Migrations.PostgreSQL.Migrations
 {
     [DbContext(typeof(NorseIdentityDbContext))]
     partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot

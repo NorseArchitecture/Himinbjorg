@@ -14,6 +14,7 @@
 		<File Path="src/Directory.Build.props" />
 		<File Path="src/Directory.Build.targets" />
 		<Project Path="src/Identity.Migrations/Identity.Migrations.csproj" />
+		<Project Path="src/Identity.Migrations.PostgreSQL/Identity.Migrations.PostgreSQL.csproj" />
 		<Project Path="src/Identity/Identity.csproj" />
 		<Project Path="src/Identity.Web.Server/Identity.Web.Server.csproj" />
 	</Folder>
@@ -21,6 +22,7 @@
 		<File Path="tests/Directory.Build.props" />
 		<File Path="tests/Directory.Build.targets" />
 		<Project Path="tests/Identity.Migrations.Tests/Identity.Migrations.Tests.csproj" />
+		<Project Path="tests/Identity.Migrations.PostgreSQL.Tests/Identity.Migrations.PostgreSQL.Tests.csproj" />
 		<Project Path="tests/Identity.Tests/Identity.Tests.csproj" />
 		<Project Path="tests/Identity.Web.Server.Tests/Identity.Web.Server.Tests.csproj" />
 	</Folder>

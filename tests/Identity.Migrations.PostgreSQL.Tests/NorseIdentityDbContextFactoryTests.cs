@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
-namespace Norse.Identity.Migrations.Tests;
+namespace Norse.Identity.Migrations.PostgreSQL.Tests;
 
 public sealed class NorseIdentityDbContextFactoryTests
 {

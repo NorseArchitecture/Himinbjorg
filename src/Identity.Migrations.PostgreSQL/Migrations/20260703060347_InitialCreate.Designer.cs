@@ -9,7 +9,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace Norse.Identity.Migrations.Migrations
+namespace Norse.Identity.Migrations.PostgreSQL.Migrations
 {
     [DbContext(typeof(NorseIdentityDbContext))]
     [Migration("20260703060347_InitialCreate")]
