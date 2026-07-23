@@ -1,6 +1,5 @@
 using Norse.Abstractions.Web.Server.Mediator;
 using Norse.AuthN.Components;
-using NSubstitute;
 
 namespace Norse.Identity.Web.Server.Tests;
 
