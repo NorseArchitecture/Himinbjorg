@@ -2,7 +2,6 @@
 	<ItemGroup>
 		<PackageReference Include="Microsoft.AspNetCore.TestHost" Version="*" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="*" />
-		<PackageReference Include="NSubstitute" Version="*" />
 		<ProjectReference Include="../../src/Identity.Web.Server/Identity.Web.Server.csproj" />
 	</ItemGroup>
 	<ItemGroup>
