@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Norse.Abstractions.Web.Server.Mediator;
 using Norse.AuthN.Components;
-using Norse.EntityFramework;
+using Norse.Persistence.EntityFramework;
 using Norse.Infrastructure.Web.Server.Mediator.Grpc;
 using ProtoBuf.Grpc.Server;
 
