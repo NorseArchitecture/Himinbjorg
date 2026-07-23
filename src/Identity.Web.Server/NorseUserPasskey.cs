@@ -15,11 +15,13 @@ public sealed class NorseUserPasskey : IdentityUserPasskey<Guid>, INorseEntity<N
 	/// </summary>
 	public NorseUser User { get; init; } = null!;
 
-	/// <inheritdoc />
-	public static void Configure(EntityTypeBuilder<NorseUserPasskey> builder)
-	{
+	/// <summary>
+	/// Renames the table to strip the "AspNet" prefix, matching every other Identity entity's naming.
+	/// Key and the <see cref="IdentityUserPasskey{TKey}.Data"/> complex JSON property are already
+	/// configured by <c>IdentityUserContext.OnModelCreatingVersion3</c> and must not be re-declared here
+	/// -- a second <c>ComplexProperty</c>/<c>OwnsOne</c> registration for <c>Data</c> throws at model
+	/// build time.
+	/// </summary>
+	public static void Configure(EntityTypeBuilder<NorseUserPasskey> builder) =>
 		builder.ToTable("UserPasskeys");
-		builder.HasKey(p => p.CredentialId);
-		builder.OwnsOne(p => p.Data, o => o.ToJson());
-	}
 }
