@@ -1,15 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<ItemGroup>
-		<PackageReference Include="Microsoft.AspNetCore.TestHost" Version="*" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="*" />
+		<PackageReference Include="Microsoft.AspNetCore.TestHost" Version="11.*-*" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="11.*-*" />
 		<ProjectReference Include="../../src/Identity.Web.Server/Identity.Web.Server.csproj" />
-	</ItemGroup>
-	<ItemGroup>
-		<!--
-			SQLitePCLRaw.lib.e_sqlite3 (transitive via Microsoft.EntityFrameworkCore.Sqlite) has a known
-			high-severity vulnerability with no patched release. Exposure is test-only (in-memory). Same
-			precedent as Identity.Tests.csproj. Revisit when SQLitePCLRaw publishes a fix.
-		-->
-		<NuGetAuditSuppress Include="https://github.com/advisories/GHSA-2m69-gcr7-jv3q" />
 	</ItemGroup>
 </Project>

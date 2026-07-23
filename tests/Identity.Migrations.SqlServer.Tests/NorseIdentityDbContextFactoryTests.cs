@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Norse.Identity.Web.Server;
 
 namespace Norse.Identity.Migrations.SqlServer.Tests;
 

@@ -5,9 +5,7 @@
 		<IsAotCompatible>false</IsAotCompatible>
 	</PropertyGroup>
 	<ItemGroup>
-		<ProjectReference Include="../Identity/Identity.csproj" />
-	</ItemGroup>
-	<ItemGroup>
+		<ProjectReference Include="../Identity.Web.Server/Identity.Web.Server.csproj" />
 		<NorseRef Include="Persistence.EntityFramework.Design">
 			<Repo>Urdarbrunnr</Repo>
 		</NorseRef>

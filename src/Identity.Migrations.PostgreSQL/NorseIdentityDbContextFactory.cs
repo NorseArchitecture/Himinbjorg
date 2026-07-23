@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Norse.Identity.Web.Server;
 using Norse.Persistence.EntityFramework.Design.PostgreSQL;
 
 namespace Norse.Identity.Migrations.PostgreSQL;
