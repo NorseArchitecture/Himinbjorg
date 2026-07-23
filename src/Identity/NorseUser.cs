@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Norse.EntityFramework;
+using Norse.Persistence.EntityFramework;
 
 namespace Norse.Identity;
 

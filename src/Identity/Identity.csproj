@@ -12,7 +12,7 @@
 		<PackageReference Include="OpenIddict.EntityFrameworkCore" Version="*" />
 	</ItemGroup>
 	<ItemGroup>
-		<NorseRef Include="EntityFramework">
+		<NorseRef Include="Persistence.EntityFramework">
 			<Repo>Urdarbrunnr</Repo>
 			<Generator>true</Generator>
 		</NorseRef>

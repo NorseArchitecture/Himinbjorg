@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Norse.EntityFramework;
+using Norse.Persistence.EntityFramework;
 using OpenIddict.EntityFrameworkCore.Models;
 
 namespace Norse.Identity;
