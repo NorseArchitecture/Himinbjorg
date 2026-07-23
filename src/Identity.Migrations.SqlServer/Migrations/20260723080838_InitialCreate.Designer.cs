@@ -13,8 +13,8 @@ using Norse.Identity.Web.Server;
 namespace Norse.Identity.Migrations.SqlServer.Migrations;
 
 [DbContext(typeof(NorseIdentityDbContext))]
-[Migration("20260723074105_InitialCreate")]
-partial class _20260723074105_InitialCreate
+[Migration("20260723080838_InitialCreate")]
+partial class _20260723080838_InitialCreate
 {
     /// <inheritdoc />
     protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -478,7 +478,7 @@ partial class _20260723074105_InitialCreate
 
                         b1
                             .ToJson("Data")
-                            .HasColumnType("nvarchar(max)");
+                            .HasColumnType("json");
                     });
 
                 b.HasKey("CredentialId");

@@ -123,7 +123,7 @@ GO
 CREATE TABLE [UserPasskeys] (
     [CredentialId] varbinary(1024) NOT NULL,
     [UserId] uniqueidentifier NOT NULL,
-    [Data] nvarchar(max) NOT NULL,
+    [Data] json NOT NULL,
     CONSTRAINT [PK_UserPasskeys] PRIMARY KEY ([CredentialId]),
     CONSTRAINT [FK_UserPasskeys_Users_UserId] FOREIGN KEY ([UserId]) REFERENCES [Users] ([Id]) ON DELETE CASCADE
 );

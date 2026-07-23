@@ -115,7 +115,7 @@ CREATE TABLE user_logins (
 CREATE TABLE user_passkeys (
     credential_id bytea NOT NULL,
     user_id uuid NOT NULL,
-    "Data" jsonb NOT NULL,
+    data jsonb NOT NULL,
     CONSTRAINT pk_user_passkeys PRIMARY KEY (credential_id),
     CONSTRAINT fk_user_passkeys_users_user_id FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );

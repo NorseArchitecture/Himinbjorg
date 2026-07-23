@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Norse.Identity.Migrations.SqlServer.Migrations;
 
 /// <inheritdoc />
-public partial class _20260723074105_InitialCreate : Migration
+public partial class _20260723080838_InitialCreate : Migration
 {
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder)
@@ -187,7 +187,7 @@ public partial class _20260723074105_InitialCreate : Migration
             {
                 CredentialId = table.Column<byte[]>(type: "varbinary(1024)", maxLength: 1024, nullable: false),
                 UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                Data = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                Data = table.Column<string>(type: "json", nullable: false)
             },
             constraints: table =>
             {

@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Norse.Identity.Migrations.PostgreSQL.Migrations;
 
 /// <inheritdoc />
-public partial class _20260723074043_InitialCreate : Migration
+public partial class _20260723075913_InitialCreate : Migration
 {
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder)
@@ -188,7 +188,7 @@ public partial class _20260723074043_InitialCreate : Migration
             {
                 credential_id = table.Column<byte[]>(type: "bytea", maxLength: 1024, nullable: false),
                 user_id = table.Column<Guid>(type: "uuid", nullable: false),
-                Data = table.Column<string>(type: "jsonb", nullable: false)
+                data = table.Column<string>(type: "jsonb", nullable: false)
             },
             constraints: table =>
             {

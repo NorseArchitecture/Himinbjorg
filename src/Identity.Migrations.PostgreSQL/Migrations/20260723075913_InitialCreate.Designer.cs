@@ -13,8 +13,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Norse.Identity.Migrations.PostgreSQL.Migrations;
 
 [DbContext(typeof(NorseIdentityDbContext))]
-[Migration("20260723074043_InitialCreate")]
-partial class _20260723074043_InitialCreate
+[Migration("20260723075913_InitialCreate")]
+partial class _20260723075913_InitialCreate
 {
     /// <inheritdoc />
     protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -571,7 +571,7 @@ partial class _20260723074043_InitialCreate
                         b1.PrimitiveCollection<string>("Transports");
 
                         b1
-                            .ToJson("Data")
+                            .ToJson("data")
                             .HasColumnType("jsonb");
                     });
 
