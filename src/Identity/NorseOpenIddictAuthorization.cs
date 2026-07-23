@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Norse.Persistence.EntityFramework;
 using OpenIddict.EntityFrameworkCore.Models;
@@ -23,6 +24,7 @@ public sealed class NorseOpenIddictAuthorization
 	/// <inheritdoc />
 	public static void Configure(EntityTypeBuilder<NorseOpenIddictAuthorization> builder)
 	{
+		builder.ToTable("Authorizations");
 		builder.Property(a => a.Scopes).HasMaxLength(-1);
 		builder.Property(a => a.Properties).HasMaxLength(-1);
 		builder.HasOne(a => a.Application).WithMany(app => app.Authorizations).HasForeignKey(a => a.ApplicationId);

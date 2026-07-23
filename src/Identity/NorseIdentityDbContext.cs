@@ -63,7 +63,6 @@ public sealed class NorseIdentityDbContext(DbContextOptions<NorseIdentityDbConte
 	protected override void OnModelCreating(ModelBuilder builder)
 	{
 		base.OnModelCreating(builder);
-		builder.HasDefaultSchema("identity");
 		builder.UseOpenIddict<
 			NorseOpenIddictApplication, NorseOpenIddictAuthorization,
 			NorseOpenIddictScope, NorseOpenIddictToken, Guid>();

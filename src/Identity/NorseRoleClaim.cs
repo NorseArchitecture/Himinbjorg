@@ -24,7 +24,7 @@ public sealed class NorseRoleClaim : IdentityRoleClaim<Guid>, INorseEntity<Norse
 		// (Task 14) caught this. ClaimType is a URI-shaped identifier (bounded like
 		// NorseUserLogin.ProviderDisplayName); ClaimValue is genuinely open-ended payload (unbounded
 		// like NorseUserToken.Value).
-		builder.Property(c => c.ClaimType).HasMaxLength(256);
-		builder.Property(c => c.ClaimValue).HasMaxLength(-1);
+		builder.Property(c => c.ClaimType).HasMaxLength(256).IsRequired();
+		builder.Property(c => c.ClaimValue).HasMaxLength(-1).IsRequired();
 	}
 }

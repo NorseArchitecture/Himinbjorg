@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Norse.Persistence.EntityFramework;
 using OpenIddict.EntityFrameworkCore.Models;
@@ -27,6 +28,7 @@ public sealed class NorseOpenIddictToken
 	/// <inheritdoc />
 	public static void Configure(EntityTypeBuilder<NorseOpenIddictToken> builder)
 	{
+		builder.ToTable("Tokens");
 		builder.Property(t => t.Payload).HasMaxLength(-1);
 		builder.Property(t => t.Properties).HasMaxLength(-1);
 		builder.HasOne(t => t.Application).WithMany(a => a.Tokens).HasForeignKey(t => t.ApplicationId);

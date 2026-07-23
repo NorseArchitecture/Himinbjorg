@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Norse.Persistence.EntityFramework;
 using OpenIddict.EntityFrameworkCore.Models;
@@ -13,6 +14,7 @@ public sealed class NorseOpenIddictScope
 	/// <inheritdoc />
 	public static void Configure(EntityTypeBuilder<NorseOpenIddictScope> builder)
 	{
+		builder.ToTable("Scopes");
 		builder.Property(s => s.Description).HasMaxLength(1000);
 		builder.Property(s => s.DisplayName).HasMaxLength(200);
 

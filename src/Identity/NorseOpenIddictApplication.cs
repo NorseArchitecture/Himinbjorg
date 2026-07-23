@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Norse.Persistence.EntityFramework;
 using OpenIddict.EntityFrameworkCore.Models;
@@ -16,6 +17,7 @@ public sealed class NorseOpenIddictApplication
 	/// <inheritdoc />
 	public static void Configure(EntityTypeBuilder<NorseOpenIddictApplication> builder)
 	{
+		builder.ToTable("Applications");
 		builder.Property(a => a.ClientSecret).HasMaxLength(-1);
 		builder.Property(a => a.DisplayName).HasMaxLength(200);
 
