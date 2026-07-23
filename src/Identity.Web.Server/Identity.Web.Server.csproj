@@ -7,7 +7,6 @@
 	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="Microsoft.FluentUI.AspNetCore.Components" Version="*-*" />
-		<PackageReference Include="protobuf-net.Grpc.AspNetCore" Version="*" />
 		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="*" />
 	</ItemGroup>
 	<ItemGroup>
