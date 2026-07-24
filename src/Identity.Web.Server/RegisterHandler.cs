@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Identity;
+using Norse.Abstractions.Contracts;
 using Norse.Abstractions.Web.Server.Mediator;
 using Norse.AuthN.Components;
+using Norse.AuthN.Services;
 
 namespace Norse.Identity.Web.Server;
 

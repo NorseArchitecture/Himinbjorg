@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Norse.Abstractions.Contracts;
 using Norse.Abstractions.Web.Server.Mediator;
 using Norse.AuthN.Components;
+using Norse.AuthN.Services;
 using Norse.Persistence.EntityFramework;
 
 namespace Norse.Identity.Web.Server;
@@ -22,12 +24,13 @@ public static class ServiceCollectionExtensions
 			NorseDbContextOptionsExtensions.ApplyNorseConventions(o);
 		});
 		services.AddNorseIdentity().AddSignInManager<NorseSignInManager>();
-		services.AddScoped<LoginRequestValidator>();
-		services.AddScoped<RegisterRequestValidator>();
+		services.AddScoped<FluentValidation.IValidator<LoginRequest>, LoginRequestValidator>();
+		services.AddScoped<FluentValidation.IValidator<RegisterRequest>, RegisterRequestValidator>();
+		services.AddScoped<FluentValidation.IValidator<LogoutRequest>, FluentValidation.InlineValidator<LogoutRequest>>();
 
-		services.AddScoped<IRequestHandler<LoginRequest, Outcome<BoolResponse>>, LoginHandler>();
-		services.AddScoped<IRequestHandler<RegisterRequest, Outcome<BoolResponse>>, RegisterHandler>();
-		services.AddScoped<IRequestHandler<LogoutRequest, Outcome>, LogoutHandler>();
+		services.AddScoped<IRequestHandler<LoginRequest, Norse.Abstractions.Contracts.Outcome<BoolResponse>>, LoginHandler>();
+		services.AddScoped<IRequestHandler<RegisterRequest, Norse.Abstractions.Contracts.Outcome<BoolResponse>>, RegisterHandler>();
+		services.AddScoped<IRequestHandler<LogoutRequest, Norse.Abstractions.Contracts.Outcome<Unit>>, LogoutHandler>();
 
 		services.AddScoped<IAuthenticationService, AuthenticationService>();
 

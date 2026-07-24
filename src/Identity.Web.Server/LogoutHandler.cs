@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
+using Norse.Abstractions.Contracts;
 using Norse.Abstractions.Web.Server.Mediator;
-using Norse.AuthN.Components;
+using Norse.AuthN.Services;
 
 namespace Norse.Identity.Web.Server;
 
@@ -10,6 +11,6 @@ sealed class LogoutHandler(SignInManager<NorseUser> signInManager)
 	public async ValueTask<Outcome> Handle(LogoutRequest request, CancellationToken cancellationToken)
 	{
 		await signInManager.SignOutAsync().ConfigureAwait(false);
-		return Outcome.Ok();
+		return Outcome.Ok(Unit.Value);
 	}
 }
