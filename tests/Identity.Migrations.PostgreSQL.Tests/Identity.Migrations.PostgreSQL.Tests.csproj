@@ -1,5 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<ItemGroup>
+		<NorseDesignRef Include="Persistence.EntityFramework.Design.PostgreSQL">
+			<Repo>Urdarbrunnr</Repo>
+		</NorseDesignRef>
+		<!-- Needed directly, not just transitively via the ProjectReference below: it marks its own
+		     NorseDesignRef to this package PrivateAssets="all" (correctly, so runtime consumers of
+		     the Migrations.PostgreSQL package don't inherit design-time tooling), which also blocks
+		     it from flowing here. NorseIdentityDbContextFactory (NorsePostgreSqlDesignTimeDbContextFactory<>)
+		     lives in the same assembly this test instantiates directly. -->
 		<ProjectReference Include="../../src/Identity.Migrations.PostgreSQL/Identity.Migrations.PostgreSQL.csproj" />
 	</ItemGroup>
 </Project>
