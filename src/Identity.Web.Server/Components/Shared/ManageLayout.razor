@@ -1,0 +1,20 @@
+@inherits LayoutComponentBase
+@using Norse.Abstractions.Components.Primitives
+@inject IAppShellLayout AppShell
+
+<LayoutView Layout="@AppShell.LayoutType">
+	<h1>Manage your account</h1>
+
+	<div>
+		<h2>Change your account settings</h2>
+		<FluentGrid>
+			<FluentGridItem sm="3">
+				<ManageNavMenu />
+			</FluentGridItem>
+
+			<FluentGridItem sm="6">
+				@Body
+			</FluentGridItem>
+		</FluentGrid>
+	</div>
+</LayoutView>

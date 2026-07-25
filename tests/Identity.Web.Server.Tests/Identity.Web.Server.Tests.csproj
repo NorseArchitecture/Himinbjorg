@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<ItemGroup>
+		<PackageReference Include="Microsoft.AspNetCore.TestHost" Version="11.*-*" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="11.*-*" />
+		<ProjectReference Include="../../src/Identity.Web.Server/Identity.Web.Server.csproj" />
+	</ItemGroup>
+</Project>

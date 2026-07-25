@@ -1,0 +1,97 @@
+@page "/Account/Manage/RenamePasskey/{Id}"
+
+@using Norse.Identity
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Identity
+@using System.Buffers.Text
+
+@inject UserManager<NorseUser> UserManager
+@inject IdentityRedirectManager RedirectManager
+
+<FluentGrid>
+    <FluentGridItem xs="12" sm="6">
+        <EditForm Model="Input" OnValidSubmit="Rename" FormName="rename-passkey" method="post" style="padding: 10px 0; width: 100%;">
+            <DataAnnotationsValidator />
+            @if (_passkey?.Name is { } name)
+            {
+                <h4>Enter a new name for your "@name" passkey</h4>
+            }
+            else
+            {
+                <h4>Enter a name for your passkey</h4>
+            }
+            <ValidationSummary class="text-danger" role="alert" />
+            <FluentLabel ForId="Input.Name">Passkey name</FluentLabel>
+            <FluentTextInput Style="width: 100%;" @bind-Value="Input.Name" Id="Input.Name" Name="Input.Name" Required="true" Placeholder="My passkey" />
+            <ValidationMessage For="() => Input.Name" class="text-danger" />
+            <p style="margin-top: 10px; text-align: end;">
+                <FluentButton Type="ButtonType.Submit" Appearance="ButtonAppearance.Primary">Continue</FluentButton>
+            </p>
+        </EditForm>
+    </FluentGridItem>
+</FluentGrid>
+
+@code {
+    NorseUser? _user;
+    UserPasskeyInfo? _passkey;
+
+    [CascadingParameter]
+    HttpContext HttpContext { get; set; } = default!;
+
+    [Parameter]
+    public string? Id { get; set; }
+
+    [SupplyParameterFromForm]
+    InputModel Input { get; set; } = default!;
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        Input ??= new();
+
+        _user = (await UserManager.GetUserAsync(HttpContext.User))!;
+        if (_user is null)
+        {
+            RedirectManager.RedirectToInvalidUser(UserManager, HttpContext);
+            return;
+        }
+
+        byte[] credentialId;
+        try
+        {
+            credentialId = Base64Url.DecodeFromChars(Id);
+        }
+        catch (FormatException)
+        {
+            RedirectManager.RedirectToWithStatus("Account/Manage/Passkeys", "Error: The specified passkey ID had an invalid format.", HttpContext);
+            return;
+        }
+
+        _passkey = await UserManager.GetPasskeyAsync(_user, credentialId);
+        if (_passkey is null)
+        {
+            RedirectManager.RedirectToWithStatus("Account/Manage/Passkeys", "Error: The specified passkey could not be found.", HttpContext);
+            return;
+        }
+    }
+
+    async Task Rename()
+    {
+        _passkey!.Name = Input.Name;
+        var result = await UserManager.AddOrUpdatePasskeyAsync(_user!, _passkey);
+        if (!result.Succeeded)
+        {
+            RedirectManager.RedirectToWithStatus("Account/Manage/Passkeys", "Error: The passkey could not be updated.", HttpContext);
+            return;
+        }
+
+        RedirectManager.RedirectToWithStatus("Account/Manage/Passkeys", "Passkey updated successfully.", HttpContext);
+    }
+
+    sealed class InputModel
+    {
+        [Required]
+        [StringLength(200, ErrorMessage = "Passkey names must be no longer than {1} characters.")]
+        public string Name { get; set; } = "";
+    }
+}

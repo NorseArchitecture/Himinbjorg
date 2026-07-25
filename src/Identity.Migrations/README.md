@@ -1,5 +1,7 @@
 # Norse.Identity.Migrations
 
-Migration contributor, `IDesignTimeDbContextFactory`, and the EF migration files for `NorseIdentityDbContext`. Migration tooling only — never referenced from a runtime container.
+The migration contributor for `NorseIdentityDbContext`, provider-agnostic. Migration tooling only — never referenced from a runtime container.
+
+Provider-specific `IDesignTimeDbContextFactory` implementations and checked-in EF migrations live in the sibling `Identity.Migrations.PostgreSQL` and `Identity.Migrations.SqlServer` projects, each of which references this one.
 
 Part of the [Norse Architecture](https://github.com/NorseArchitecture) platform.

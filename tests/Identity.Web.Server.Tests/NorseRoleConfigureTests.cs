@@ -1,0 +1,50 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
+
+namespace Norse.Identity.Web.Server.Tests;
+
+public sealed class NorseRoleConfigureTests
+{
+	[Fact]
+	void Configure_sets_table_name()
+	{
+		BuildEntityType().GetTableName().ShouldBe("Roles");
+	}
+
+	[Fact]
+	void Configure_converts_ConcurrencyStamp()
+	{
+		BuildEntityType().FindProperty(nameof(NorseRole.ConcurrencyStamp))!.GetValueConverter().ShouldNotBeNull();
+	}
+
+	[Fact]
+	void Configure_sets_unique_index_on_NormalizedName()
+	{
+		var index = BuildEntityType().GetIndexes()
+			.Single(i => i.GetDatabaseName() == "IX_Roles_NormalizedName");
+
+		index.IsUnique.ShouldBeTrue();
+	}
+
+	[Fact]
+	void Configure_wires_Claims_relationship_through_the_Role_navigation()
+	{
+		ModelBuilder builder = new();
+		builder.Entity<NorseRole>(NorseRole.Configure);
+		builder.Entity<NorseRoleClaim>();
+
+		var claimType = builder.Model.FinalizeModel().FindEntityType(typeof(NorseRoleClaim))!;
+		var fk = claimType.GetForeignKeys().Single();
+
+		fk.DependentToPrincipal!.Name.ShouldBe(nameof(NorseRoleClaim.Role));
+		fk.IsRequired.ShouldBeTrue();
+	}
+
+	static IEntityType BuildEntityType()
+	{
+		ModelBuilder builder = new();
+		builder.Entity<NorseRole>(NorseRole.Configure);
+		builder.Entity<NorseRoleClaim>();
+		return builder.Model.FinalizeModel().FindEntityType(typeof(NorseRole))!;
+	}
+}

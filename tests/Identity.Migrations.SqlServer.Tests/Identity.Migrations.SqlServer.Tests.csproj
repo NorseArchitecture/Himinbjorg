@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<ItemGroup>
+		<ProjectReference Include="../../src/Identity.Migrations.SqlServer/Identity.Migrations.SqlServer.csproj" />
+	</ItemGroup>
+</Project>
