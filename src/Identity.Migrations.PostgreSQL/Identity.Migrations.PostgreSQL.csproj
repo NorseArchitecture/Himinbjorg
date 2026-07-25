@@ -5,13 +5,6 @@
 		<IsAotCompatible>false</IsAotCompatible>
 	</PropertyGroup>
 	<ItemGroup>
-		<ProjectReference Include="../Identity.Migrations/Identity.Migrations.csproj" />
-		<NorseRef Include="Persistence.EntityFramework.Design.PostgreSQL">
-			<Repo>Urdarbrunnr</Repo>
-		</NorseRef>
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="11.*-*">
-			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-		</PackageReference>
 		<!-- Ships the DDL scaffolder's own output inside the package DLL, so a DBA can pull the raw
 		     CREATE script out of the NuGet package and run it against a blank instance without the
 		     dotnet-ef CLI. Wildcard, not the literal schema/norse_identity.sql path: self-adapts if
@@ -19,5 +12,12 @@
 		<EmbeddedResource Include="schema/*.sql">
 			<LogicalName>CreateScript.sql</LogicalName>
 		</EmbeddedResource>
+		<NorseDesignRef Include="Persistence.EntityFramework.Design.PostgreSQL">
+			<Repo>Urdarbrunnr</Repo>
+		</NorseDesignRef>
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="11.*-*">
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<ProjectReference Include="../Identity.Migrations/Identity.Migrations.csproj" />
 	</ItemGroup>
 </Project>

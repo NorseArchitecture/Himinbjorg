@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace Norse.Identity.Web.Server.Tests;
 
@@ -39,7 +40,7 @@ public sealed class NorseRoleConfigureTests
 		fk.IsRequired.ShouldBeTrue();
 	}
 
-	static Microsoft.EntityFrameworkCore.Metadata.IEntityType BuildEntityType()
+	static IEntityType BuildEntityType()
 	{
 		ModelBuilder builder = new();
 		builder.Entity<NorseRole>(NorseRole.Configure);

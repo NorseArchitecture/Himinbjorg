@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace Norse.Identity.Web.Server.Tests;
 
@@ -46,14 +47,14 @@ public sealed class NorseOpenIddictEntitiesConfigureTests
 		foreignKeys.ShouldContain(fk => fk.Properties.Single().Name == nameof(NorseOpenIddictToken.AuthorizationId));
 	}
 
-	static Microsoft.EntityFrameworkCore.Metadata.IModel BuildApplicationModel()
+	static IModel BuildApplicationModel()
 	{
 		ModelBuilder builder = new();
 		builder.Entity<NorseOpenIddictApplication>(NorseOpenIddictApplication.Configure);
 		return builder.Model.FinalizeModel();
 	}
 
-	static Microsoft.EntityFrameworkCore.Metadata.IModel BuildAuthorizationModel()
+	static IModel BuildAuthorizationModel()
 	{
 		ModelBuilder builder = new();
 		builder.Entity<NorseOpenIddictAuthorization>(NorseOpenIddictAuthorization.Configure);
@@ -61,14 +62,14 @@ public sealed class NorseOpenIddictEntitiesConfigureTests
 		return builder.Model.FinalizeModel();
 	}
 
-	static Microsoft.EntityFrameworkCore.Metadata.IModel BuildScopeModel()
+	static IModel BuildScopeModel()
 	{
 		ModelBuilder builder = new();
 		builder.Entity<NorseOpenIddictScope>(NorseOpenIddictScope.Configure);
 		return builder.Model.FinalizeModel();
 	}
 
-	static Microsoft.EntityFrameworkCore.Metadata.IModel BuildTokenModel()
+	static IModel BuildTokenModel()
 	{
 		ModelBuilder builder = new();
 		builder.Entity<NorseOpenIddictToken>(NorseOpenIddictToken.Configure);

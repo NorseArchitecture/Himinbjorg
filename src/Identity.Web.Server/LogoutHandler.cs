@@ -6,11 +6,11 @@ using Norse.AuthN.Services;
 namespace Norse.Identity.Web.Server;
 
 sealed class LogoutHandler(SignInManager<NorseUser> signInManager)
-	: IRequestHandler<LogoutRequest, Outcome>
+	: IRequestHandler<LogoutRequest, Outcome<Unit>>
 {
-	public async ValueTask<Outcome> Handle(LogoutRequest request, CancellationToken cancellationToken)
+	public async ValueTask<Outcome<Unit>> Handle(LogoutRequest request, CancellationToken cancellationToken)
 	{
 		await signInManager.SignOutAsync().ConfigureAwait(false);
-		return Outcome.Ok(Unit.Value);
+		return Outcome<Unit>.Ok(Unit.Value);
 	}
 }

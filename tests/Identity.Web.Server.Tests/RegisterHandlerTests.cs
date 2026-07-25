@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
-using Norse.Abstractions.Web.Server.Mediator;
+using Norse.Abstractions.Contracts;
 using Norse.AuthN.Components;
+using Norse.AuthN.Services;
+using Norse.Primitives;
 
 namespace Norse.Identity.Web.Server.Tests;
 
@@ -44,8 +46,8 @@ public sealed class RegisterHandlerTests
 
 		var outcome = await handler.Handle(request, CancellationToken.None);
 
-		outcome.IsSuccess.ShouldBeFalse();
-		outcome.Problem!.Category.ShouldBe(ErrorCategory.Validation);
+		outcome.TryGetValue(out Failed failed).ShouldBeTrue();
+		failed.Problem.Category.ShouldBe(ErrorCategory.Validation);
 		(await context.Users.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
 	}
 
@@ -60,8 +62,8 @@ public sealed class RegisterHandlerTests
 
 		var outcome = await handler.Handle(request, CancellationToken.None);
 
-		outcome.IsSuccess.ShouldBeTrue();
-		outcome.Value!.Value.ShouldBeTrue();
+		outcome.TryGetValue(out Success<BoolResponse> success).ShouldBeTrue();
+		success.Value.Value.ShouldBeTrue();
 		(await context.Users.SingleAsync(TestContext.Current.CancellationToken)).Email.ShouldBe("user@example.com");
 	}
 
@@ -77,8 +79,8 @@ public sealed class RegisterHandlerTests
 
 		var outcome = await handler.Handle(request, CancellationToken.None);
 
-		outcome.IsSuccess.ShouldBeFalse();
-		outcome.Problem!.Category.ShouldBe(ErrorCategory.Conflict);
+		outcome.TryGetValue(out Failed failed).ShouldBeTrue();
+		failed.Problem.Category.ShouldBe(ErrorCategory.Conflict);
 	}
 
 	[Fact]
@@ -95,7 +97,7 @@ public sealed class RegisterHandlerTests
 
 		var outcome = await handler.Handle(request, CancellationToken.None);
 
-		outcome.IsSuccess.ShouldBeFalse();
-		outcome.Problem!.Category.ShouldBe(ErrorCategory.Validation);
+		outcome.TryGetValue(out Failed failed).ShouldBeTrue();
+		failed.Problem.Category.ShouldBe(ErrorCategory.Validation);
 	}
 }

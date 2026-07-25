@@ -21,7 +21,7 @@ public static class ServiceCollectionExtensions
 		services.AddDbContext<NorseIdentityDbContext>(o =>
 		{
 			o.UseNpgsql(connectionString);
-			NorseDbContextOptionsExtensions.ApplyNorseConventions(o);
+			o.ApplyNorseConventions();
 		});
 		services.AddNorseIdentity().AddSignInManager<NorseSignInManager>();
 		services.AddScoped<FluentValidation.IValidator<LoginRequest>, LoginRequestValidator>();

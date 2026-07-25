@@ -1,5 +1,7 @@
-using Norse.Abstractions.Web.Server.Mediator;
+using Norse.Abstractions.Contracts;
 using Norse.AuthN.Components;
+using Norse.AuthN.Services;
+using Norse.Primitives;
 
 namespace Norse.Identity.Web.Server.Tests;
 
@@ -14,8 +16,8 @@ public sealed class LoginHandlerTests
 
 		var outcome = await handler.Handle(request, CancellationToken.None);
 
-		outcome.IsSuccess.ShouldBeFalse();
-		outcome.Problem!.Category.ShouldBe(ErrorCategory.Validation);
+		outcome.TryGetValue(out Failed failed).ShouldBeTrue();
+		failed.Problem.Category.ShouldBe(ErrorCategory.Validation);
 		await signInManager.DidNotReceive().PasswordSignInAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<bool>());
 	}
 
@@ -23,32 +25,32 @@ public sealed class LoginHandlerTests
 	async Task Returns_LockedOut_when_the_store_reports_lockout()
 	{
 		var signInManager = MockSignInManager.Create();
-		signInManager.PasswordSignInAsync("user@example.com", "wrong", false, true)
+		signInManager.PasswordSignInAsync("user@example.com", "wrong-password", false, true)
 			.Returns(Microsoft.AspNetCore.Identity.SignInResult.LockedOut);
 		var handler = new LoginHandler(signInManager, new LoginRequestValidator());
-		var request = new LoginRequest { Email = "user@example.com", Password = "wrong" };
+		var request = new LoginRequest { Email = "user@example.com", Password = "wrong-password" };
 
 		var outcome = await handler.Handle(request, CancellationToken.None);
 
-		outcome.IsSuccess.ShouldBeFalse();
-		outcome.Problem!.Category.ShouldBe(ErrorCategory.LockedOut);
-		outcome.Problem!.Errors[""].ShouldNotBeEmpty();
+		outcome.TryGetValue(out Failed failed).ShouldBeTrue();
+		failed.Problem.Category.ShouldBe(ErrorCategory.LockedOut);
+		failed.Problem.Errors[""].ShouldNotBeEmpty();
 	}
 
 	[Fact]
 	async Task Returns_NotAllowed_with_a_message_when_the_store_reports_not_allowed()
 	{
 		var signInManager = MockSignInManager.Create();
-		signInManager.PasswordSignInAsync("user@example.com", "wrong", false, true)
+		signInManager.PasswordSignInAsync("user@example.com", "wrong-password", false, true)
 			.Returns(Microsoft.AspNetCore.Identity.SignInResult.NotAllowed);
 		var handler = new LoginHandler(signInManager, new LoginRequestValidator());
-		var request = new LoginRequest { Email = "user@example.com", Password = "wrong" };
+		var request = new LoginRequest { Email = "user@example.com", Password = "wrong-password" };
 
 		var outcome = await handler.Handle(request, CancellationToken.None);
 
-		outcome.IsSuccess.ShouldBeFalse();
-		outcome.Problem!.Category.ShouldBe(ErrorCategory.NotAllowed);
-		outcome.Problem!.Errors[""].ShouldNotBeEmpty();
+		outcome.TryGetValue(out Failed failed).ShouldBeTrue();
+		failed.Problem.Category.ShouldBe(ErrorCategory.NotAllowed);
+		failed.Problem.Errors[""].ShouldNotBeEmpty();
 	}
 
 	[Fact]
@@ -62,8 +64,8 @@ public sealed class LoginHandlerTests
 
 		var outcome = await handler.Handle(request, CancellationToken.None);
 
-		outcome.IsSuccess.ShouldBeTrue();
-		outcome.Value!.Value.ShouldBeTrue();
+		outcome.TryGetValue(out Success<BoolResponse> success).ShouldBeTrue();
+		success.Value.Value.ShouldBeTrue();
 	}
 
 	[Fact]
@@ -72,14 +74,14 @@ public sealed class LoginHandlerTests
 		// The whole point of §9.3's anti-enumeration collapse: wrong username and wrong password both
 		// land here, as a successful check that returned false — never Outcome.Err(InvalidCredentials).
 		var signInManager = MockSignInManager.Create();
-		signInManager.PasswordSignInAsync("user@example.com", "wrong", false, true)
+		signInManager.PasswordSignInAsync("user@example.com", "wrong-password", false, true)
 			.Returns(Microsoft.AspNetCore.Identity.SignInResult.Failed);
 		var handler = new LoginHandler(signInManager, new LoginRequestValidator());
-		var request = new LoginRequest { Email = "user@example.com", Password = "wrong" };
+		var request = new LoginRequest { Email = "user@example.com", Password = "wrong-password" };
 
 		var outcome = await handler.Handle(request, CancellationToken.None);
 
-		outcome.IsSuccess.ShouldBeTrue();
-		outcome.Value!.Value.ShouldBeFalse();
+		outcome.TryGetValue(out Success<BoolResponse> success).ShouldBeTrue();
+		success.Value.Value.ShouldBeFalse();
 	}
 }

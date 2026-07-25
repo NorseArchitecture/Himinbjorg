@@ -4,7 +4,7 @@ namespace Norse.Identity.Web.Server;
 
 /// <summary>
 /// Shared value converters for ASP.NET Core Identity's stamp/hash columns — used by both
-/// <see cref="NorseUser"/> and <see cref="NorseRole"/>. Realm-internal; not promoted to Urdarbrunnr
+/// <see cref="NorseUser"/> and <see cref="NorseRole"/>. Realm-internal; not promoted to Urðarbrunnr
 /// since no other realm runs ASP.NET Core Identity today.
 /// </summary>
 static class IdentityValueConverters

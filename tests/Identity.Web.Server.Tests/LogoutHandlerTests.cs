@@ -1,4 +1,6 @@
-using Norse.AuthN.Components;
+using Norse.Abstractions.Contracts;
+using Norse.AuthN.Services;
+using Norse.Primitives;
 
 namespace Norse.Identity.Web.Server.Tests;
 
@@ -12,7 +14,7 @@ public sealed class LogoutHandlerTests
 
 		var outcome = await handler.Handle(new LogoutRequest(), CancellationToken.None);
 
-		outcome.IsSuccess.ShouldBeTrue();
+		outcome.TryGetValue(out Success<Unit> _).ShouldBeTrue();
 		await signInManager.Received(1).SignOutAsync();
 	}
 }

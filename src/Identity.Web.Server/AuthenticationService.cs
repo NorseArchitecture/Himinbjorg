@@ -1,8 +1,7 @@
 using Norse.Abstractions.Contracts;
+using Norse.Abstractions.Web.Server.DeferredSignIn;
 using Norse.Abstractions.Web.Server.Mediator;
 using Norse.AuthN.Services;
-using Norse.Infrastructure.Web.Server.DeferredSignIn;
-using Norse.Infrastructure.Web.Server.Mediator.Grpc;
 using Norse.Primitives;
 
 namespace Norse.Identity.Web.Server;
@@ -10,9 +9,12 @@ namespace Norse.Identity.Web.Server;
 /// <summary>
 /// The reference backend for Heimdall's <see cref="IAuthenticationService"/> contract — Himinbjörg
 /// owns this because it needs EF/Identity access, not because it's the only legal implementation.
-/// Expected business failures throw <c>Problem.ToRpcException()</c> directly — the one place in this
-/// chain where a return value genuinely isn't an option, because a gRPC method's only way to signal
-/// non-OK status is to throw. Public: Yggdrasil's composition root maps this type directly.
+/// Trivially thin by design (spec §9, 2026-07-24 amendment to decided law item 3): every method
+/// invokes its handler and returns the resulting <see cref="Outcome{T}"/> as data — zero throw
+/// statements, zero <c>RpcException</c>, zero reference to Midgard. Himinbjörg and Midgard are
+/// architectural peers; the one throw point in the whole chain is the gRPC server interceptor
+/// (Midgard's <c>OutcomeServerInterceptor</c>), pattern-matching the returned envelope at the
+/// transport boundary, never here. Public: Yggdrasil's composition root maps this type directly.
 ///
 /// <c>[Authorize]</c> is mirrored from the interface onto every method here deliberately, not
 /// redundantly — ASP.NET Core's gRPC endpoint metadata is gathered by reflecting on this concrete
@@ -24,40 +26,44 @@ namespace Norse.Identity.Web.Server;
 public sealed class AuthenticationService(
 	IRequestHandler<LoginRequest, Outcome<BoolResponse>> loginHandler,
 	IRequestHandler<RegisterRequest, Outcome<BoolResponse>> registerHandler,
-	IRequestHandler<LogoutRequest, Outcome> logoutHandler,
+	IRequestHandler<LogoutRequest, Outcome<Unit>> logoutHandler,
+	IDeferredSignIn deferredSignIn,
 	IHttpContextAccessor httpContextAccessor)
 	: IAuthenticationService
 {
 	/// <inheritdoc />
 	[Microsoft.AspNetCore.Authorization.Authorize(Policy = AuthNPolicies.Public)]
-	public async Task<LoginResult> Login(LoginRequest request)
+	public async Task<Outcome<LoginResult>> Login(LoginRequest request)
 	{
 		var outcome = await loginHandler.Handle(request, httpContextAccessor.HttpContext!.RequestAborted).ConfigureAwait(false);
 		return outcome switch
 		{
-			Success<BoolResponse>(var value) => new LoginResult { Succeeded = value.Value, DeferredCompletionUrl = TryGetDeferredCompletionUrl() },
-			Failed(var problem) => throw problem.ToRpcException(),
+			Success<BoolResponse>(var value) => Outcome<LoginResult>.Ok(new LoginResult { Succeeded = value.Value, DeferredCompletionUrl = TryGetDeferredCompletionUrl() }),
+			Failed(var problem) => new Outcome<LoginResult>(new Failed(problem)),
 		};
 	}
 
 	/// <inheritdoc />
 	[Microsoft.AspNetCore.Authorization.Authorize(Policy = AuthNPolicies.Public)]
-	public async Task Register(RegisterRequest request)
+	public async Task<Outcome<Unit>> Register(RegisterRequest request)
 	{
 		var outcome = await registerHandler.Handle(request, httpContextAccessor.HttpContext!.RequestAborted).ConfigureAwait(false);
-		if (outcome.TryGetValue(out Failed failed))
-			throw failed.Problem.ToRpcException();
+		return outcome switch
+		{
+			Success<BoolResponse> => Outcome<Unit>.Ok(Unit.Value),
+			Failed(var problem) => new Outcome<Unit>(new Failed(problem)),
+		};
 	}
 
 	/// <inheritdoc />
 	[Microsoft.AspNetCore.Authorization.Authorize(Policy = AuthNPolicies.Public)]
-	public async Task<LogoutResult> Logout(LogoutRequest request)
+	public async Task<Outcome<LogoutResult>> Logout(LogoutRequest request)
 	{
 		var outcome = await logoutHandler.Handle(request, httpContextAccessor.HttpContext!.RequestAborted).ConfigureAwait(false);
 		return outcome switch
 		{
-			Success<Unit> => new LogoutResult { DeferredCompletionUrl = TryGetDeferredCompletionUrl() },
-			Failed(var problem) => throw problem.ToRpcException(),
+			Success<Unit> => Outcome<LogoutResult>.Ok(new LogoutResult { DeferredCompletionUrl = TryGetDeferredCompletionUrl() }),
+			Failed(var problem) => new Outcome<LogoutResult>(new Failed(problem)),
 		};
 	}
 
@@ -69,6 +75,6 @@ public sealed class AuthenticationService(
 		if (httpContextAccessor.HttpContext!.Items[NorseSignInManager.DeferredSignInKeyItemName] is not string key)
 			return null;
 
-		return $"{DeferredSignInEndpointRouteBuilderExtensions.DefaultPattern}?key={Uri.EscapeDataString(key)}&returnUrl={Uri.EscapeDataString("/")}";
+		return deferredSignIn.BuildCompletionUrl(key, "/");
 	}
 }

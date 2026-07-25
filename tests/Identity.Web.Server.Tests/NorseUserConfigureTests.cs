@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace Norse.Identity.Web.Server.Tests;
 
@@ -74,12 +75,12 @@ public sealed class NorseUserConfigureTests
 		index.IsUnique.ShouldBeTrue();
 	}
 
-	static Microsoft.EntityFrameworkCore.Metadata.IEntityType FindType<T>(
-		Microsoft.EntityFrameworkCore.Metadata.IModel model) => model.FindEntityType(typeof(T))!;
+	static IEntityType FindType<T>(IModel model) =>
+		model.FindEntityType(typeof(T))!;
 
-	static Microsoft.EntityFrameworkCore.Metadata.IEntityType BuildEntityType() => FindType<NorseUser>(BuildModel());
+	static IEntityType BuildEntityType() => FindType<NorseUser>(BuildModel());
 
-	static Microsoft.EntityFrameworkCore.Metadata.IModel BuildModel()
+	static IModel BuildModel()
 	{
 		ModelBuilder builder = new();
 		builder.Entity<NorseUser>(NorseUser.Configure);
