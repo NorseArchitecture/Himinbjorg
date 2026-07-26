@@ -8,7 +8,7 @@ namespace Norse.Identity.Web.Server;
 /// "else if (EmailSender is IdentityNoOpEmailSender)" block from RegisterConfirmation.razor after
 /// wiring up a real implementation.
 /// </summary>
-sealed class IdentityNoOpEmailSender : IEmailSender<NorseUser>
+public sealed class IdentityNoOpEmailSender : IEmailSender<NorseUser>
 {
 #pragma warning disable CA1859
 	readonly IEmailSender _emailSender = new NoOpEmailSender();

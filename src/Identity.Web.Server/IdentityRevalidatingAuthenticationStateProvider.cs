@@ -13,11 +13,11 @@ namespace Norse.Identity.Web.Server;
 /// <param name="loggerFactory">The logger factory passed through to the base provider.</param>
 /// <param name="scopeFactory">Used to resolve a scoped <see cref="UserManager{TUser}"/> per revalidation.</param>
 /// <param name="options">The Identity options, used to read the configured security-stamp claim type.</param>
-sealed class IdentityRevalidatingAuthenticationStateProvider(
+public sealed class IdentityRevalidatingAuthenticationStateProvider(
 		ILoggerFactory loggerFactory,
 		IServiceScopeFactory scopeFactory,
-		IOptions<IdentityOptions> options)
-	: RevalidatingServerAuthenticationStateProvider(loggerFactory)
+		IOptions<IdentityOptions> options) :
+	RevalidatingServerAuthenticationStateProvider(loggerFactory)
 {
 	/// <inheritdoc />
 	protected override TimeSpan RevalidationInterval => TimeSpan.FromMinutes(30);
@@ -40,15 +40,12 @@ sealed class IdentityRevalidatingAuthenticationStateProvider(
 		{
 			return false;
 		}
-		else if (!userManager.SupportsUserSecurityStamp)
+		if (!userManager.SupportsUserSecurityStamp)
 		{
 			return true;
 		}
-		else
-		{
-			var principalStamp = principal.FindFirstValue(options.Value.ClaimsIdentity.SecurityStampClaimType);
-			var userStamp = await userManager.GetSecurityStampAsync(user).ConfigureAwait(false);
-			return principalStamp == userStamp;
-		}
+		var principalStamp = principal.FindFirstValue(options.Value.ClaimsIdentity.SecurityStampClaimType);
+		var userStamp = await userManager.GetSecurityStampAsync(user).ConfigureAwait(false);
+		return principalStamp == userStamp;
 	}
 }

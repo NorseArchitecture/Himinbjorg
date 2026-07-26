@@ -15,7 +15,7 @@ namespace Microsoft.AspNetCore.Routing;
 #pragma warning restore IDE0130
 
 /// <summary>Extension methods that map the Identity Razor components' supporting endpoints onto an app.</summary>
-static partial class IdentityComponentsEndpointRouteBuilderExtensions
+public static partial class IdentityComponentsEndpointRouteBuilderExtensions
 {
 	/// <param name="endpoints">The endpoint route builder to add the Identity endpoints to.</param>
 	extension(IEndpointRouteBuilder endpoints)
