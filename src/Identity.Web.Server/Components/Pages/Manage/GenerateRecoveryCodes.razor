@@ -1,8 +1,5 @@
 @page "/Account/Manage/GenerateRecoveryCodes"
-
 @using Microsoft.AspNetCore.Identity
-@using Norse.Identity
-
 @inject UserManager<NorseUser> UserManager
 @inject IdentityRedirectManager RedirectManager
 @inject ILogger<GenerateRecoveryCodes> Logger
@@ -44,7 +41,7 @@ else
     IEnumerable<string>? _recoveryCodes;
 
     [CascadingParameter]
-    HttpContext HttpContext { get; set; } = default!;
+    HttpContext HttpContext { get; set; } = null!;
 
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()

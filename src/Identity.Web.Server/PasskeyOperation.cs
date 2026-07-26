@@ -7,5 +7,5 @@ public enum PasskeyOperation
 	Create = 0,
 
 	/// <summary>Authenticate using an existing passkey.</summary>
-	Request = 1,
+	Request = 1
 }

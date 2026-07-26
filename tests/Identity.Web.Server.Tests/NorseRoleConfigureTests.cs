@@ -6,16 +6,12 @@ namespace Norse.Identity.Web.Server.Tests;
 public sealed class NorseRoleConfigureTests
 {
 	[Fact]
-	void Configure_sets_table_name()
-	{
+	void Configure_sets_table_name() =>
 		BuildEntityType().GetTableName().ShouldBe("Roles");
-	}
 
 	[Fact]
-	void Configure_converts_ConcurrencyStamp()
-	{
+	void Configure_converts_ConcurrencyStamp() =>
 		BuildEntityType().FindProperty(nameof(NorseRole.ConcurrencyStamp))!.GetValueConverter().ShouldNotBeNull();
-	}
 
 	[Fact]
 	void Configure_sets_unique_index_on_NormalizedName()

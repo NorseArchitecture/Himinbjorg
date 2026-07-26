@@ -5,7 +5,7 @@ namespace Norse.Identity.Web.Server;
 
 /// <summary>Handles safe navigation and status-message-cookie redirects for the Identity Razor components.</summary>
 /// <param name="navigationManager">The navigation manager used to compute and perform redirects.</param>
-public sealed class IdentityRedirectManager(NavigationManager navigationManager)
+sealed class IdentityRedirectManager(NavigationManager navigationManager)
 {
 	/// <summary>The name of the cookie used to carry a one-time status message across a redirect.</summary>
 	public const string StatusCookieName = "Identity.StatusMessage";

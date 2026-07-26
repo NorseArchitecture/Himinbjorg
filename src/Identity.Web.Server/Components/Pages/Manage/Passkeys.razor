@@ -1,9 +1,6 @@
 @page "/Account/Manage/Passkeys"
-
-@using Norse.Identity
 @using Microsoft.AspNetCore.Identity
 @using System.Buffers.Text
-
 @inject UserManager<NorseUser> UserManager
 @inject SignInManager<NorseUser> SignInManager
 @inject IdentityRedirectManager RedirectManager
@@ -80,7 +77,7 @@
     IList<UserPasskeyInfo>? _currentPasskeys;
 
     [CascadingParameter]
-    HttpContext HttpContext { get; set; } = default!;
+    HttpContext HttpContext { get; set; } = null!;
 
     [SupplyParameterFromForm]
     string? Action { get; set; }
@@ -89,7 +86,7 @@
     string? CredentialId { get; set; }
 
     [SupplyParameterFromForm(FormName = "add-passkey")]
-    PasskeyInputModel Input { get; set; } = default!;
+    PasskeyInputModel Input { get; set; } = null!;
 
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()

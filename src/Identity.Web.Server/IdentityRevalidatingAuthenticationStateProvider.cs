@@ -13,7 +13,7 @@ namespace Norse.Identity.Web.Server;
 /// <param name="loggerFactory">The logger factory passed through to the base provider.</param>
 /// <param name="scopeFactory">Used to resolve a scoped <see cref="UserManager{TUser}"/> per revalidation.</param>
 /// <param name="options">The Identity options, used to read the configured security-stamp claim type.</param>
-public sealed class IdentityRevalidatingAuthenticationStateProvider(
+sealed class IdentityRevalidatingAuthenticationStateProvider(
 		ILoggerFactory loggerFactory,
 		IServiceScopeFactory scopeFactory,
 		IOptions<IdentityOptions> options)

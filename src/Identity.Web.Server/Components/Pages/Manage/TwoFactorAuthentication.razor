@@ -1,9 +1,6 @@
 @page "/Account/Manage/TwoFactorAuthentication"
-
 @using Microsoft.AspNetCore.Http.Features
 @using Microsoft.AspNetCore.Identity
-@using Norse.Identity
-
 @inject UserManager<NorseUser> UserManager
 @inject SignInManager<NorseUser> SignInManager
 @inject IdentityRedirectManager RedirectManager
@@ -73,7 +70,7 @@
     bool _isMachineRemembered;
 
     [CascadingParameter]
-    HttpContext HttpContext { get; set; } = default!;
+    HttpContext HttpContext { get; set; } = null!;
 
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()

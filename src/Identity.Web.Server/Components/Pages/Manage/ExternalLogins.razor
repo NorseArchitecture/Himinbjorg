@@ -1,9 +1,6 @@
 @page "/Account/Manage/ExternalLogins"
-
 @using Microsoft.AspNetCore.Authentication
 @using Microsoft.AspNetCore.Identity
-@using Norse.Identity
-
 @inject UserManager<NorseUser> UserManager
 @inject SignInManager<NorseUser> SignInManager
 @inject IUserStore<NorseUser> UserStore
@@ -71,7 +68,7 @@
     bool _showRemoveButton;
 
     [CascadingParameter]
-    HttpContext HttpContext { get; set; } = default!;
+    HttpContext HttpContext { get; set; } = null!;
 
     [SupplyParameterFromForm]
     string? LoginProvider { get; set; }

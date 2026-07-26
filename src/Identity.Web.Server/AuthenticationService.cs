@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Norse.Abstractions.Contracts;
 using Norse.Abstractions.Web.Server.DeferredSignIn;
 using Norse.Abstractions.Web.Server.Mediator;
@@ -32,7 +33,7 @@ public sealed class AuthenticationService(
 	: IAuthenticationService
 {
 	/// <inheritdoc />
-	[Microsoft.AspNetCore.Authorization.Authorize(Policy = AuthNPolicies.Public)]
+	[Authorize(Policy = AuthNPolicies.Public)]
 	public async Task<Outcome<LoginResult>> Login(LoginRequest request)
 	{
 		var outcome = await loginHandler.Handle(request, httpContextAccessor.HttpContext!.RequestAborted).ConfigureAwait(false);
@@ -44,7 +45,7 @@ public sealed class AuthenticationService(
 	}
 
 	/// <inheritdoc />
-	[Microsoft.AspNetCore.Authorization.Authorize(Policy = AuthNPolicies.Public)]
+	[Authorize(Policy = AuthNPolicies.Public)]
 	public async Task<Outcome<Unit>> Register(RegisterRequest request)
 	{
 		var outcome = await registerHandler.Handle(request, httpContextAccessor.HttpContext!.RequestAborted).ConfigureAwait(false);

@@ -5,10 +5,7 @@ namespace Norse.Identity.Web.Server.Tests;
 public sealed class NorseUserRoleConfigureTests
 {
 	[Fact]
-	void Configure_sets_table_name()
-	{
-		BuildEntityType().GetTableName().ShouldBe("UserRoles");
-	}
+	void Configure_sets_table_name() => BuildEntityType().GetTableName().ShouldBe("UserRoles");
 
 	[Fact]
 	void Configure_wires_explicit_User_and_Role_navigations()

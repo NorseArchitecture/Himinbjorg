@@ -1,12 +1,9 @@
 @page "/Account/Manage/EnableAuthenticator"
-
 @using System.ComponentModel.DataAnnotations
 @using System.Globalization
 @using System.Text
 @using System.Text.Encodings.Web
 @using Microsoft.AspNetCore.Identity
-@using Norse.Identity
-
 @inject UserManager<NorseUser> UserManager
 @inject UrlEncoder UrlEncoder
 @inject IdentityRedirectManager RedirectManager
@@ -73,10 +70,10 @@ else
     IEnumerable<string>? _recoveryCodes;
 
     [CascadingParameter]
-    HttpContext HttpContext { get; set; } = default!;
+    HttpContext HttpContext { get; set; } = null!;
 
     [SupplyParameterFromForm]
-    InputModel Input { get; set; } = default!;
+    InputModel Input { get; set; } = null!;
 
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
