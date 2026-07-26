@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Norse.Persistence.EntityFramework;
+using Norse.Primitives.Identifiers;
 
 namespace Norse.Identity.Web.Server;
 
@@ -54,8 +55,10 @@ public sealed class NorseIdentityDbContext(DbContextOptions<NorseIdentityDbConte
 
 		// Fixed-length storage (char(n)/nchar(n)) only pays off on SQL Server -- see
 		// Norse.Persistence.EntityFramework.FixedLengthAttribute's remarks.
+		var isSqlServer = Database.ProviderName == NorseDbContextOptionsExtensions.SqlServerProviderName;
 		NorseModelConventions.Apply(configurationBuilder,
-			applyFixedLength: Database.ProviderName == NorseDbContextOptionsExtensions.SqlServerProviderName);
+			applyFixedLength: isSqlServer,
+			sequentialGuidOrder: isSqlServer ? GuidByteOrder.SqlServer : GuidByteOrder.Rfc9562);
 	}
 
 	/// <inheritdoc />
