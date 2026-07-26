@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Norse.Abstractions.Contracts;
 using Norse.AuthN.Components;
 using Norse.AuthN.Services;
+using Norse.Persistence.EntityFramework;
 using Norse.Primitives;
 
 namespace Norse.Identity.Web.Server.Tests;
@@ -12,9 +13,9 @@ public sealed class RegisterHandlerTests
 {
 	static NorseIdentityDbContext CreateContext()
 	{
-		var options = new DbContextOptionsBuilder<NorseIdentityDbContext>()
-			.UseSqlite("DataSource=:memory:")
-			.Options;
+		var optionsBuilder = new DbContextOptionsBuilder<NorseIdentityDbContext>().UseSqlite("DataSource=:memory:");
+		optionsBuilder.ApplyNorseTrackingBehavior();
+		var options = optionsBuilder.Options;
 		var context = new NorseIdentityDbContext(options);
 		context.Database.OpenConnection();
 		context.Database.EnsureCreated();
