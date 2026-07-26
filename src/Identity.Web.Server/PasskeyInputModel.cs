@@ -4,7 +4,7 @@ namespace Norse.Identity.Web.Server;
 /// Form-bound state for a passkey creation or request round-trip, posted back from the
 /// <c>passkey-submit</c> custom element after the browser's WebAuthn ceremony completes.
 /// </summary>
-public class PasskeyInputModel
+sealed class PasskeyInputModel
 {
 	/// <summary>The serialized WebAuthn credential returned by the browser, or <see langword="null" /> if the ceremony has not completed.</summary>
 	public string? CredentialJson { get; set; }

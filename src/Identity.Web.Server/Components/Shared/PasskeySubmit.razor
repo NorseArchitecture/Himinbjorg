@@ -14,7 +14,7 @@
     AntiforgeryTokenSet? _tokens;
 
     [CascadingParameter]
-    HttpContext HttpContext { get; set; } = default!;
+    HttpContext HttpContext { get; set; } = null!;
 
     [Parameter]
     [EditorRequired]
@@ -22,7 +22,7 @@
 
     [Parameter]
     [EditorRequired]
-    public string Name { get; set; } = default!;
+    public string Name { get; set; } = null!;
 
     [Parameter]
     public string? EmailName { get; set; }

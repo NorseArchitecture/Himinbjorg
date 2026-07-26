@@ -15,7 +15,7 @@ namespace Microsoft.AspNetCore.Routing;
 #pragma warning restore IDE0130
 
 /// <summary>Extension methods that map the Identity Razor components' supporting endpoints onto an app.</summary>
-public static partial class IdentityComponentsEndpointRouteBuilderExtensions
+static partial class IdentityComponentsEndpointRouteBuilderExtensions
 {
 	// These endpoints are required by the Identity Razor components defined in the /Components/Pages directory of this project.
 	/// <summary>
@@ -137,13 +137,9 @@ public static partial class IdentityComponentsEndpointRouteBuilderExtensions
 			downloadLogger.LogUserPersonalDataRequested(userId);
 
 			// Only include personal data for download
-			var personalData = new Dictionary<string, string>();
 			var personalDataProps = typeof(NorseUser).GetProperties().Where(
 				prop => Attribute.IsDefined(prop, typeof(PersonalDataAttribute)));
-			foreach (var p in personalDataProps)
-			{
-				personalData.Add(p.Name, p.GetValue(user)?.ToString() ?? "null");
-			}
+			var personalData = personalDataProps.ToDictionary(p => p.Name, p => p.GetValue(user)?.ToString() ?? "null");
 
 			var logins = await userManager.GetLoginsAsync(user).ConfigureAwait(false);
 			foreach (var l in logins)
@@ -158,7 +154,7 @@ public static partial class IdentityComponentsEndpointRouteBuilderExtensions
 			return TypedResults.File(fileBytes, contentType: "application/json", fileDownloadName: "PersonalData.json");
 		});
 
-		return accountGroup;
+		return accountGroup.ExcludeFromDescription();
 	}
 
 	static string TemporaryFluentButtonFix(string provider)

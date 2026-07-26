@@ -1,13 +1,10 @@
 @page "/Account/ExternalLogin"
-
 @using System.ComponentModel.DataAnnotations
 @using System.Security.Claims
 @using System.Text
 @using System.Text.Encodings.Web
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.AspNetCore.WebUtilities
-@using Norse.Identity
-
 @inject SignInManager<NorseUser> SignInManager
 @inject UserManager<NorseUser> UserManager
 @inject IUserStore<NorseUser> UserStore
@@ -46,10 +43,10 @@
     ExternalLoginInfo? _externalLoginInfo;
 
     [CascadingParameter]
-    HttpContext HttpContext { get; set; } = default!;
+    HttpContext HttpContext { get; set; } = null!;
 
     [SupplyParameterFromForm]
-    InputModel Input { get; set; } = default!;
+    InputModel Input { get; set; } = null!;
 
     [SupplyParameterFromQuery]
     string? RemoteError { get; set; }
@@ -183,7 +180,7 @@
         }
     }
 
-    NorseUser CreateUser()
+    static NorseUser CreateUser()
     {
         try
         {
@@ -191,8 +188,7 @@
         }
         catch
         {
-            throw new InvalidOperationException($"Can't create an instance of '{nameof(NorseUser)}'. " +
-                $"Ensure that '{nameof(NorseUser)}' is not an abstract class and has a parameterless constructor");
+            throw new InvalidOperationException($"Can't create an instance of '{nameof(NorseUser)}'. Ensure that '{nameof(NorseUser)}' is not an abstract class and has a parameterless constructor");
         }
     }
 

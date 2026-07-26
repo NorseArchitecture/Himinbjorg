@@ -1,8 +1,5 @@
 @page "/Account/Manage/ResetAuthenticator"
-
 @using Microsoft.AspNetCore.Identity
-@using Norse.Identity
-
 @inject UserManager<NorseUser> UserManager
 @inject SignInManager<NorseUser> SignInManager
 @inject IdentityRedirectManager RedirectManager
@@ -32,7 +29,7 @@
 
 @code {
     [CascadingParameter]
-    HttpContext HttpContext { get; set; } = default!;
+    HttpContext HttpContext { get; set; } = null!;
 
     async Task OnSubmitAsync()
     {

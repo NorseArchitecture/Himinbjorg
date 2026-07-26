@@ -11,10 +11,10 @@ public sealed class LoginHandlerTests
 	async Task Rejects_an_invalid_request_without_attempting_sign_in()
 	{
 		var signInManager = MockSignInManager.Create();
-		var handler = new LoginHandler(signInManager, new LoginRequestValidator());
-		var request = new LoginRequest { Email = "", Password = "" };
+		LoginHandler handler = new(signInManager, new LoginRequestValidator());
+		LoginRequest request = new() { Email = "", Password = "" };
 
-		var outcome = await handler.Handle(request, CancellationToken.None);
+		var outcome = await handler.Handle(request, TestContext.Current.CancellationToken);
 
 		outcome.TryGetValue(out Failed failed).ShouldBeTrue();
 		failed.Problem.Category.ShouldBe(ErrorCategory.Validation);
@@ -27,10 +27,10 @@ public sealed class LoginHandlerTests
 		var signInManager = MockSignInManager.Create();
 		signInManager.PasswordSignInAsync("user@example.com", "wrong-password", false, true)
 			.Returns(Microsoft.AspNetCore.Identity.SignInResult.LockedOut);
-		var handler = new LoginHandler(signInManager, new LoginRequestValidator());
-		var request = new LoginRequest { Email = "user@example.com", Password = "wrong-password" };
+		LoginHandler handler = new(signInManager, new LoginRequestValidator());
+		LoginRequest request = new() { Email = "user@example.com", Password = "wrong-password" };
 
-		var outcome = await handler.Handle(request, CancellationToken.None);
+		var outcome = await handler.Handle(request, TestContext.Current.CancellationToken);
 
 		outcome.TryGetValue(out Failed failed).ShouldBeTrue();
 		failed.Problem.Category.ShouldBe(ErrorCategory.LockedOut);
@@ -43,10 +43,10 @@ public sealed class LoginHandlerTests
 		var signInManager = MockSignInManager.Create();
 		signInManager.PasswordSignInAsync("user@example.com", "wrong-password", false, true)
 			.Returns(Microsoft.AspNetCore.Identity.SignInResult.NotAllowed);
-		var handler = new LoginHandler(signInManager, new LoginRequestValidator());
-		var request = new LoginRequest { Email = "user@example.com", Password = "wrong-password" };
+		LoginHandler handler = new(signInManager, new LoginRequestValidator());
+		LoginRequest request = new() { Email = "user@example.com", Password = "wrong-password" };
 
-		var outcome = await handler.Handle(request, CancellationToken.None);
+		var outcome = await handler.Handle(request, TestContext.Current.CancellationToken);
 
 		outcome.TryGetValue(out Failed failed).ShouldBeTrue();
 		failed.Problem.Category.ShouldBe(ErrorCategory.NotAllowed);
@@ -59,10 +59,10 @@ public sealed class LoginHandlerTests
 		var signInManager = MockSignInManager.Create();
 		signInManager.PasswordSignInAsync("user@example.com", "correct-horse", false, true)
 			.Returns(Microsoft.AspNetCore.Identity.SignInResult.Success);
-		var handler = new LoginHandler(signInManager, new LoginRequestValidator());
-		var request = new LoginRequest { Email = "user@example.com", Password = "correct-horse" };
+		LoginHandler handler = new(signInManager, new LoginRequestValidator());
+		LoginRequest request = new() { Email = "user@example.com", Password = "correct-horse" };
 
-		var outcome = await handler.Handle(request, CancellationToken.None);
+		var outcome = await handler.Handle(request, TestContext.Current.CancellationToken);
 
 		outcome.TryGetValue(out Success<BoolResponse> success).ShouldBeTrue();
 		success.Value.Value.ShouldBeTrue();
@@ -76,10 +76,10 @@ public sealed class LoginHandlerTests
 		var signInManager = MockSignInManager.Create();
 		signInManager.PasswordSignInAsync("user@example.com", "wrong-password", false, true)
 			.Returns(Microsoft.AspNetCore.Identity.SignInResult.Failed);
-		var handler = new LoginHandler(signInManager, new LoginRequestValidator());
-		var request = new LoginRequest { Email = "user@example.com", Password = "wrong-password" };
+		LoginHandler handler = new(signInManager, new LoginRequestValidator());
+		LoginRequest request = new() { Email = "user@example.com", Password = "wrong-password" };
 
-		var outcome = await handler.Handle(request, CancellationToken.None);
+		var outcome = await handler.Handle(request, TestContext.Current.CancellationToken);
 
 		outcome.TryGetValue(out Success<BoolResponse> success).ShouldBeTrue();
 		success.Value.Value.ShouldBeFalse();

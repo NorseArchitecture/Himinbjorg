@@ -10,9 +10,9 @@ public sealed class LogoutHandlerTests
 	async Task Always_returns_a_successful_outcome()
 	{
 		var signInManager = MockSignInManager.Create();
-		var handler = new LogoutHandler(signInManager);
+		LogoutHandler handler = new(signInManager);
 
-		var outcome = await handler.Handle(new LogoutRequest(), CancellationToken.None);
+		var outcome = await handler.Handle(new LogoutRequest(), TestContext.Current.CancellationToken);
 
 		outcome.TryGetValue(out Success<Unit> _).ShouldBeTrue();
 		await signInManager.Received(1).SignOutAsync();

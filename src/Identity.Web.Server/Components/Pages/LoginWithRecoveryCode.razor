@@ -1,9 +1,6 @@
 @page "/Account/LoginWithRecoveryCode"
-
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Identity
-@using Norse.Identity
-
 @inject SignInManager<NorseUser> SignInManager
 @inject UserManager<NorseUser> UserManager
 @inject IdentityRedirectManager RedirectManager
@@ -32,10 +29,10 @@
 
 @code {
     string? _message;
-    NorseUser _user = default!;
+    NorseUser _user = null!;
 
     [SupplyParameterFromForm]
-    InputModel Input { get; set; } = default!;
+    InputModel Input { get; set; } = null!;
 
     [SupplyParameterFromQuery]
     string? ReturnUrl { get; set; }
