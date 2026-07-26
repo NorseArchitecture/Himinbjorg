@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Norse.Persistence.EntityFramework;
 
 namespace Norse.Identity.Web.Server.Tests;
 
@@ -44,10 +45,10 @@ public sealed class NorseUserStoreTests
 
 	static NorseIdentityDbContext CreateContext()
 	{
-		NorseIdentityDbContext ctx = new(
-			new DbContextOptionsBuilder<NorseIdentityDbContext>()
-				.UseSqlite($"Data Source={Guid.NewGuid()};Mode=Memory;Cache=Shared")
-				.Options);
+		var optionsBuilder = new DbContextOptionsBuilder<NorseIdentityDbContext>()
+			.UseSqlite($"Data Source={Guid.NewGuid()};Mode=Memory;Cache=Shared");
+		optionsBuilder.ApplyNorseTrackingBehavior();
+		NorseIdentityDbContext ctx = new(optionsBuilder.Options);
 		// A shared-cache SQLite in-memory database is destroyed once its last open connection closes.
 		// EnsureCreated() opens and closes its own connection, so the connection must be opened explicitly
 		// first and kept open for the lifetime of the context (closed on dispose) to survive later queries.

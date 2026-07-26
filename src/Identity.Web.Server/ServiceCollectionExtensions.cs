@@ -25,6 +25,7 @@ public static class ServiceCollectionExtensions
 			{
 				o.UseNpgsql(connectionString);
 				o.ApplyNorseConventions();
+				o.ApplyNorseTrackingBehavior();
 			});
 			services.AddNorseIdentity().AddSignInManager<NorseSignInManager>();
 			services.AddScoped<IValidator<LoginRequest>, LoginRequestValidator>();

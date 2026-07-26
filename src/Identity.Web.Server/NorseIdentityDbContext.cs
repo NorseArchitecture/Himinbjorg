@@ -11,8 +11,9 @@ namespace Norse.Identity.Web.Server;
 /// combining ASP.NET Core Identity and OpenIddict entity sets. Naming conventions are applied by
 /// whichever provider registration extension registers this context (see
 /// <c>Norse.Persistence.EntityFramework.PostgreSQL.NorsePostgresContextExtensions</c> and its SQL Server
-/// counterpart) — this class replicates <see cref="NorseDbContext"/>'s fixed-length provider check
-/// independently since it inherits <c>IdentityDbContext</c>, not <see cref="NorseDbContext"/>.
+/// counterpart) — this class replicates <see cref="NorseDbContext"/>'s fixed-length and
+/// <see cref="SequentialGuid"/> byte-order provider checks independently since it inherits
+/// <c>IdentityDbContext</c>, not <see cref="NorseDbContext"/>.
 /// </summary>
 /// <param name="options">The options for this context.</param>
 public sealed class NorseIdentityDbContext(DbContextOptions<NorseIdentityDbContext> options)
