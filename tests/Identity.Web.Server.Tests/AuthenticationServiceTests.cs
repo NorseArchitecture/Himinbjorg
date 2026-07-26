@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Http;
 using Norse.Abstractions.Contracts;
 using Norse.Abstractions.Web.Server.DeferredSignIn;
@@ -36,7 +35,6 @@ public sealed class AuthenticationServiceTests
 	}
 
 	[Fact]
-	[SuppressMessage("Usage", "CA2012:Use ValueTasks correctly")]
 	async Task Login_Succeeds_ReturnsLoginResult_WithNoDeferredCompletionUrl_WhenNoneStashed()
 	{
 		var loginHandler = Substitute.For<IRequestHandler<LoginRequest, Outcome<BoolResponse>>>();
@@ -52,7 +50,6 @@ public sealed class AuthenticationServiceTests
 	}
 
 	[Fact]
-	[SuppressMessage("Usage", "CA2012:Use ValueTasks correctly")]
 	async Task Login_BusinessFailure_ReturnsFailedOutcome_NotAThrow_PreservingCategory()
 	{
 		var loginHandler = Substitute.For<IRequestHandler<LoginRequest, Outcome<BoolResponse>>>();
@@ -67,7 +64,6 @@ public sealed class AuthenticationServiceTests
 	}
 
 	[Fact]
-	[SuppressMessage("Usage", "CA2012:Use ValueTasks correctly")]
 	async Task Login_Succeeds_PopulatesDeferredCompletionUrl_WhenStashedOnHttpContext()
 	{
 		var loginHandler = Substitute.For<IRequestHandler<LoginRequest, Outcome<BoolResponse>>>();
@@ -85,7 +81,6 @@ public sealed class AuthenticationServiceTests
 	}
 
 	[Fact]
-	[SuppressMessage("Usage", "CA2012:Use ValueTasks correctly")]
 	async Task Register_Succeeds_ReturnsOkOutcome()
 	{
 		var registerHandler = Substitute.For<IRequestHandler<RegisterRequest, Outcome<BoolResponse>>>();
@@ -99,7 +94,6 @@ public sealed class AuthenticationServiceTests
 	}
 
 	[Fact]
-	[SuppressMessage("Usage", "CA2012:Use ValueTasks correctly")]
 	async Task Register_BusinessFailure_ReturnsFailedOutcome_NotAThrow_PreservingCategory()
 	{
 		var registerHandler = Substitute.For<IRequestHandler<RegisterRequest, Outcome<BoolResponse>>>();
@@ -118,7 +112,6 @@ public sealed class AuthenticationServiceTests
 	// as setting one, so Logout's TryGetDeferredCompletionUrl() call isn't optional plumbing.
 
 	[Fact]
-	[SuppressMessage("Usage", "CA2012:Use ValueTasks correctly")]
 	async Task Logout_Succeeds_ReturnsLogoutResult_WithNoDeferredCompletionUrl_WhenNoneStashed()
 	{
 		var logoutHandler = Substitute.For<IRequestHandler<LogoutRequest, Outcome<Unit>>>();
@@ -133,7 +126,6 @@ public sealed class AuthenticationServiceTests
 	}
 
 	[Fact]
-	[SuppressMessage("Usage", "CA2012:Use ValueTasks correctly")]
 	async Task Logout_Succeeds_PopulatesDeferredCompletionUrl_WhenStashedOnHttpContext()
 	{
 		var logoutHandler = Substitute.For<IRequestHandler<LogoutRequest, Outcome<Unit>>>();
@@ -151,7 +143,6 @@ public sealed class AuthenticationServiceTests
 	}
 
 	[Fact]
-	[SuppressMessage("Usage", "CA2012:Use ValueTasks correctly")]
 	async Task Logout_BusinessFailure_ReturnsFailedOutcome_NotAThrow_PreservingCategory()
 	{
 		var logoutHandler = Substitute.For<IRequestHandler<LogoutRequest, Outcome<Unit>>>();
