@@ -69,7 +69,7 @@ public sealed class AuthenticationServiceTests
 		var loginHandler = Substitute.For<IRequestHandler<LoginRequest, Outcome<BoolResponse>>>();
 		loginHandler.Handle(Arg.Any<LoginRequest>(), Arg.Any<CancellationToken>())
 			.Returns(_ => ValueTask.FromResult(Outcome<BoolResponse>.Ok(new BoolResponse { Value = true })));
-		var httpContext = new DefaultHttpContext();
+		DefaultHttpContext httpContext = new();
 		httpContext.Items[NorseSignInManager.DeferredSignInKeyItemName] = "stashed-key";
 		var service = CreateService(loginHandler: loginHandler, deferredSignIn: CreateEchoingDeferredSignIn(), httpContext: httpContext);
 
@@ -131,7 +131,7 @@ public sealed class AuthenticationServiceTests
 		var logoutHandler = Substitute.For<IRequestHandler<LogoutRequest, Outcome<Unit>>>();
 		logoutHandler.Handle(Arg.Any<LogoutRequest>(), Arg.Any<CancellationToken>())
 			.Returns(_ => ValueTask.FromResult(Outcome<Unit>.Ok(Unit.Value)));
-		var httpContext = new DefaultHttpContext();
+		DefaultHttpContext httpContext = new();
 		httpContext.Items[NorseSignInManager.DeferredSignInKeyItemName] = "stashed-key";
 		var service = CreateService(logoutHandler: logoutHandler, deferredSignIn: CreateEchoingDeferredSignIn(), httpContext: httpContext);
 

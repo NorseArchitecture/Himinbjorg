@@ -39,6 +39,6 @@ else
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
     {
-        _externalLogins = (await SignInManager.GetExternalAuthenticationSchemesAsync()).ToArray();
+        _externalLogins = [.. await SignInManager.GetExternalAuthenticationSchemesAsync()];
     }
 }

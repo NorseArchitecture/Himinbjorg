@@ -90,9 +90,11 @@
         }
 
         _currentLogins = await UserManager.GetLoginsAsync(_user);
-        _otherLogins = (await SignInManager.GetExternalAuthenticationSchemesAsync())
-            .Where(auth => _currentLogins.All(ul => auth.Name != ul.LoginProvider))
-            .ToList();
+        _otherLogins =
+        [
+            .. (await SignInManager.GetExternalAuthenticationSchemesAsync())
+                .Where(auth => _currentLogins.All(ul => auth.Name != ul.LoginProvider)),
+        ];
 
         string? passwordHash = null;
         if (UserStore is IUserPasswordStore<NorseUser> userPasswordStore)

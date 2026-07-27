@@ -7,7 +7,7 @@ namespace Norse.Identity.Web.Server.Tests;
 public sealed class NorseUserStoreTests
 {
 	[Fact]
-	public async Task FindByIdAsync_returns_null_for_missing_user()
+	async Task FindByIdAsync_returns_null_for_missing_user()
 	{
 		using var ctx = CreateContext();
 		using NorseUserStore store = new(ctx, new IdentityErrorDescriber());
@@ -18,7 +18,7 @@ public sealed class NorseUserStoreTests
 	}
 
 	[Fact]
-	public async Task FindByIdAsync_projects_required_fields()
+	async Task FindByIdAsync_projects_required_fields()
 	{
 		using var ctx = CreateContext();
 		var userId = Guid.NewGuid();

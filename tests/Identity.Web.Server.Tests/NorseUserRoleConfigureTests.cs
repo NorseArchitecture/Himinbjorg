@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace Norse.Identity.Web.Server.Tests;
 
@@ -11,7 +12,7 @@ public sealed class NorseUserRoleConfigureTests
 	void Configure_wires_explicit_User_and_Role_navigations()
 	{
 		var entityType = BuildEntityType();
-		var foreignKeys = entityType.GetForeignKeys().ToList();
+		List<IForeignKey> foreignKeys = [.. entityType.GetForeignKeys()];
 
 		foreignKeys.ShouldContain(fk =>
 			fk.DependentToPrincipal!.Name == nameof(NorseUserRole.User) && fk.IsRequired);
@@ -19,7 +20,7 @@ public sealed class NorseUserRoleConfigureTests
 			fk.DependentToPrincipal!.Name == nameof(NorseUserRole.Role) && fk.IsRequired);
 	}
 
-	static Microsoft.EntityFrameworkCore.Metadata.IEntityType BuildEntityType()
+	static IEntityType BuildEntityType()
 	{
 		ModelBuilder builder = new();
 		builder.Entity<NorseUserRole>(NorseUserRole.Configure);

@@ -15,7 +15,7 @@ sealed class RegisterHandler(UserManager<NorseUser> userManager, RegisterRequest
 		if (!validation.IsValid)
 			return Outcome<BoolResponse>.Err(ErrorCategory.Validation, (IReadOnlyDictionary<string, string[]>)validation.ToDictionary());
 
-		var user = new NorseUser { UserName = request.Email, Email = request.Email };
+		NorseUser user = new() { UserName = request.Email, Email = request.Email };
 		var result = await userManager.CreateAsync(user, request.Password).ConfigureAwait(false);
 
 		if (result.Succeeded)

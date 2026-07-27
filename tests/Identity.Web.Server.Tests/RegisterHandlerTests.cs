@@ -16,7 +16,7 @@ public sealed class RegisterHandlerTests
 		var optionsBuilder = new DbContextOptionsBuilder<NorseIdentityDbContext>().UseSqlite("DataSource=:memory:");
 		optionsBuilder.ApplyNorseTrackingBehavior();
 		var options = optionsBuilder.Options;
-		var context = new NorseIdentityDbContext(options);
+		NorseIdentityDbContext context = new(options);
 		context.Database.OpenConnection();
 		context.Database.EnsureCreated();
 		return context;

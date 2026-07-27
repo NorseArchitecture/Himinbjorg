@@ -9,6 +9,8 @@ namespace Norse.Identity.Web.Server;
 /// </summary>
 static class IdentityValueConverters
 {
+	// ValueConverter lambdas are expression trees — CS8122 forbids `is` patterns inside them, so
+	// these null checks stay `!= null` by language constraint, not by choice.
 	public static readonly ValueConverter<string?, Guid?> Stamp = new(
 		static s => s != null ? Guid.Parse(s) : null,
 		static g => g.HasValue ? g.ToString() : null);

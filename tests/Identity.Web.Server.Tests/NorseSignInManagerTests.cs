@@ -112,9 +112,9 @@ public sealed class NorseSignInManagerTests
 				.Configure(app => app.Run(async context =>
 				{
 					if (responseAlreadyStarted)
-						await context.Response.WriteAsync(" ").ConfigureAwait(false);
+						await context.Response.WriteAsync(" ");
 
-					var user = new NorseUser { UserName = "user@example.com", Email = "user@example.com" };
+					NorseUser user = new() { UserName = "user@example.com", Email = "user@example.com" };
 					var claimsFactory = Substitute.For<IUserClaimsPrincipalFactory<NorseUser>>();
 					claimsFactory.CreateAsync(Arg.Any<NorseUser>()).Returns(new ClaimsPrincipal(new ClaimsIdentity(_scheme)));
 
@@ -124,39 +124,39 @@ public sealed class NorseSignInManagerTests
 						new UpperInvariantLookupNormalizer(), new IdentityErrorDescriber(), null!,
 						NullLogger<UserManager<NorseUser>>.Instance);
 
-					var accessor = new HttpContextAccessor { HttpContext = context };
+					HttpContextAccessor accessor = new() { HttpContext = context };
 					var schemes = Substitute.For<IAuthenticationSchemeProvider>();
 					var confirmation = Substitute.For<IUserConfirmation<NorseUser>>();
 
-					SignInManager<NorseUser> signInManager = useNorseSignInManager
-						? new NorseSignInManager(
+					SignInManager<NorseUser> signInManager = useNorseSignInManager ?
+						new NorseSignInManager(
 							userManager, accessor, claimsFactory, Options.Create(new IdentityOptions()),
-							NullLogger<SignInManager<NorseUser>>.Instance, schemes, confirmation, deferredSignIn)
-						: new SignInManager<NorseUser>(
+							NullLogger<SignInManager<NorseUser>>.Instance, schemes, confirmation, deferredSignIn) :
+						new SignInManager<NorseUser>(
 							userManager, accessor, claimsFactory, Options.Create(new IdentityOptions()),
 							NullLogger<SignInManager<NorseUser>>.Instance, schemes, confirmation);
 
 					try
 					{
 						if (signOut)
-							await signInManager.SignOutAsync().ConfigureAwait(false);
+							await signInManager.SignOutAsync();
 						else
-							await signInManager.SignInWithClaimsAsync(user, isPersistent: false, additionalClaims: []).ConfigureAwait(false);
+							await signInManager.SignInWithClaimsAsync(user, isPersistent: false, additionalClaims: []);
 					}
 					catch (Exception ex)
 					{
 						caught = ex;
 					}
 
-					itemsKey = context.Items.TryGetValue(NorseSignInManager.DeferredSignInKeyItemName, out var value)
-						? value as string
-						: null;
+					itemsKey = context.Items.TryGetValue(NorseSignInManager.DeferredSignInKeyItemName, out var value) ?
+						value as string :
+						null;
 					setCookiePresent = context.Response.Headers.ContainsKey("Set-Cookie");
 				})))
-			.StartAsync().ConfigureAwait(false);
+			.StartAsync();
 
 		using var client = host.GetTestServer().CreateClient();
-		await client.GetAsync(new Uri("/", UriKind.Relative)).ConfigureAwait(false);
+		await client.GetAsync(new Uri("/", UriKind.Relative));
 
 		return new Probe(caught, deferredSignIn, itemsKey, setCookiePresent);
 	}

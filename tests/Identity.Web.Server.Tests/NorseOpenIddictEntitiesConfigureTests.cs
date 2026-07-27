@@ -42,7 +42,7 @@ public sealed class NorseOpenIddictEntitiesConfigureTests
 		var entityType = model.FindEntityType(typeof(NorseOpenIddictToken))!;
 		entityType.FindProperty(nameof(NorseOpenIddictToken.Payload))!.GetMaxLength().ShouldBe(-1);
 
-		var foreignKeys = entityType.GetForeignKeys().ToList();
+		List<IForeignKey> foreignKeys = [.. entityType.GetForeignKeys()];
 		foreignKeys.ShouldContain(fk => fk.Properties.Single().Name == nameof(NorseOpenIddictToken.ApplicationId));
 		foreignKeys.ShouldContain(fk => fk.Properties.Single().Name == nameof(NorseOpenIddictToken.AuthorizationId));
 	}
