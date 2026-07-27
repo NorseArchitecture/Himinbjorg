@@ -1,154 +1,126 @@
-using Microsoft.AspNetCore.Http;
 using Norse.Abstractions.Contracts;
-using Norse.Abstractions.Web.Server.DeferredSignIn;
 using Norse.Abstractions.Web.Server.Mediator;
 using Norse.AuthN.Services;
-using Norse.Primitives;
 
 namespace Norse.Identity.Web.Server.Tests;
 
+/// <summary>
+/// <see cref="AuthenticationService"/> is pure hydrate-and-send now — every method wraps the wire
+/// request in its command and forwards to <see cref="ISender"/> unchanged. These tests prove exactly
+/// that: field-for-field hydration of the command from the wire request, and the sender's outcome
+/// passed straight through with no mapping in between.
+/// </summary>
 public sealed class AuthenticationServiceTests
 {
-	static AuthenticationService CreateService(
-		ISender? sender = null,
-		IDeferredSignIn? deferredSignIn = null,
-		HttpContext? httpContext = null)
+	[Fact]
+	async Task Login_hydrates_a_LoginCommand_from_the_request_and_sends_it()
 	{
-		var accessor = Substitute.For<IHttpContextAccessor>();
-		accessor.HttpContext.Returns(httpContext ?? new DefaultHttpContext());
-		return new AuthenticationService(
-			sender ?? Substitute.For<ISender>(),
-			deferredSignIn ?? Substitute.For<IDeferredSignIn>(),
-			accessor);
-	}
+		LoginCommand? captured = null;
+		var sender = Substitute.For<ISender>();
+		sender.Send(Arg.Do<LoginCommand>(c => captured = c), Arg.Any<CancellationToken>())
+			.Returns(_ => ValueTask.FromResult(Outcome<LoginResult>.Ok(new LoginResult { Succeeded = true })));
+		AuthenticationService service = new(sender);
+		LoginRequest request = new() { Email = "a@b.com", Password = "x", RememberMe = true };
 
-	static IDeferredSignIn CreateEchoingDeferredSignIn()
-	{
-		var deferredSignIn = Substitute.For<IDeferredSignIn>();
-		deferredSignIn.BuildCompletionUrl(Arg.Any<string>(), Arg.Any<string>())
-			.Returns(call => $"/_auth/complete?key={call.ArgAt<string>(0)}&returnUrl={Uri.EscapeDataString(call.ArgAt<string>(1))}");
-		return deferredSignIn;
+		await service.Login(request, TestContext.Current.CancellationToken);
+
+		captured.ShouldNotBeNull();
+		captured.Request.ShouldBe(request);
 	}
 
 	[Fact]
-	async Task Login_Succeeds_ReturnsLoginResult_WithNoDeferredCompletionUrl_WhenNoneStashed()
+	async Task Login_returns_the_senders_outcome_unchanged()
 	{
 		var sender = Substitute.For<ISender>();
-		sender.Send(Arg.Any<LoginRequest>(), Arg.Any<CancellationToken>())
-			.Returns(_ => ValueTask.FromResult(Outcome<BoolResponse>.Ok(new BoolResponse { Value = true })));
-		var service = CreateService(sender: sender);
+		var expected = Outcome<LoginResult>.Ok(new LoginResult { Succeeded = true, DeferredCompletionUrl = "/x" });
+		sender.Send(Arg.Any<LoginCommand>(), Arg.Any<CancellationToken>()).Returns(_ => ValueTask.FromResult(expected));
+		AuthenticationService service = new(sender);
 
 		var outcome = await service.Login(new LoginRequest { Email = "a@b.com", Password = "x" }, TestContext.Current.CancellationToken);
 
-		outcome.TryGetValue(out Success<LoginResult> success).ShouldBeTrue();
-		success.Value.Succeeded.ShouldBeTrue();
-		success.Value.DeferredCompletionUrl.ShouldBeNull();
+		outcome.ShouldBeSameAs(expected);
 	}
 
 	[Fact]
-	async Task Login_BusinessFailure_ReturnsFailedOutcome_NotAThrow_PreservingCategory()
+	async Task Login_passes_through_a_failed_outcome_unchanged()
 	{
 		var sender = Substitute.For<ISender>();
-		sender.Send(Arg.Any<LoginRequest>(), Arg.Any<CancellationToken>())
-			.Returns(_ => ValueTask.FromResult(Outcome<BoolResponse>.Err(ErrorCategory.LockedOut)));
-		var service = CreateService(sender: sender);
+		var expected = Outcome<LoginResult>.Err(ErrorCategory.LockedOut);
+		sender.Send(Arg.Any<LoginCommand>(), Arg.Any<CancellationToken>()).Returns(_ => ValueTask.FromResult(expected));
+		AuthenticationService service = new(sender);
 
 		var outcome = await service.Login(new LoginRequest { Email = "a@b.com", Password = "x" }, TestContext.Current.CancellationToken);
 
-		outcome.TryGetValue(out Failed failed).ShouldBeTrue();
-		failed.Problem.Category.ShouldBe(ErrorCategory.LockedOut);
+		outcome.ShouldBeSameAs(expected);
 	}
 
 	[Fact]
-	async Task Login_Succeeds_PopulatesDeferredCompletionUrl_WhenStashedOnHttpContext()
+	async Task Register_hydrates_a_RegisterCommand_from_the_request_and_sends_it()
 	{
+		RegisterCommand? captured = null;
 		var sender = Substitute.For<ISender>();
-		sender.Send(Arg.Any<LoginRequest>(), Arg.Any<CancellationToken>())
-			.Returns(_ => ValueTask.FromResult(Outcome<BoolResponse>.Ok(new BoolResponse { Value = true })));
-		DefaultHttpContext httpContext = new();
-		httpContext.Items[NorseSignInManager.DeferredSignInKeyItemName] = "stashed-key";
-		var service = CreateService(sender: sender, deferredSignIn: CreateEchoingDeferredSignIn(), httpContext: httpContext);
+		sender.Send(Arg.Do<RegisterCommand>(c => captured = c), Arg.Any<CancellationToken>())
+			.Returns(_ => ValueTask.FromResult(Outcome<RegisterResult>.Ok(new RegisterResult { Succeeded = true })));
+		AuthenticationService service = new(sender);
+		RegisterRequest request = new() { Email = "a@b.com", Password = "x" };
 
-		var outcome = await service.Login(new LoginRequest { Email = "a@b.com", Password = "x" }, TestContext.Current.CancellationToken);
+		await service.Register(request, TestContext.Current.CancellationToken);
 
-		outcome.TryGetValue(out Success<LoginResult> success).ShouldBeTrue();
-		success.Value.DeferredCompletionUrl.ShouldNotBeNull();
-		success.Value.DeferredCompletionUrl.ShouldContain("stashed-key");
+		captured.ShouldNotBeNull();
+		captured.Request.ShouldBe(request);
 	}
 
 	[Fact]
-	async Task Register_Succeeds_ReturnsOkOutcome()
+	async Task Register_returns_the_senders_outcome_unchanged()
 	{
 		var sender = Substitute.For<ISender>();
-		sender.Send(Arg.Any<RegisterRequest>(), Arg.Any<CancellationToken>())
-			.Returns(_ => ValueTask.FromResult(Outcome<BoolResponse>.Ok(new BoolResponse { Value = true })));
-		var service = CreateService(sender: sender);
+		var expected = Outcome<RegisterResult>.Err(ErrorCategory.Conflict);
+		sender.Send(Arg.Any<RegisterCommand>(), Arg.Any<CancellationToken>()).Returns(_ => ValueTask.FromResult(expected));
+		AuthenticationService service = new(sender);
 
 		var outcome = await service.Register(new RegisterRequest { Email = "a@b.com", Password = "x" }, TestContext.Current.CancellationToken);
 
-		outcome.TryGetValue(out Success<Unit> _).ShouldBeTrue();
+		outcome.ShouldBeSameAs(expected);
 	}
 
 	[Fact]
-	async Task Register_BusinessFailure_ReturnsFailedOutcome_NotAThrow_PreservingCategory()
+	async Task Logout_hydrates_a_LogoutCommand_wrapping_Unit_and_sends_it()
 	{
+		LogoutCommand? captured = null;
 		var sender = Substitute.For<ISender>();
-		sender.Send(Arg.Any<RegisterRequest>(), Arg.Any<CancellationToken>())
-			.Returns(_ => ValueTask.FromResult(Outcome<BoolResponse>.Err(ErrorCategory.Conflict)));
-		var service = CreateService(sender: sender);
+		sender.Send(Arg.Do<LogoutCommand>(c => captured = c), Arg.Any<CancellationToken>())
+			.Returns(_ => ValueTask.FromResult(Outcome<LogoutResult>.Ok(new LogoutResult())));
+		AuthenticationService service = new(sender);
 
-		var outcome = await service.Register(new RegisterRequest { Email = "a@b.com", Password = "x" }, TestContext.Current.CancellationToken);
+		await service.Logout(TestContext.Current.CancellationToken);
 
-		outcome.TryGetValue(out Failed failed).ShouldBeTrue();
-		failed.Problem.Category.ShouldBe(ErrorCategory.Conflict);
-	}
-
-	// Logout needs the identical deferred-completion coverage as Login (2026-07-24 correction, found
-	// while scoping Task 11) — clearing the auth cookie hits the same Response.HasStarted constraint
-	// as setting one, so Logout's TryGetDeferredCompletionUrl() call isn't optional plumbing.
-
-	[Fact]
-	async Task Logout_Succeeds_ReturnsLogoutResult_WithNoDeferredCompletionUrl_WhenNoneStashed()
-	{
-		var sender = Substitute.For<ISender>();
-		sender.Send(Arg.Any<LogoutRequest>(), Arg.Any<CancellationToken>())
-			.Returns(_ => ValueTask.FromResult(Outcome<Unit>.Ok(Unit.Value)));
-		var service = CreateService(sender: sender);
-
-		var outcome = await service.Logout(new LogoutRequest(), TestContext.Current.CancellationToken);
-
-		outcome.TryGetValue(out Success<LogoutResult> success).ShouldBeTrue();
-		success.Value.DeferredCompletionUrl.ShouldBeNull();
+		captured.ShouldNotBeNull();
+		captured.Request.ShouldBe(Unit.Value);
 	}
 
 	[Fact]
-	async Task Logout_Succeeds_PopulatesDeferredCompletionUrl_WhenStashedOnHttpContext()
+	async Task Logout_returns_the_senders_outcome_unchanged()
 	{
 		var sender = Substitute.For<ISender>();
-		sender.Send(Arg.Any<LogoutRequest>(), Arg.Any<CancellationToken>())
-			.Returns(_ => ValueTask.FromResult(Outcome<Unit>.Ok(Unit.Value)));
-		DefaultHttpContext httpContext = new();
-		httpContext.Items[NorseSignInManager.DeferredSignInKeyItemName] = "stashed-key";
-		var service = CreateService(sender: sender, deferredSignIn: CreateEchoingDeferredSignIn(), httpContext: httpContext);
+		var expected = Outcome<LogoutResult>.Ok(new LogoutResult { DeferredCompletionUrl = "/x" });
+		sender.Send(Arg.Any<LogoutCommand>(), Arg.Any<CancellationToken>()).Returns(_ => ValueTask.FromResult(expected));
+		AuthenticationService service = new(sender);
 
-		var outcome = await service.Logout(new LogoutRequest(), TestContext.Current.CancellationToken);
+		var outcome = await service.Logout(TestContext.Current.CancellationToken);
 
-		outcome.TryGetValue(out Success<LogoutResult> success).ShouldBeTrue();
-		success.Value.DeferredCompletionUrl.ShouldNotBeNull();
-		success.Value.DeferredCompletionUrl.ShouldContain("stashed-key");
+		outcome.ShouldBeSameAs(expected);
 	}
 
 	[Fact]
-	async Task Logout_BusinessFailure_ReturnsFailedOutcome_NotAThrow_PreservingCategory()
+	async Task Logout_passes_through_a_failed_outcome_unchanged()
 	{
 		var sender = Substitute.For<ISender>();
-		sender.Send(Arg.Any<LogoutRequest>(), Arg.Any<CancellationToken>())
-			.Returns(_ => ValueTask.FromResult(Outcome<Unit>.Err(ErrorCategory.Fault)));
-		var service = CreateService(sender: sender);
+		var expected = Outcome<LogoutResult>.Err(ErrorCategory.Fault);
+		sender.Send(Arg.Any<LogoutCommand>(), Arg.Any<CancellationToken>()).Returns(_ => ValueTask.FromResult(expected));
+		AuthenticationService service = new(sender);
 
-		var outcome = await service.Logout(new LogoutRequest(), TestContext.Current.CancellationToken);
+		var outcome = await service.Logout(TestContext.Current.CancellationToken);
 
-		outcome.TryGetValue(out Failed failed).ShouldBeTrue();
-		failed.Problem.Category.ShouldBe(ErrorCategory.Fault);
+		outcome.ShouldBeSameAs(expected);
 	}
 }

@@ -6,15 +6,16 @@ using Norse.AuthN.Services;
 namespace Norse.Identity.Web.Server;
 
 sealed class RegisterHandler(UserManager<NorseUser> userManager)
-	: IRequestHandler<RegisterRequest, BoolResponse>
+	: IRequestHandler<RegisterCommand, RegisterResult>
 {
-	public async ValueTask<Outcome<BoolResponse>> Handle(RegisterRequest request, CancellationToken cancellationToken = default)
+	public async ValueTask<Outcome<RegisterResult>> Handle(RegisterCommand request, CancellationToken cancellationToken = default)
 	{
-		NorseUser user = new() { UserName = request.Email, Email = request.Email };
-		var result = await userManager.CreateAsync(user, request.Password).ConfigureAwait(false);
+		var wire = request.Request;
+		NorseUser user = new() { UserName = wire.Email, Email = wire.Email };
+		var result = await userManager.CreateAsync(user, wire.Password).ConfigureAwait(false);
 
 		if (result.Succeeded)
-			return Outcome<BoolResponse>.Ok(new BoolResponse { Value = true });
+			return Outcome<RegisterResult>.Ok(new RegisterResult { Succeeded = true });
 		// Only a genuine duplicate is Conflict — Buvy's explicit call, so a legitimate user sees
 		// "that email's taken" and doesn't retry a doomed registration 10,000 times (spec §9.3).
 		// Everything else (password-policy codes) is Validation — a rejected password isn't a conflict.
@@ -23,6 +24,6 @@ sealed class RegisterHandler(UserManager<NorseUser> userManager)
 		var errors = result.Errors
 			.GroupBy(e => e.Code)
 			.ToDictionary(g => g.Key, g => g.Select(e => e.Description).ToArray());
-		return Outcome<BoolResponse>.Err(category, errors);
+		return Outcome<RegisterResult>.Err(category, errors);
 	}
 }

@@ -45,12 +45,12 @@ public sealed class RegisterHandlerTests
 		using NorseUserStore store = new(context, new IdentityErrorDescriber());
 		using var userManager = CreateUserManager(store);
 		RegisterHandler handler = new(userManager);
-		RegisterRequest request = new() { Email = "user@example.com", Password = "correct-horse-battery-1A!" };
+		RegisterCommand command = new(new RegisterRequest { Email = "user@example.com", Password = "correct-horse-battery-1A!" });
 
-		var outcome = await handler.Handle(request, TestContext.Current.CancellationToken);
+		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
 
-		outcome.TryGetValue(out Success<BoolResponse> success).ShouldBeTrue();
-		success.Value.Value.ShouldBeTrue();
+		outcome.TryGetValue(out Success<RegisterResult> success).ShouldBeTrue();
+		success.Value.Succeeded.ShouldBeTrue();
 		(await context.Users.SingleAsync(TestContext.Current.CancellationToken)).Email.ShouldBe("user@example.com");
 	}
 
@@ -61,10 +61,10 @@ public sealed class RegisterHandlerTests
 		using NorseUserStore store = new(context, new IdentityErrorDescriber());
 		using var userManager = CreateUserManager(store);
 		RegisterHandler handler = new(userManager);
-		RegisterRequest request = new() { Email = "user@example.com", Password = "correct-horse-battery-1A!" };
-		await handler.Handle(request, TestContext.Current.CancellationToken);
+		RegisterCommand command = new(new RegisterRequest { Email = "user@example.com", Password = "correct-horse-battery-1A!" });
+		await handler.Handle(command, TestContext.Current.CancellationToken);
 
-		var outcome = await handler.Handle(request, TestContext.Current.CancellationToken);
+		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
 
 		outcome.TryGetValue(out Failed failed).ShouldBeTrue();
 		failed.Problem.Category.ShouldBe(ErrorCategory.Conflict);
@@ -80,9 +80,9 @@ public sealed class RegisterHandlerTests
 		// Passes FluentValidation's client-side MinimumLength(8) but fails ASP.NET Identity's default
 		// password-complexity rules (needs a digit, an uppercase letter, a non-alphanumeric char) —
 		// exercises the corrected mapping: this must be Validation, never Conflict.
-		RegisterRequest request = new() { Email = "user2@example.com", Password = "aaaaaaaa" };
+		RegisterCommand command = new(new RegisterRequest { Email = "user2@example.com", Password = "aaaaaaaa" });
 
-		var outcome = await handler.Handle(request, TestContext.Current.CancellationToken);
+		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
 
 		outcome.TryGetValue(out Failed failed).ShouldBeTrue();
 		failed.Problem.Category.ShouldBe(ErrorCategory.Validation);
