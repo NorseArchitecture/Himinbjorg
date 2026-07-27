@@ -1,20 +1,15 @@
 using Microsoft.AspNetCore.Identity;
 using Norse.Abstractions.Contracts;
 using Norse.Abstractions.Web.Server.Mediator;
-using Norse.AuthN.Components;
 using Norse.AuthN.Services;
 
 namespace Norse.Identity.Web.Server;
 
-sealed class RegisterHandler(UserManager<NorseUser> userManager, RegisterRequestValidator validator)
-	: IRequestHandler<RegisterRequest, Outcome<BoolResponse>>
+sealed class RegisterHandler(UserManager<NorseUser> userManager)
+	: IRequestHandler<RegisterRequest, BoolResponse>
 {
-	public async ValueTask<Outcome<BoolResponse>> Handle(RegisterRequest request, CancellationToken cancellationToken)
+	public async ValueTask<Outcome<BoolResponse>> Handle(RegisterRequest request, CancellationToken cancellationToken = default)
 	{
-		var validation = await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false);
-		if (!validation.IsValid)
-			return Outcome<BoolResponse>.Err(ErrorCategory.Validation, (IReadOnlyDictionary<string, string[]>)validation.ToDictionary());
-
 		NorseUser user = new() { UserName = request.Email, Email = request.Email };
 		var result = await userManager.CreateAsync(user, request.Password).ConfigureAwait(false);
 

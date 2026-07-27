@@ -10,7 +10,7 @@
 		<NorseRef Include="AuthN.Components.FluentUI">
 			<Repo>Heimdall</Repo>
 		</NorseRef>
-		<NorseRef Include="Abstractions.Web.Server">
+		<NorseRef Include="Abstractions.Web.Server" Generator="true">
 			<Repo>Asgard</Repo>
 		</NorseRef>
 		<NorseRef Include="Persistence.EntityFramework">

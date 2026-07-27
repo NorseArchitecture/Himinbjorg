@@ -1,5 +1,4 @@
 using Norse.Abstractions.Contracts;
-using Norse.AuthN.Components;
 using Norse.AuthN.Services;
 using Norse.Primitives;
 
@@ -7,19 +6,8 @@ namespace Norse.Identity.Web.Server.Tests;
 
 public sealed class LoginHandlerTests
 {
-	[Fact]
-	async Task Rejects_an_invalid_request_without_attempting_sign_in()
-	{
-		var signInManager = MockSignInManager.Create();
-		LoginHandler handler = new(signInManager, new LoginRequestValidator());
-		LoginRequest request = new() { Email = "", Password = "" };
-
-		var outcome = await handler.Handle(request, TestContext.Current.CancellationToken);
-
-		outcome.TryGetValue(out Failed failed).ShouldBeTrue();
-		failed.Problem.Category.ShouldBe(ErrorCategory.Validation);
-		await signInManager.DidNotReceive().PasswordSignInAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<bool>());
-	}
+	// Rejection-of-an-invalid-request coverage moved to Midgard's ValidationBehavior tests —
+	// ValidationBehavior owns validation now, LoginHandler never sees an invalid request.
 
 	[Fact]
 	async Task Returns_LockedOut_when_the_store_reports_lockout()
@@ -27,7 +15,7 @@ public sealed class LoginHandlerTests
 		var signInManager = MockSignInManager.Create();
 		signInManager.PasswordSignInAsync("user@example.com", "wrong-password", false, true)
 			.Returns(Microsoft.AspNetCore.Identity.SignInResult.LockedOut);
-		LoginHandler handler = new(signInManager, new LoginRequestValidator());
+		LoginHandler handler = new(signInManager);
 		LoginRequest request = new() { Email = "user@example.com", Password = "wrong-password" };
 
 		var outcome = await handler.Handle(request, TestContext.Current.CancellationToken);
@@ -43,7 +31,7 @@ public sealed class LoginHandlerTests
 		var signInManager = MockSignInManager.Create();
 		signInManager.PasswordSignInAsync("user@example.com", "wrong-password", false, true)
 			.Returns(Microsoft.AspNetCore.Identity.SignInResult.NotAllowed);
-		LoginHandler handler = new(signInManager, new LoginRequestValidator());
+		LoginHandler handler = new(signInManager);
 		LoginRequest request = new() { Email = "user@example.com", Password = "wrong-password" };
 
 		var outcome = await handler.Handle(request, TestContext.Current.CancellationToken);
@@ -59,7 +47,7 @@ public sealed class LoginHandlerTests
 		var signInManager = MockSignInManager.Create();
 		signInManager.PasswordSignInAsync("user@example.com", "correct-horse", false, true)
 			.Returns(Microsoft.AspNetCore.Identity.SignInResult.Success);
-		LoginHandler handler = new(signInManager, new LoginRequestValidator());
+		LoginHandler handler = new(signInManager);
 		LoginRequest request = new() { Email = "user@example.com", Password = "correct-horse" };
 
 		var outcome = await handler.Handle(request, TestContext.Current.CancellationToken);
@@ -76,7 +64,7 @@ public sealed class LoginHandlerTests
 		var signInManager = MockSignInManager.Create();
 		signInManager.PasswordSignInAsync("user@example.com", "wrong-password", false, true)
 			.Returns(Microsoft.AspNetCore.Identity.SignInResult.Failed);
-		LoginHandler handler = new(signInManager, new LoginRequestValidator());
+		LoginHandler handler = new(signInManager);
 		LoginRequest request = new() { Email = "user@example.com", Password = "wrong-password" };
 
 		var outcome = await handler.Handle(request, TestContext.Current.CancellationToken);

@@ -1,20 +1,15 @@
 using Microsoft.AspNetCore.Identity;
 using Norse.Abstractions.Contracts;
 using Norse.Abstractions.Web.Server.Mediator;
-using Norse.AuthN.Components;
 using Norse.AuthN.Services;
 
 namespace Norse.Identity.Web.Server;
 
-sealed class LoginHandler(SignInManager<NorseUser> signInManager, LoginRequestValidator validator)
-	: IRequestHandler<LoginRequest, Outcome<BoolResponse>>
+sealed class LoginHandler(SignInManager<NorseUser> signInManager)
+	: IRequestHandler<LoginRequest, BoolResponse>
 {
-	public async ValueTask<Outcome<BoolResponse>> Handle(LoginRequest request, CancellationToken cancellationToken)
+	public async ValueTask<Outcome<BoolResponse>> Handle(LoginRequest request, CancellationToken cancellationToken = default)
 	{
-		var validation = await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false);
-		if (!validation.IsValid)
-			return Outcome<BoolResponse>.Err(ErrorCategory.Validation, (IReadOnlyDictionary<string, string[]>)validation.ToDictionary());
-
 		// SignInManager mints/clears the cookie itself via its own IHttpContextAccessor dependency —
 		// no manual HttpContext.SignInAsync call needed here (must register AddHttpContextAccessor()).
 		var result = await signInManager.PasswordSignInAsync(

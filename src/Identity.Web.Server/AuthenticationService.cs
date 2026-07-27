@@ -11,11 +11,13 @@ namespace Norse.Identity.Web.Server;
 /// The reference backend for Heimdall's <see cref="IAuthenticationService"/> contract — Himinbjörg
 /// owns this because it needs EF/Identity access, not because it's the only legal implementation.
 /// Trivially thin by design (spec §9, 2026-07-24 amendment to decided law item 3): every method
-/// invokes its handler and returns the resulting <see cref="Outcome{T}"/> as data — zero throw
-/// statements, zero <c>RpcException</c>, zero reference to Midgard. Himinbjörg and Midgard are
-/// architectural peers; the one throw point in the whole chain is the gRPC server interceptor
-/// (Midgard's <c>OutcomeServerInterceptor</c>), pattern-matching the returned envelope at the
-/// transport boundary, never here. Public: Yggdrasil's composition root maps this type directly.
+/// sends its request through Midgard's four-stage pipeline (validation, authorization, telemetry,
+/// exception translation) via Asgard's <see cref="ISender"/> and returns the resulting
+/// <see cref="Outcome{T}"/> as data — zero throw statements, zero <c>RpcException</c>. Himinbjörg
+/// stays Midgard-blind: it depends only on Asgard's mediator contracts, never on Midgard's pipeline
+/// implementation. The one throw point in the whole chain is the gRPC server interceptor (Midgard's
+/// <c>OutcomeServerInterceptor</c>), pattern-matching the returned envelope at the transport
+/// boundary, never here. Public: Yggdrasil's composition root maps this type directly.
 ///
 /// <c>[Authorize]</c> is mirrored from the interface onto every method here deliberately, not
 /// redundantly — ASP.NET Core's gRPC endpoint metadata is gathered by reflecting on this concrete
@@ -25,18 +27,16 @@ namespace Norse.Identity.Web.Server;
 /// (spec Remand 3, 2026-07-24 review).
 /// </summary>
 public sealed class AuthenticationService(
-	IRequestHandler<LoginRequest, Outcome<BoolResponse>> loginHandler,
-	IRequestHandler<RegisterRequest, Outcome<BoolResponse>> registerHandler,
-	IRequestHandler<LogoutRequest, Outcome<Unit>> logoutHandler,
+	ISender sender,
 	IDeferredSignIn deferredSignIn,
 	IHttpContextAccessor httpContextAccessor)
 	: IAuthenticationService
 {
 	/// <inheritdoc />
 	[Authorize(Policy = AuthNPolicies.Public)]
-	public async Task<Outcome<LoginResult>> Login(LoginRequest request)
+	public async Task<Outcome<LoginResult>> Login(LoginRequest request, CancellationToken cancellationToken = default)
 	{
-		var outcome = await loginHandler.Handle(request, httpContextAccessor.HttpContext!.RequestAborted).ConfigureAwait(false);
+		var outcome = await sender.Send(request, cancellationToken).ConfigureAwait(false);
 		return outcome switch
 		{
 			Success<BoolResponse>(var value) => Outcome<LoginResult>.Ok(new LoginResult { Succeeded = value.Value, DeferredCompletionUrl = TryGetDeferredCompletionUrl() }),
@@ -46,9 +46,9 @@ public sealed class AuthenticationService(
 
 	/// <inheritdoc />
 	[Authorize(Policy = AuthNPolicies.Public)]
-	public async Task<Outcome<Unit>> Register(RegisterRequest request)
+	public async Task<Outcome<Unit>> Register(RegisterRequest request, CancellationToken cancellationToken = default)
 	{
-		var outcome = await registerHandler.Handle(request, httpContextAccessor.HttpContext!.RequestAborted).ConfigureAwait(false);
+		var outcome = await sender.Send(request, cancellationToken).ConfigureAwait(false);
 		return outcome switch
 		{
 			Success<BoolResponse> => Outcome<Unit>.Ok(Unit.Value),
@@ -58,9 +58,9 @@ public sealed class AuthenticationService(
 
 	/// <inheritdoc />
 	[Microsoft.AspNetCore.Authorization.Authorize(Policy = AuthNPolicies.Public)]
-	public async Task<Outcome<LogoutResult>> Logout(LogoutRequest request)
+	public async Task<Outcome<LogoutResult>> Logout(LogoutRequest request, CancellationToken cancellationToken = default)
 	{
-		var outcome = await logoutHandler.Handle(request, httpContextAccessor.HttpContext!.RequestAborted).ConfigureAwait(false);
+		var outcome = await sender.Send(request, cancellationToken).ConfigureAwait(false);
 		return outcome switch
 		{
 			Success<Unit> => Outcome<LogoutResult>.Ok(new LogoutResult { DeferredCompletionUrl = TryGetDeferredCompletionUrl() }),
