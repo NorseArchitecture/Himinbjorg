@@ -3,12 +3,11 @@
 		<Description>Norse.Identity.Migrations: the migration contributor for NorseIdentityDbContext, provider-agnostic. Migration tooling only — never referenced from a runtime container.</Description>
 		<!-- EF Core is not AOT/trim-compatible; override the src-level default. -->
 		<IsAotCompatible>false</IsAotCompatible>
-		<IsPackable>false</IsPackable>
 	</PropertyGroup>
 	<ItemGroup>
-		<ProjectReference Include="../Identity.Web.Server/Identity.Web.Server.csproj" />
 		<NorseDesignRef Include="Persistence.EntityFramework.Design">
 			<Repo>Urdarbrunnr</Repo>
 		</NorseDesignRef>
+		<ProjectReference Include="../Identity.Web.Server/Identity.Web.Server.csproj" />
 	</ItemGroup>
 </Project>

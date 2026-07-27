@@ -9,8 +9,8 @@ namespace Norse.Identity.Migrations;
 /// </summary>
 /// <param name="context">The Identity context instance resolved from DI.</param>
 [MigrationConnectionString("norse_identity")]
-public sealed class NorseIdentityMigrationContributor(NorseIdentityDbContext context)
-	: EfMigrationContributor<NorseIdentityDbContext>(context)
+public sealed class NorseIdentityMigrationContributor(NorseIdentityDbContext context) :
+	EfMigrationContributor<NorseIdentityDbContext>(context)
 {
 	/// <inheritdoc />
 	public override string Name => "Norse.Identity";
