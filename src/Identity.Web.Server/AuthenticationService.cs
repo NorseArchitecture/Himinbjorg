@@ -57,7 +57,7 @@ public sealed class AuthenticationService(
 	}
 
 	/// <inheritdoc />
-	[Microsoft.AspNetCore.Authorization.Authorize(Policy = AuthNPolicies.Public)]
+	[Authorize(Policy = AuthNPolicies.Public)]
 	public async Task<Outcome<LogoutResult>> Logout(LogoutRequest request, CancellationToken cancellationToken = default)
 	{
 		var outcome = await sender.Send(request, cancellationToken).ConfigureAwait(false);
