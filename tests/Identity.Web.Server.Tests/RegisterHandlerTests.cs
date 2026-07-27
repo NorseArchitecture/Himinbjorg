@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Norse.Abstractions.Contracts;
-using Norse.AuthN.Components;
 using Norse.AuthN.Services;
 using Norse.Persistence.EntityFramework;
 using Norse.Primitives;
@@ -36,21 +35,8 @@ public sealed class RegisterHandlerTests
 			[new UserValidator<NorseUser>()], [new PasswordValidator<NorseUser>()], new UpperInvariantLookupNormalizer(), new IdentityErrorDescriber(),
 			null!, NullLogger<UserManager<NorseUser>>.Instance);
 
-	[Fact]
-	async Task Rejects_an_invalid_request_without_touching_the_store()
-	{
-		await using var context = CreateContext();
-		using NorseUserStore store = new(context, new IdentityErrorDescriber());
-		using var userManager = CreateUserManager(store);
-		RegisterHandler handler = new(userManager, new RegisterRequestValidator());
-		RegisterRequest request = new() { Email = "not-an-email", Password = "short" };
-
-		var outcome = await handler.Handle(request, TestContext.Current.CancellationToken);
-
-		outcome.TryGetValue(out Failed failed).ShouldBeTrue();
-		failed.Problem.Category.ShouldBe(ErrorCategory.Validation);
-		(await context.Users.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
-	}
+	// Rejection-of-an-invalid-request coverage moved to Midgard's ValidationBehavior tests —
+	// ValidationBehavior owns validation now, RegisterHandler never sees an invalid request.
 
 	[Fact]
 	async Task Creates_a_NorseUser_for_a_valid_request()
@@ -58,13 +44,13 @@ public sealed class RegisterHandlerTests
 		await using var context = CreateContext();
 		using NorseUserStore store = new(context, new IdentityErrorDescriber());
 		using var userManager = CreateUserManager(store);
-		RegisterHandler handler = new(userManager, new RegisterRequestValidator());
-		RegisterRequest request = new() { Email = "user@example.com", Password = "correct-horse-battery-1A!" };
+		RegisterHandler handler = new(userManager);
+		RegisterCommand command = new(new RegisterRequest { Email = "user@example.com", Password = "correct-horse-battery-1A!" });
 
-		var outcome = await handler.Handle(request, TestContext.Current.CancellationToken);
+		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
 
-		outcome.TryGetValue(out Success<BoolResponse> success).ShouldBeTrue();
-		success.Value.Value.ShouldBeTrue();
+		outcome.TryGetValue(out Success<RegisterResult> success).ShouldBeTrue();
+		success.Value.Succeeded.ShouldBeTrue();
 		(await context.Users.SingleAsync(TestContext.Current.CancellationToken)).Email.ShouldBe("user@example.com");
 	}
 
@@ -74,11 +60,11 @@ public sealed class RegisterHandlerTests
 		await using var context = CreateContext();
 		using NorseUserStore store = new(context, new IdentityErrorDescriber());
 		using var userManager = CreateUserManager(store);
-		RegisterHandler handler = new(userManager, new RegisterRequestValidator());
-		RegisterRequest request = new() { Email = "user@example.com", Password = "correct-horse-battery-1A!" };
-		await handler.Handle(request, TestContext.Current.CancellationToken);
+		RegisterHandler handler = new(userManager);
+		RegisterCommand command = new(new RegisterRequest { Email = "user@example.com", Password = "correct-horse-battery-1A!" });
+		await handler.Handle(command, TestContext.Current.CancellationToken);
 
-		var outcome = await handler.Handle(request, TestContext.Current.CancellationToken);
+		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
 
 		outcome.TryGetValue(out Failed failed).ShouldBeTrue();
 		failed.Problem.Category.ShouldBe(ErrorCategory.Conflict);
@@ -90,13 +76,13 @@ public sealed class RegisterHandlerTests
 		await using var context = CreateContext();
 		using NorseUserStore store = new(context, new IdentityErrorDescriber());
 		using var userManager = CreateUserManager(store);
-		RegisterHandler handler = new(userManager, new RegisterRequestValidator());
+		RegisterHandler handler = new(userManager);
 		// Passes FluentValidation's client-side MinimumLength(8) but fails ASP.NET Identity's default
 		// password-complexity rules (needs a digit, an uppercase letter, a non-alphanumeric char) —
 		// exercises the corrected mapping: this must be Validation, never Conflict.
-		RegisterRequest request = new() { Email = "user2@example.com", Password = "aaaaaaaa" };
+		RegisterCommand command = new(new RegisterRequest { Email = "user2@example.com", Password = "aaaaaaaa" });
 
-		var outcome = await handler.Handle(request, TestContext.Current.CancellationToken);
+		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
 
 		outcome.TryGetValue(out Failed failed).ShouldBeTrue();
 		failed.Problem.Category.ShouldBe(ErrorCategory.Validation);
