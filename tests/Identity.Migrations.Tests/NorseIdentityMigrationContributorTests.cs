@@ -1,4 +1,4 @@
-using Norse.Persistence.EntityFramework.Design;
+using Norse.Persistence.EntityFramework.Migrations;
 
 namespace Norse.Identity.Migrations.Tests;
 

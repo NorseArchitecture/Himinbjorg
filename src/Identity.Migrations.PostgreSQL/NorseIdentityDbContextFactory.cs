@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Norse.Identity.Web.Server;
-using Norse.Persistence.EntityFramework.Design.PostgreSQL;
+using Norse.Persistence.EntityFramework;
+using Norse.Persistence.EntityFramework.Design;
+using Norse.Persistence.EntityFramework.PostgreSQL;
 
 namespace Norse.Identity.Migrations.PostgreSQL;
 
@@ -18,21 +20,24 @@ namespace Norse.Identity.Migrations.PostgreSQL;
 /// provider supplying <see cref="IdentitySchemaVersions.Version3"/>, ASP.NET Core Identity silently
 /// falls back to <see cref="IdentitySchemaVersions.Version1"/> and omits the passkey table entirely.
 /// </remarks>
-public sealed class NorseIdentityDbContextFactory : NorsePostgreSqlDesignTimeDbContextFactory<NorseIdentityDbContext>
+public sealed class NorseIdentityDbContextFactory : NorseDesignTimeDbContextFactory<NorseIdentityDbContext>
 {
+	/// <inheritdoc />
+	protected override INorseEfProvider ProviderBinding => NorsePostgresEfProvider.Instance;
+
 	/// <inheritdoc />
 	protected override string DatabaseName => "norse_identity";
 
 	/// <inheritdoc />
-	protected override void ConfigureOptions(DbContextOptionsBuilder<NorseIdentityDbContext> builder, string connectionString)
+	protected override void ConfigureOptions(DbContextOptionsBuilder<NorseIdentityDbContext> builder)
 	{
+		base.ConfigureOptions(builder);
+
 		var applicationServices = new ServiceCollection()
 			.Configure<IdentityOptions>(o => o.Stores.SchemaVersion = IdentitySchemaVersions.Version3)
 			.BuildServiceProvider();
 
 		builder.UseApplicationServiceProvider(applicationServices);
-
-		base.ConfigureOptions(builder, connectionString);
 	}
 
 	/// <inheritdoc />

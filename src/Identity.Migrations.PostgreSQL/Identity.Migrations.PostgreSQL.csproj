@@ -12,9 +12,15 @@
 		<EmbeddedResource Include="schema/*.sql">
 			<LogicalName>CreateScript.sql</LogicalName>
 		</EmbeddedResource>
-		<NorseDesignRef Include="Persistence.EntityFramework.Design.PostgreSQL">
+		<NorseDesignRef Include="Persistence.EntityFramework.Design">
 			<Repo>Urdarbrunnr</Repo>
 		</NorseDesignRef>
+		<!-- Plain NorseRef, deliberately not NorseDesignRef: the binding must flow to the migrations
+		     service's compilation — the seam generator discovers exactly one INorseEfMigrationProvider
+		     in the host's reference closure (NORSE030 fires if this were PrivateAssets-blocked). -->
+		<NorseRef Include="Persistence.EntityFramework.PostgreSQL">
+			<Repo>Urdarbrunnr</Repo>
+		</NorseRef>
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="11.*-*">
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
