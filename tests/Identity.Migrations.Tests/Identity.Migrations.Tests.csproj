@@ -1,5 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<ItemGroup>
+		<!-- Needed directly, not just transitively: Migrations.PostgreSQL marks its NorseDesignRef
+		     to the Design chassis PrivateAssets="all", which blocks it from flowing here in package
+		     mode — and the container test references NorseIdentityDbContextFactory
+		     (NorseDesignTimeDbContextFactory<>) for the migrations-assembly name. -->
+		<NorseDesignRef Include="Persistence.EntityFramework.Design">
+			<Repo>Urdarbrunnr</Repo>
+		</NorseDesignRef>
+		<PackageReference Include="Testcontainers.PostgreSql" Version="*" />
 		<ProjectReference Include="../../src/Identity.Migrations/Identity.Migrations.csproj" />
+		<ProjectReference Include="../../src/Identity.Migrations.PostgreSQL/Identity.Migrations.PostgreSQL.csproj" />
 	</ItemGroup>
 </Project>
