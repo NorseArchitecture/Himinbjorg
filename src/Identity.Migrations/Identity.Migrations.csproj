@@ -5,9 +5,12 @@
 		<IsAotCompatible>false</IsAotCompatible>
 	</PropertyGroup>
 	<ItemGroup>
-		<NorseDesignRef Include="Persistence.EntityFramework.Design">
+		<!-- Plain NorseRef, deliberately not NorseDesignRef: EfMigrationContributor<T> and the
+		     migration-host choreography live here and must flow to the migrations service — the
+		     seam generator also discovers contributors through this closure. -->
+		<NorseRef Include="Persistence.EntityFramework.Migrations">
 			<Repo>Urdarbrunnr</Repo>
-		</NorseDesignRef>
+		</NorseRef>
 		<ProjectReference Include="../Identity.Web.Server/Identity.Web.Server.csproj" />
 	</ItemGroup>
 </Project>

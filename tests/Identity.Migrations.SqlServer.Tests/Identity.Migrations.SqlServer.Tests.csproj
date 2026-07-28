@@ -1,5 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<ItemGroup>
+		<!-- Needed directly, not just transitively via the ProjectReference below: the src project
+		     marks its own NorseDesignRef to this package PrivateAssets="all" (correctly, so runtime
+		     consumers don't inherit design-time tooling), which blocks it from flowing here in
+		     package mode. NorseIdentityDbContextFactory (NorseDesignTimeDbContextFactory<>) lives
+		     in the same assembly this test instantiates directly. -->
+		<NorseDesignRef Include="Persistence.EntityFramework.Design">
+			<Repo>Urdarbrunnr</Repo>
+		</NorseDesignRef>
 		<ProjectReference Include="../../src/Identity.Migrations.SqlServer/Identity.Migrations.SqlServer.csproj" />
 	</ItemGroup>
 </Project>

@@ -6,7 +6,13 @@
 	</PropertyGroup>
 	<ItemGroup>
 		<ProjectReference Include="../Identity.Migrations/Identity.Migrations.csproj" />
-		<NorseRef Include="Persistence.EntityFramework.Design.SqlServer">
+		<NorseDesignRef Include="Persistence.EntityFramework.Design">
+			<Repo>Urdarbrunnr</Repo>
+		</NorseDesignRef>
+		<!-- Plain NorseRef, deliberately not NorseDesignRef: the binding must flow to the migrations
+		     service's compilation — the seam generator discovers exactly one INorseEfMigrationProvider
+		     in the host's reference closure (NORSE030 fires if this were PrivateAssets-blocked). -->
+		<NorseRef Include="Persistence.EntityFramework.SqlServer">
 			<Repo>Urdarbrunnr</Repo>
 		</NorseRef>
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="11.*-*">

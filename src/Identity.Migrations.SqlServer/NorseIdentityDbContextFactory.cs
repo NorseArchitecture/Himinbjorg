@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Norse.Identity.Web.Server;
-using Norse.Persistence.EntityFramework.Design.SqlServer;
+using Norse.Persistence.EntityFramework;
+using Norse.Persistence.EntityFramework.Design;
+using Norse.Persistence.EntityFramework.SqlServer;
 
 namespace Norse.Identity.Migrations.SqlServer;
 
@@ -16,21 +18,24 @@ namespace Norse.Identity.Migrations.SqlServer;
 /// <see cref="IdentitySchemaVersions.Version1"/> happens in Identity's own model-building code, not
 /// anything provider-specific.
 /// </remarks>
-public sealed class NorseIdentityDbContextFactory : NorseSqlServerDesignTimeDbContextFactory<NorseIdentityDbContext>
+public sealed class NorseIdentityDbContextFactory : NorseDesignTimeDbContextFactory<NorseIdentityDbContext>
 {
+	/// <inheritdoc />
+	protected override INorseEfProvider ProviderBinding => NorseSqlServerEfProvider.Instance;
+
 	/// <inheritdoc />
 	protected override string DatabaseName => "norse_identity";
 
 	/// <inheritdoc />
-	protected override void ConfigureOptions(DbContextOptionsBuilder<NorseIdentityDbContext> builder, string connectionString)
+	protected override void ConfigureOptions(DbContextOptionsBuilder<NorseIdentityDbContext> builder)
 	{
+		base.ConfigureOptions(builder);
+
 		var applicationServices = new ServiceCollection()
 			.Configure<IdentityOptions>(o => o.Stores.SchemaVersion = IdentitySchemaVersions.Version3)
 			.BuildServiceProvider();
 
 		builder.UseApplicationServiceProvider(applicationServices);
-
-		base.ConfigureOptions(builder, connectionString);
 	}
 
 	/// <inheritdoc />
