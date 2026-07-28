@@ -21,7 +21,7 @@ public static class ServiceCollectionExtensions
 			services.AddDbContext<NorseIdentityDbContext>(o =>
 			{
 				o.UseNpgsql(connectionString);
-				o.ApplyNorseConventions();
+				o.ApplyNorseConventions(NorseNameRewriters.LowerSnakeCase);
 				o.ApplyNorseTrackingBehavior();
 			});
 			services.AddNorseIdentity().AddSignInManager<NorseSignInManager>();
