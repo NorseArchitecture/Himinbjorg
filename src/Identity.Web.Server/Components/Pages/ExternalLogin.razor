@@ -67,14 +67,14 @@
 
         if (RemoteError is not null)
         {
-            RedirectManager.RedirectToWithStatus("auth/login", $"Error from external provider: {RemoteError}", HttpContext);
+            RedirectManager.RedirectToWithStatus("Account/Login", $"Error from external provider: {RemoteError}", HttpContext);
             return;
         }
 
         var info = await SignInManager.GetExternalLoginInfoAsync();
         if (info is null)
         {
-            RedirectManager.RedirectToWithStatus("auth/login", "Error loading external login information.", HttpContext);
+            RedirectManager.RedirectToWithStatus("Account/Login", "Error loading external login information.", HttpContext);
             return;
         }
 
@@ -90,7 +90,7 @@
 
             // We should only reach this page via the login callback, so redirect back to
             // the login page if we get here some other way.
-            RedirectManager.RedirectTo("auth/login");
+            RedirectManager.RedirectTo("Account/Login");
         }
     }
 
@@ -98,7 +98,7 @@
     {
         if (_externalLoginInfo is null)
         {
-            RedirectManager.RedirectToWithStatus("auth/login", "Error loading external login information.", HttpContext);
+            RedirectManager.RedirectToWithStatus("Account/Login", "Error loading external login information.", HttpContext);
             return;
         }
 
@@ -135,7 +135,7 @@
     {
         if (_externalLoginInfo is null)
         {
-            RedirectManager.RedirectToWithStatus("auth/login", "Error loading external login information during confirmation.", HttpContext);
+            RedirectManager.RedirectToWithStatus("Account/Login", "Error loading external login information during confirmation.", HttpContext);
             return;
         }
 

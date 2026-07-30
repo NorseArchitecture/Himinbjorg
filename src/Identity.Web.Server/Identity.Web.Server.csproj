@@ -20,5 +20,6 @@
 		<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="11.*-*" />
 		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="11.*-*" />
 		<PackageReference Include="OpenIddict.EntityFrameworkCore" Version="7.*" />
+		<PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.*" />
 	</ItemGroup>
 </Project>
