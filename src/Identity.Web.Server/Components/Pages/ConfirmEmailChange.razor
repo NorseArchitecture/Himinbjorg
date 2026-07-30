@@ -33,7 +33,7 @@
         if (UserId is null || Email is null || Code is null)
         {
             RedirectManager.RedirectToWithStatus(
-                "auth/login", "Error: Invalid email change confirmation link.", HttpContext);
+                "Account/Login", "Error: Invalid email change confirmation link.", HttpContext);
             return;
         }
 
