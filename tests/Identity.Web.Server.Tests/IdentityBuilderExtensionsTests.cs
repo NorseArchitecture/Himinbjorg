@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Norse.Identity.EntityFramework;
 
 namespace Norse.Identity.Web.Server.Tests;
 

@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Norse.Persistence.EntityFramework;
 
-namespace Norse.Identity.Web.Server;
+namespace Norse.Identity.EntityFramework;
 
 /// <summary>
 /// Norse platform ASP.NET Core Identity user entity, keyed by <see cref="Guid"/>.

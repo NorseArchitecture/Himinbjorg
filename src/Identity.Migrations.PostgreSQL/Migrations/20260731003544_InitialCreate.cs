@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Norse.Identity.Migrations.PostgreSQL.Migrations;
 
 /// <inheritdoc />
-public partial class _20260723075913_InitialCreate : Migration
+public partial class _20260731003544_InitialCreate : Migration
 {
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder)

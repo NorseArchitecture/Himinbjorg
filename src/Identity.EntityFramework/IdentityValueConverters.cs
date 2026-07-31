@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
-namespace Norse.Identity.Web.Server;
+namespace Norse.Identity.EntityFramework;
 
 /// <summary>
 /// Shared value converters for ASP.NET Core Identity's stamp/hash columns — used by both

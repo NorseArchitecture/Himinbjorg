@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Norse.Abstractions.Contracts;
 using Norse.AuthN.Services;
+using Norse.Identity.EntityFramework;
 using Norse.Persistence.EntityFramework;
 using Norse.Primitives;
 

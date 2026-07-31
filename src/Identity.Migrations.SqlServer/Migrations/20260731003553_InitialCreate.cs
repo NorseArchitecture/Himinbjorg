@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Norse.Identity.Migrations.SqlServer.Migrations;
 
 /// <inheritdoc />
-public partial class _20260723080838_InitialCreate : Migration
+public partial class _20260731003553_InitialCreate : Migration
 {
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder)

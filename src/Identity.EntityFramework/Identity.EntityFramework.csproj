@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<Description>Norse.Identity.EntityFramework: the ASP.NET Core Identity v3 + OpenIddict entity model (NorseUser, NorseRole, NorseUserClaim, NorseUserRole, NorseUserLogin, NorseUserToken, NorseRoleClaim, NorseUserPasskey, and the four NorseOpenIddict* entities), their INorseEntity&lt;TSelf&gt; configurations, and NorseIdentityDbContext. Deliberately Microsoft.NET.Sdk, not Sdk.Web: the migrations service needs the schema without dragging the whole web hosting surface in behind it.</Description>
+		<!-- EF Core is not AOT/trim-compatible; override the src-level default. -->
+		<IsAotCompatible>false</IsAotCompatible>
+	</PropertyGroup>
+	<ItemGroup>
+		<NorseRef Include="Persistence.EntityFramework" Generator="true">
+			<Repo>Urdarbrunnr</Repo>
+		</NorseRef>
+		<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="11.*-*" />
+		<PackageReference Include="OpenIddict.EntityFrameworkCore" Version="7.*" />
+	</ItemGroup>
+</Project>

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Norse.AuthN.Services;
+using Norse.Identity.EntityFramework;
 using Norse.Persistence.EntityFramework;
 
 namespace Norse.Identity.Web.Server;
@@ -28,6 +29,11 @@ public static class ServiceCollectionExtensions
 			});
 			services.AddNorseIdentity().AddSignInManager<NorseSignInManager>();
 			services.AddNorseIdentityWebServerHandlers();
+
+			// Registered here, not by the host: IEmailSender<NorseUser> is closed over an entity the
+			// host has no business naming. A host wiring a real sender registers its own afterward and
+			// wins the resolution.
+			services.AddSingleton<IEmailSender<NorseUser>, IdentityNoOpEmailSender>();
 
 			services.AddScoped<IAuthenticationService, AuthenticationService>();
 

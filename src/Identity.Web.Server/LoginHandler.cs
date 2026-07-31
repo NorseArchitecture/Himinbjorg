@@ -3,6 +3,7 @@ using Norse.Abstractions.Contracts;
 using Norse.Abstractions.Web.Server.DeferredSignIn;
 using Norse.Abstractions.Web.Server.Mediator;
 using Norse.AuthN.Services;
+using Norse.Identity.EntityFramework;
 
 namespace Norse.Identity.Web.Server;
 
