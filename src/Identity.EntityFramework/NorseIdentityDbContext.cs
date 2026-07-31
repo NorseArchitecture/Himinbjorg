@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+// Microsoft.NET.Sdk, not Sdk.Web: DI's implicit using doesn't come for free here.
+using Microsoft.Extensions.DependencyInjection;
 using Norse.Persistence.EntityFramework;
 using Norse.Primitives.Identifiers;
 
-namespace Norse.Identity.Web.Server;
+namespace Norse.Identity.EntityFramework;
 
 /// <summary>
 /// Norse platform Identity <see cref="IdentityDbContext{TUser,TRole,TKey,TUserClaim,TUserRole,TUserLogin,TRoleClaim,TUserToken,TUserPasskey}"/>,
@@ -27,7 +29,7 @@ public sealed class NorseIdentityDbContext(DbContextOptions<NorseIdentityDbConte
 	/// regardless of caller. ASP.NET Core Identity decides schema shape by reading
 	/// <c>IOptions&lt;IdentityOptions&gt;.Value.Stores.SchemaVersion</c> off
 	/// <c>DbContextOptions.ApplicationServiceProvider</c> — a caller that registers this context without
-	/// separately calling <see cref="IdentityBuilderExtensions.AddNorseIdentity"/> (e.g. the migrations
+	/// separately calling <c>Norse.Identity.Web.Server</c>'s <c>AddNorseIdentity()</c> (e.g. the migrations
 	/// service, which only needs the context to migrate, not the full Identity DI surface) would
 	/// otherwise silently get <c>Version1</c> and miss the passkey table entirely.
 	/// </summary>

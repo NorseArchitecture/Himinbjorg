@@ -3,22 +3,22 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Norse.Persistence.EntityFramework;
 
-namespace Norse.Identity.Web.Server;
+namespace Norse.Identity.EntityFramework;
 
 /// <summary>
-/// Norse platform ASP.NET Core Identity user-claim entity, keyed by <see cref="Guid"/>.
+/// Norse platform ASP.NET Core Identity role-claim entity, keyed by <see cref="Guid"/>.
 /// </summary>
-public sealed class NorseUserClaim : IdentityUserClaim<Guid>, INorseEntity<NorseUserClaim>
+public sealed class NorseRoleClaim : IdentityRoleClaim<Guid>, INorseEntity<NorseRoleClaim>
 {
 	/// <summary>
-	/// The user this claim belongs to.
+	/// The role this claim belongs to.
 	/// </summary>
-	public NorseUser User { get; init; } = null!;
+	public NorseRole Role { get; init; } = null!;
 
 	/// <inheritdoc />
-	public static void Configure(EntityTypeBuilder<NorseUserClaim> builder)
+	public static void Configure(EntityTypeBuilder<NorseRoleClaim> builder)
 	{
-		builder.ToTable("UserClaims");
+		builder.ToTable("RoleClaims");
 		// Contrary to Task 9's assumption, IdentityDbContext's own base OnModelCreating leaves
 		// ClaimType/ClaimValue unbounded -- the RequireExplicitLengthConvention integration test
 		// (Task 14) caught this. ClaimType is a URI-shaped identifier (bounded like

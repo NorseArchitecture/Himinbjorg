@@ -1,4 +1,4 @@
-using Norse.Identity.Web.Server;
+using Norse.Identity.EntityFramework;
 using Norse.Identity.Web.Server.Components.Pages;
 using Norse.Identity.Web.Server.Components.Pages.Manage;
 using Microsoft.AspNetCore.Antiforgery;

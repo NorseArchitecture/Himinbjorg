@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry.Metrics;
 using System.Diagnostics.Metrics;
+using Norse.Identity.EntityFramework;
 
 namespace Norse.Identity.Web.Server.Tests;
 
@@ -17,6 +18,20 @@ public sealed class ServiceCollectionExtensionsTests
 		var descriptor = services.LastOrDefault(d => d.ServiceType == typeof(SignInManager<NorseUser>));
 		descriptor.ShouldNotBeNull();
 		descriptor.ImplementationType.ShouldBe(typeof(NorseSignInManager));
+	}
+
+	[Fact]
+	void AddNorseAuthenticationService_registers_the_no_op_email_sender()
+	{
+		// IEmailSender<NorseUser> is closed over an entity the host has no business naming -- this
+		// registration is what lets Yggdrasil's composition root stay clear of Identity.EntityFramework.
+		ServiceCollection services = new();
+
+		services.AddNorseAuthenticationService("Host=localhost;Database=norse_identity_test");
+
+		var descriptor = services.LastOrDefault(d => d.ServiceType == typeof(IEmailSender<NorseUser>));
+		descriptor.ShouldNotBeNull();
+		descriptor.ImplementationType.ShouldBe(typeof(IdentityNoOpEmailSender));
 	}
 
 	[Fact]

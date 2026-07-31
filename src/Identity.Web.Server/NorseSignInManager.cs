@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using Norse.Abstractions.Web.Server.DeferredSignIn;
+using Norse.Identity.EntityFramework;
 
 namespace Norse.Identity.Web.Server;
 

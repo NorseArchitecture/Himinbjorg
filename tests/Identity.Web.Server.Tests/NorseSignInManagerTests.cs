@@ -10,6 +10,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Norse.Abstractions.Web.Server.DeferredSignIn;
+using Norse.Identity.EntityFramework;
 
 namespace Norse.Identity.Web.Server.Tests;
 

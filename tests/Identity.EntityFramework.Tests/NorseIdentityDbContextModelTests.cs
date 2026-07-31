@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
-namespace Norse.Identity.Web.Server.Tests;
+namespace Norse.Identity.EntityFramework.Tests;
 
 public sealed class NorseIdentityDbContextModelTests
 {

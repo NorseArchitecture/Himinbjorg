@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Identity;
+using Norse.Identity.EntityFramework;
 
 namespace Norse.Identity.Web.Server;
 

@@ -13,13 +13,8 @@
 		<NorseRef Include="Abstractions.Web.Server" Generator="true">
 			<Repo>Asgard</Repo>
 		</NorseRef>
-		<NorseRef Include="Persistence.EntityFramework">
-			<Repo>Urdarbrunnr</Repo>
-			<Generator>true</Generator>
-		</NorseRef>
-		<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="11.*-*" />
 		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="11.*-*" />
-		<PackageReference Include="OpenIddict.EntityFrameworkCore" Version="7.*" />
 		<PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.*" />
+		<ProjectReference Include="../Identity.EntityFramework/Identity.EntityFramework.csproj" />
 	</ItemGroup>
 </Project>

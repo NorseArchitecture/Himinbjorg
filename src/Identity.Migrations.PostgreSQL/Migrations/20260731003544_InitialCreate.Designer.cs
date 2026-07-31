@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using Norse.Identity.Web.Server;
+using Norse.Identity.EntityFramework;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
@@ -13,8 +13,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Norse.Identity.Migrations.PostgreSQL.Migrations;
 
 [DbContext(typeof(NorseIdentityDbContext))]
-[Migration("20260723075913_InitialCreate")]
-partial class _20260723075913_InitialCreate
+[Migration("20260731003544_InitialCreate")]
+partial class _20260731003544_InitialCreate
 {
     /// <inheritdoc />
     protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -26,7 +26,7 @@ partial class _20260723075913_InitialCreate
 
         NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-        modelBuilder.Entity("Norse.Identity.Web.Server.NorseOpenIddictApplication", b =>
+        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseOpenIddictApplication", b =>
             {
                 b.Property<Guid>("Id")
                     .ValueGeneratedOnAdd()
@@ -119,7 +119,7 @@ partial class _20260723075913_InitialCreate
                 b.ToTable("applications");
             });
 
-        modelBuilder.Entity("Norse.Identity.Web.Server.NorseOpenIddictAuthorization", b =>
+        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseOpenIddictAuthorization", b =>
             {
                 b.Property<Guid>("Id")
                     .ValueGeneratedOnAdd()
@@ -174,7 +174,7 @@ partial class _20260723075913_InitialCreate
                 b.ToTable("authorizations");
             });
 
-        modelBuilder.Entity("Norse.Identity.Web.Server.NorseOpenIddictScope", b =>
+        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseOpenIddictScope", b =>
             {
                 b.Property<Guid>("Id")
                     .ValueGeneratedOnAdd()
@@ -232,7 +232,7 @@ partial class _20260723075913_InitialCreate
                 b.ToTable("scopes");
             });
 
-        modelBuilder.Entity("Norse.Identity.Web.Server.NorseOpenIddictToken", b =>
+        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseOpenIddictToken", b =>
             {
                 b.Property<Guid>("Id")
                     .ValueGeneratedOnAdd()
@@ -311,7 +311,7 @@ partial class _20260723075913_InitialCreate
                 b.ToTable("tokens");
             });
 
-        modelBuilder.Entity("Norse.Identity.Web.Server.NorseRole", b =>
+        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseRole", b =>
             {
                 b.Property<Guid>("Id")
                     .ValueGeneratedOnAdd()
@@ -345,7 +345,7 @@ partial class _20260723075913_InitialCreate
                 b.ToTable("roles");
             });
 
-        modelBuilder.Entity("Norse.Identity.Web.Server.NorseRoleClaim", b =>
+        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseRoleClaim", b =>
             {
                 var id = b.Property<int>("Id")
                     .ValueGeneratedOnAdd()
@@ -379,7 +379,7 @@ partial class _20260723075913_InitialCreate
                 b.ToTable("role_claims");
             });
 
-        modelBuilder.Entity("Norse.Identity.Web.Server.NorseUser", b =>
+        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUser", b =>
             {
                 b.Property<Guid>("Id")
                     .ValueGeneratedOnAdd()
@@ -466,7 +466,7 @@ partial class _20260723075913_InitialCreate
                 b.ToTable("users");
             });
 
-        modelBuilder.Entity("Norse.Identity.Web.Server.NorseUserClaim", b =>
+        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserClaim", b =>
             {
                 var id = b.Property<int>("Id")
                     .ValueGeneratedOnAdd()
@@ -500,7 +500,7 @@ partial class _20260723075913_InitialCreate
                 b.ToTable("user_claims");
             });
 
-        modelBuilder.Entity("Norse.Identity.Web.Server.NorseUserLogin", b =>
+        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserLogin", b =>
             {
                 b.Property<string>("LoginProvider")
                     .HasMaxLength(128)
@@ -530,7 +530,7 @@ partial class _20260723075913_InitialCreate
                 b.ToTable("user_logins");
             });
 
-        modelBuilder.Entity("Norse.Identity.Web.Server.NorseUserPasskey", b =>
+        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserPasskey", b =>
             {
                 b.Property<byte[]>("CredentialId")
                     .HasMaxLength(1024)
@@ -541,7 +541,7 @@ partial class _20260723075913_InitialCreate
                     .HasColumnType("uuid")
                     .HasColumnName("user_id");
 
-                b.ComplexProperty(typeof(Dictionary<string, object>), "Data", "Norse.Identity.Web.Server.NorseUserPasskey.Data#IdentityPasskeyData", b1 =>
+                b.ComplexProperty(typeof(Dictionary<string, object>), "Data", "Norse.Identity.EntityFramework.NorseUserPasskey.Data#IdentityPasskeyData", b1 =>
                     {
                         b1.IsRequired();
 
@@ -584,7 +584,7 @@ partial class _20260723075913_InitialCreate
                 b.ToTable("user_passkeys");
             });
 
-        modelBuilder.Entity("Norse.Identity.Web.Server.NorseUserRole", b =>
+        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserRole", b =>
             {
                 b.Property<Guid>("UserId")
                     .HasColumnType("uuid")
@@ -603,7 +603,7 @@ partial class _20260723075913_InitialCreate
                 b.ToTable("user_roles");
             });
 
-        modelBuilder.Entity("Norse.Identity.Web.Server.NorseUserToken", b =>
+        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserToken", b =>
             {
                 b.Property<Guid>("UserId")
                     .HasColumnType("uuid")
@@ -630,9 +630,9 @@ partial class _20260723075913_InitialCreate
                 b.ToTable("user_tokens");
             });
 
-        modelBuilder.Entity("Norse.Identity.Web.Server.NorseOpenIddictAuthorization", b =>
+        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseOpenIddictAuthorization", b =>
             {
-                b.HasOne("Norse.Identity.Web.Server.NorseOpenIddictApplication", "Application")
+                b.HasOne("Norse.Identity.EntityFramework.NorseOpenIddictApplication", "Application")
                     .WithMany("Authorizations")
                     .HasForeignKey("ApplicationId")
                     .HasConstraintName("fk_authorizations_applications_application_id");
@@ -640,14 +640,14 @@ partial class _20260723075913_InitialCreate
                 b.Navigation("Application");
             });
 
-        modelBuilder.Entity("Norse.Identity.Web.Server.NorseOpenIddictToken", b =>
+        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseOpenIddictToken", b =>
             {
-                b.HasOne("Norse.Identity.Web.Server.NorseOpenIddictApplication", "Application")
+                b.HasOne("Norse.Identity.EntityFramework.NorseOpenIddictApplication", "Application")
                     .WithMany("Tokens")
                     .HasForeignKey("ApplicationId")
                     .HasConstraintName("fk_tokens_applications_application_id");
 
-                b.HasOne("Norse.Identity.Web.Server.NorseOpenIddictAuthorization", "Authorization")
+                b.HasOne("Norse.Identity.EntityFramework.NorseOpenIddictAuthorization", "Authorization")
                     .WithMany("Tokens")
                     .HasForeignKey("AuthorizationId")
                     .HasConstraintName("fk_tokens_authorizations_authorization_id");
@@ -657,9 +657,9 @@ partial class _20260723075913_InitialCreate
                 b.Navigation("Authorization");
             });
 
-        modelBuilder.Entity("Norse.Identity.Web.Server.NorseRoleClaim", b =>
+        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseRoleClaim", b =>
             {
-                b.HasOne("Norse.Identity.Web.Server.NorseRole", "Role")
+                b.HasOne("Norse.Identity.EntityFramework.NorseRole", "Role")
                     .WithMany("Claims")
                     .HasForeignKey("RoleId")
                     .OnDelete(DeleteBehavior.Cascade)
@@ -669,9 +669,9 @@ partial class _20260723075913_InitialCreate
                 b.Navigation("Role");
             });
 
-        modelBuilder.Entity("Norse.Identity.Web.Server.NorseUserClaim", b =>
+        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserClaim", b =>
             {
-                b.HasOne("Norse.Identity.Web.Server.NorseUser", "User")
+                b.HasOne("Norse.Identity.EntityFramework.NorseUser", "User")
                     .WithMany("Claims")
                     .HasForeignKey("UserId")
                     .OnDelete(DeleteBehavior.Cascade)
@@ -681,9 +681,9 @@ partial class _20260723075913_InitialCreate
                 b.Navigation("User");
             });
 
-        modelBuilder.Entity("Norse.Identity.Web.Server.NorseUserLogin", b =>
+        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserLogin", b =>
             {
-                b.HasOne("Norse.Identity.Web.Server.NorseUser", "User")
+                b.HasOne("Norse.Identity.EntityFramework.NorseUser", "User")
                     .WithMany("Logins")
                     .HasForeignKey("UserId")
                     .OnDelete(DeleteBehavior.Cascade)
@@ -693,9 +693,9 @@ partial class _20260723075913_InitialCreate
                 b.Navigation("User");
             });
 
-        modelBuilder.Entity("Norse.Identity.Web.Server.NorseUserPasskey", b =>
+        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserPasskey", b =>
             {
-                b.HasOne("Norse.Identity.Web.Server.NorseUser", "User")
+                b.HasOne("Norse.Identity.EntityFramework.NorseUser", "User")
                     .WithMany("Passkeys")
                     .HasForeignKey("UserId")
                     .OnDelete(DeleteBehavior.Cascade)
@@ -705,16 +705,16 @@ partial class _20260723075913_InitialCreate
                 b.Navigation("User");
             });
 
-        modelBuilder.Entity("Norse.Identity.Web.Server.NorseUserRole", b =>
+        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserRole", b =>
             {
-                b.HasOne("Norse.Identity.Web.Server.NorseRole", "Role")
+                b.HasOne("Norse.Identity.EntityFramework.NorseRole", "Role")
                     .WithMany()
                     .HasForeignKey("RoleId")
                     .OnDelete(DeleteBehavior.Cascade)
                     .IsRequired()
                     .HasConstraintName("fk_user_roles_roles_role_id");
 
-                b.HasOne("Norse.Identity.Web.Server.NorseUser", "User")
+                b.HasOne("Norse.Identity.EntityFramework.NorseUser", "User")
                     .WithMany()
                     .HasForeignKey("UserId")
                     .OnDelete(DeleteBehavior.Cascade)
@@ -726,9 +726,9 @@ partial class _20260723075913_InitialCreate
                 b.Navigation("User");
             });
 
-        modelBuilder.Entity("Norse.Identity.Web.Server.NorseUserToken", b =>
+        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserToken", b =>
             {
-                b.HasOne("Norse.Identity.Web.Server.NorseUser", "User")
+                b.HasOne("Norse.Identity.EntityFramework.NorseUser", "User")
                     .WithMany("Tokens")
                     .HasForeignKey("UserId")
                     .OnDelete(DeleteBehavior.Cascade)
@@ -738,24 +738,24 @@ partial class _20260723075913_InitialCreate
                 b.Navigation("User");
             });
 
-        modelBuilder.Entity("Norse.Identity.Web.Server.NorseOpenIddictApplication", b =>
+        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseOpenIddictApplication", b =>
             {
                 b.Navigation("Authorizations");
 
                 b.Navigation("Tokens");
             });
 
-        modelBuilder.Entity("Norse.Identity.Web.Server.NorseOpenIddictAuthorization", b =>
+        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseOpenIddictAuthorization", b =>
             {
                 b.Navigation("Tokens");
             });
 
-        modelBuilder.Entity("Norse.Identity.Web.Server.NorseRole", b =>
+        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseRole", b =>
             {
                 b.Navigation("Claims");
             });
 
-        modelBuilder.Entity("Norse.Identity.Web.Server.NorseUser", b =>
+        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUser", b =>
             {
                 b.Navigation("Claims");
 

@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Norse.Persistence.EntityFramework;
 using OpenIddict.EntityFrameworkCore.Models;
 
-namespace Norse.Identity.Web.Server;
+namespace Norse.Identity.EntityFramework;
 
 /// <summary>
 /// Norse wrapper over OpenIddict's EF Core scope entity, keyed by <see cref="Guid"/>.

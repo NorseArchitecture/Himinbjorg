@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Norse.Identity.Migrations.PostgreSQL;
-using Norse.Identity.Web.Server;
+using Norse.Identity.EntityFramework;
 using Norse.Persistence.EntityFramework;
 using Norse.Persistence.EntityFramework.PostgreSQL;
 

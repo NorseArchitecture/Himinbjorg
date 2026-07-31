@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Norse.Identity.EntityFramework;
 
 namespace Norse.Identity.Web.Server;
 
@@ -28,14 +29,7 @@ static class IdentityBuilderExtensions
 				.AddEntityFrameworkStores<NorseIdentityDbContext>()
 				.AddDefaultTokenProviders();
 
-			services
-				.AddOpenIddict()
-				.AddCore(o => o
-					.UseEntityFrameworkCore()
-					.UseDbContext<NorseIdentityDbContext>()
-					.ReplaceDefaultEntities<
-						NorseOpenIddictApplication, NorseOpenIddictAuthorization,
-						NorseOpenIddictScope, NorseOpenIddictToken, Guid>());
+			services.AddNorseOpenIddictCore();
 
 			return identityBuilder;
 		}

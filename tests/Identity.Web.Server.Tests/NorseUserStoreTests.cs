@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Norse.Identity.EntityFramework;
 using Norse.Persistence.EntityFramework;
 
 namespace Norse.Identity.Web.Server.Tests;

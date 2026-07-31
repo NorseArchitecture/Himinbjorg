@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using Norse.Identity.Web.Server;
+using Norse.Identity.EntityFramework;
 
 namespace Norse.Identity.Migrations.PostgreSQL.Tests;
 

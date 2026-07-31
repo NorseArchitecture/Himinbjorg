@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Norse.Identity.Web.Server;
+using Norse.Identity.EntityFramework;
 using Norse.Persistence.EntityFramework;
 using Norse.Persistence.EntityFramework.Design;
 using Norse.Persistence.EntityFramework.SqlServer;

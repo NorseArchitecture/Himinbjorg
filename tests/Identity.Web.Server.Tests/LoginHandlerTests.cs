@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Norse.Abstractions.Contracts;
 using Norse.Abstractions.Web.Server.DeferredSignIn;
 using Norse.AuthN.Services;
+using Norse.Identity.EntityFramework;
 using Norse.Primitives;
 
 namespace Norse.Identity.Web.Server.Tests;

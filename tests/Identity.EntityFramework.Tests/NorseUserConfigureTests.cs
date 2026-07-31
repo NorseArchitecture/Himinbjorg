@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 
-namespace Norse.Identity.Web.Server.Tests;
+namespace Norse.Identity.EntityFramework.Tests;
 
 public sealed class NorseUserConfigureTests
 {

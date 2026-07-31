@@ -11,6 +11,6 @@
 		<NorseRef Include="Persistence.EntityFramework.Migrations">
 			<Repo>Urdarbrunnr</Repo>
 		</NorseRef>
-		<ProjectReference Include="../Identity.Web.Server/Identity.Web.Server.csproj" />
+		<ProjectReference Include="../Identity.EntityFramework/Identity.EntityFramework.csproj" />
 	</ItemGroup>
 </Project>
