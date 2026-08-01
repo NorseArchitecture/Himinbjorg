@@ -13,7 +13,9 @@
 		<NorseRef Include="Abstractions.Web.Server" Generator="true">
 			<Repo>Asgard</Repo>
 		</NorseRef>
-		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="11.*-*" />
+		<NorseRef Include="Persistence.EntityFramework.PostgreSQL">
+			<Repo>Urdarbrunnr</Repo>
+		</NorseRef>
 		<PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.*" />
 		<ProjectReference Include="../Identity.EntityFramework/Identity.EntityFramework.csproj" />
 	</ItemGroup>
