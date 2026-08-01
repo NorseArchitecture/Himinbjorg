@@ -1,5 +1,5 @@
 using FluentValidation;
-using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Norse.Abstractions.Web.Server.Mediator;
 using Norse.AuthN.Services;
 
@@ -10,8 +10,11 @@ public sealed class RegistrationCompositionTests
 	[Fact]
 	void AddNorseAuthenticationService_registers_handlers_dispatch_entries_and_validators()
 	{
-		var services = new ServiceCollection();
-		services.AddNorseAuthenticationService("Host=localhost;Database=test");
+		var builder = Host.CreateApplicationBuilder();
+		builder.Configuration["ConnectionStrings:test"] = "Host=localhost;Database=test";
+
+		builder.AddNorseAuthenticationService("test");
+		var services = builder.Services;
 
 		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<LoginCommand, LoginResult>));
 		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<RegisterCommand, RegisterResult>));

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using OpenTelemetry.Metrics;
 using System.Diagnostics.Metrics;
 using Norse.Identity.EntityFramework;
@@ -8,14 +9,21 @@ namespace Norse.Identity.Web.Server.Tests;
 
 public sealed class ServiceCollectionExtensionsTests
 {
+	static HostApplicationBuilder CreateBuilder(string connectionString = "Host=localhost;Database=norse_identity_test")
+	{
+		var builder = Host.CreateApplicationBuilder();
+		builder.Configuration["ConnectionStrings:test"] = connectionString;
+		return builder;
+	}
+
 	[Fact]
 	void AddNorseAuthenticationService_registers_NorseSignInManager_as_SignInManager()
 	{
-		ServiceCollection services = new();
+		var builder = CreateBuilder();
 
-		services.AddNorseAuthenticationService("Host=localhost;Database=norse_identity_test");
+		builder.AddNorseAuthenticationService("test");
 
-		var descriptor = services.LastOrDefault(d => d.ServiceType == typeof(SignInManager<NorseUser>));
+		var descriptor = builder.Services.LastOrDefault(d => d.ServiceType == typeof(SignInManager<NorseUser>));
 		descriptor.ShouldNotBeNull();
 		descriptor.ImplementationType.ShouldBe(typeof(NorseSignInManager));
 	}
@@ -25,11 +33,11 @@ public sealed class ServiceCollectionExtensionsTests
 	{
 		// IEmailSender<NorseUser> is closed over an entity the host has no business naming -- this
 		// registration is what lets Yggdrasil's composition root stay clear of Identity.EntityFramework.
-		ServiceCollection services = new();
+		var builder = CreateBuilder();
 
-		services.AddNorseAuthenticationService("Host=localhost;Database=norse_identity_test");
+		builder.AddNorseAuthenticationService("test");
 
-		var descriptor = services.LastOrDefault(d => d.ServiceType == typeof(IEmailSender<NorseUser>));
+		var descriptor = builder.Services.LastOrDefault(d => d.ServiceType == typeof(IEmailSender<NorseUser>));
 		descriptor.ShouldNotBeNull();
 		descriptor.ImplementationType.ShouldBe(typeof(IdentityNoOpEmailSender));
 	}
@@ -38,13 +46,13 @@ public sealed class ServiceCollectionExtensionsTests
 	void AddNorseAuthenticationService_subscribes_the_aspnet_identity_meter()
 	{
 		List<Metric> exported = [];
-		ServiceCollection services = new();
-		services.AddLogging();
-		services.AddNorseAuthenticationService("Host=localhost;Database=norse_identity_test");
-		services.AddOpenTelemetry().WithMetrics(metrics => metrics.AddInMemoryExporter(exported));
+		var builder = CreateBuilder();
 
-		using var provider = services.BuildServiceProvider();
-		var meterProvider = provider.GetRequiredService<MeterProvider>();
+		builder.AddNorseAuthenticationService("test");
+		builder.Services.AddOpenTelemetry().WithMetrics(metrics => metrics.AddInMemoryExporter(exported));
+
+		using var host = builder.Build();
+		var meterProvider = host.Services.GetRequiredService<MeterProvider>();
 		using Meter meter = new("Microsoft.AspNetCore.Identity");
 		meter.CreateCounter<long>("identity_probe").Add(1);
 		meterProvider.ForceFlush();
