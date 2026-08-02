@@ -29,6 +29,11 @@ static class IdentityBuilderExtensions
 				.AddEntityFrameworkStores<NorseIdentityDbContext>()
 				.AddDefaultTokenProviders();
 
+			// AddIdentity's default cookie name (".AspNetCore.Identity.Application") fingerprints the
+			// stack to anyone inspecting cookies -- Norse.Identity carries the same information a
+			// client needs (this is the identity cookie) without naming the framework underneath it.
+			services.ConfigureApplicationCookie(options => options.Cookie.Name = "Norse.Identity");
+
 			services.AddNorseOpenIddictCore();
 
 			return identityBuilder;
