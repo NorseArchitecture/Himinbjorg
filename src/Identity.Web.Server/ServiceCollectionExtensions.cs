@@ -25,25 +25,25 @@ public static class ServiceCollectionExtensions
 		/// <returns>The same <paramref name="builder"/> for chaining.</returns>
 		public IHostApplicationBuilder AddNorseAuthenticationService(string connectionStringName)
 		{
-			builder.AddNorseContext<NorseIdentityDbContext>(NorsePostgresEfProvider.Instance, connectionStringName);
-			builder.Services.AddNorseIdentity().AddSignInManager<NorseSignInManager>();
-			builder.Services.AddNorseIdentityWebServerHandlers();
-
 			// Registered here, not by the host: IEmailSender<NorseUser> is closed over an entity the
 			// host has no business naming. A host wiring a real sender registers its own afterward and
 			// wins the resolution.
-			builder.Services.AddSingleton<IEmailSender<NorseUser>, IdentityNoOpEmailSender>();
-
-			builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
+			builder.Services
+				.AddNorseIdentityWebServerHandlers()
+				.AddScoped<IAuthenticationService, AuthenticationService>()
+				.AddSingleton<IEmailSender<NorseUser>, IdentityNoOpEmailSender>()
+				.AddNorseIdentity()
+				.AddSignInManager<NorseSignInManager>();
 
 			// The realm that brings the dependency declares its telemetry: this project is the only
 			// one on the platform referencing ASP.NET Core Identity, and its only consumer is
 			// Web.Server — so the meter lands in exactly the container that should have it, with no
 			// rule for anyone to remember.
-			builder.Services.AddOpenTelemetry()
+			builder.Services
+				.AddOpenTelemetry()
 				.WithMetrics(static metrics => metrics.AddMeter("Microsoft.AspNetCore.Identity"));
 
-			return builder;
+			return builder.AddNorseContext<NorseIdentityDbContext>(NorsePostgresEfProvider.Instance, connectionStringName);
 		}
 	}
 }
