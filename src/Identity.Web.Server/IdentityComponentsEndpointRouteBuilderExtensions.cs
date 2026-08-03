@@ -1,14 +1,13 @@
+using Norse.Abstractions.Backend.Serialization;
 using Norse.Identity.EntityFramework;
 using Norse.Identity.Web.Server.Components.Pages;
 using Norse.Identity.Web.Server.Components.Pages.Manage;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
-using System.Text.Json;
 
 #pragma warning disable IDE0130
 namespace Microsoft.AspNetCore.Routing;
@@ -127,7 +126,7 @@ public static partial class IdentityComponentsEndpointRouteBuilderExtensions
 			manageGroup.MapPost("/DownloadPersonalData", async (
 				HttpContext context,
 				[FromServices] UserManager<NorseUser> userManager,
-				[FromServices] AuthenticationStateProvider authenticationStateProvider) =>
+				[FromServices] ISerializerProvider serializerProvider) =>
 			{
 				var user = await userManager.GetUserAsync(context.User).ConfigureAwait(false);
 				if (user is null)
@@ -150,10 +149,11 @@ public static partial class IdentityComponentsEndpointRouteBuilderExtensions
 				}
 
 				personalData.Add("Authenticator Key", (await userManager.GetAuthenticatorKeyAsync(user).ConfigureAwait(false))!);
-				var fileBytes = JsonSerializer.SerializeToUtf8Bytes(personalData);
+				var serializer = serializerProvider[NamingStrategy.CamelCase];
+				var fileBytes = serializer.SerializeToUtf8Bytes(personalData);
 
 				context.Response.Headers.TryAdd("Content-Disposition", "attachment; filename=PersonalData.json");
-				return TypedResults.File(fileBytes, contentType: "application/json", fileDownloadName: "PersonalData.json");
+				return TypedResults.File(fileBytes, contentType: serializer.ContentType, fileDownloadName: "PersonalData.json");
 			});
 
 			return accountGroup.ExcludeFromDescription();
