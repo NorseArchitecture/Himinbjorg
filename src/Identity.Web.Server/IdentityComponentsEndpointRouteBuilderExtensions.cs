@@ -3,12 +3,10 @@ using Norse.Identity.Web.Server.Components.Pages;
 using Norse.Identity.Web.Server.Components.Pages.Manage;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
-using System.Text.Json;
 
 #pragma warning disable IDE0130
 namespace Microsoft.AspNetCore.Routing;
@@ -121,41 +119,6 @@ public static partial class IdentityComponentsEndpointRouteBuilderExtensions
 				return TypedResults.Challenge(properties, [provider]);
 			});
 
-			var loggerFactory = endpoints.ServiceProvider.GetRequiredService<ILoggerFactory>();
-			var downloadLogger = loggerFactory.CreateLogger("DownloadPersonalData");
-
-			manageGroup.MapPost("/DownloadPersonalData", async (
-				HttpContext context,
-				[FromServices] UserManager<NorseUser> userManager,
-				[FromServices] AuthenticationStateProvider authenticationStateProvider) =>
-			{
-				var user = await userManager.GetUserAsync(context.User).ConfigureAwait(false);
-				if (user is null)
-				{
-					return Results.NotFound($"Unable to load user with ID '{userManager.GetUserId(context.User)}'.");
-				}
-
-				var userId = await userManager.GetUserIdAsync(user).ConfigureAwait(false);
-				downloadLogger.LogUserPersonalDataRequested(userId);
-
-				// Only include personal data for download
-				var personalDataProps = typeof(NorseUser).GetProperties().Where(
-					prop => Attribute.IsDefined(prop, typeof(PersonalDataAttribute)));
-				var personalData = personalDataProps.ToDictionary(p => p.Name, p => p.GetValue(user)?.ToString() ?? "null");
-
-				var logins = await userManager.GetLoginsAsync(user).ConfigureAwait(false);
-				foreach (var l in logins)
-				{
-					personalData.Add($"{l.LoginProvider} external login provider key", l.ProviderKey);
-				}
-
-				personalData.Add("Authenticator Key", (await userManager.GetAuthenticatorKeyAsync(user).ConfigureAwait(false))!);
-				var fileBytes = JsonSerializer.SerializeToUtf8Bytes(personalData);
-
-				context.Response.Headers.TryAdd("Content-Disposition", "attachment; filename=PersonalData.json");
-				return TypedResults.File(fileBytes, contentType: "application/json", fileDownloadName: "PersonalData.json");
-			});
-
 			return accountGroup.ExcludeFromDescription();
 		}
 	}
@@ -173,7 +136,4 @@ public static partial class IdentityComponentsEndpointRouteBuilderExtensions
 							.First();
 		return provider;
 	}
-
-	[LoggerMessage(LogLevel.Information, "User with ID '{UserId}' asked for their personal data.")]
-	static partial void LogUserPersonalDataRequested(this ILogger logger, string userId);
 }
