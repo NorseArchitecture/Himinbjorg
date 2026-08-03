@@ -60,7 +60,23 @@ public sealed class NorseUser : IdentityUser<Guid>, INorseEntity<NorseUser>
 		builder.Property(u => u.PasswordHash).HasConversion(IdentityValueConverters.Hash).HasMaxLength(128);
 		builder.Property(u => u.PhoneNumber).HasMaxLength(20);
 		builder.Property(u => u.UserName).IsRequired();
-		builder.Property(u => u.NormalizedUserName).IsRequired();
+		// NormalizedUserName stays nullable: the erasure ceremony nulls the lookup hashes so a
+		// re-registration of the same email inserts cleanly (payload columns are darkened, not
+		// nulled). SQL Server's provider convention turns the unique index below into a filtered
+		// one (WHERE normalized_user_name IS NOT NULL) because the column is nullable; Postgres
+		// needs no filter -- NULLs are distinct there by default.
+		// ../../../Glitnir/docs/Platform/specs/2026-08-03-pii-primitives-identity-erasure-seam-design.md §4.2
+
+		// Rate-limiter state lives in its own non-temporal side table via entity splitting, so
+		// wrong-password churn never mints a history row once users goes temporal. LockoutEnabled
+		// is deliberately NOT split -- it's an admin policy decision, which IS identity record.
+		// UserManager/SignInManager read and write the properties unchanged; EF routes the columns.
+		// Same spec, §4.3.
+		builder.SplitToTable("UserLockout", static lockout =>
+		{
+			lockout.Property(u => u.LockoutEnd);
+			lockout.Property(u => u.AccessFailedCount);
+		});
 
 		builder.HasMany(u => u.Claims).WithOne(c => c.User).HasForeignKey(c => c.UserId).IsRequired();
 		builder.HasMany(u => u.Logins).WithOne(l => l.User).HasForeignKey(l => l.UserId).IsRequired();

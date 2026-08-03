@@ -17,7 +17,7 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20260731003553_InitialCreate";
+    public override string LastMigrationId => "20260803055150_InitialCreate";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -347,7 +347,6 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .HasColumnType("nvarchar(256)");
 
                 b.Property<string>("NormalizedUserName")
-                    .IsRequired()
                     .HasMaxLength(256)
                     .HasColumnType("nvarchar(256)");
 
@@ -383,9 +382,17 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
 
                 b.HasIndex("NormalizedUserName")
                     .IsUnique()
-                    .HasDatabaseName("UserNameIndex");
+                    .HasDatabaseName("UserNameIndex")
+                    .HasFilter("[NormalizedUserName] IS NOT NULL");
 
                 b.ToTable("Users");
+
+                b.SplitToTable("UserLockout", null, t =>
+                    {
+                        t.Property("AccessFailedCount");
+
+                        t.Property("LockoutEnd");
+                    });
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserClaim", b =>
@@ -560,6 +567,15 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .IsRequired();
 
                 b.Navigation("Role");
+            });
+
+        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUser", b =>
+            {
+                b.HasOne("Norse.Identity.EntityFramework.NorseUser", null)
+                    .WithOne()
+                    .HasForeignKey("Norse.Identity.EntityFramework.NorseUser", "Id")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserClaim", b =>

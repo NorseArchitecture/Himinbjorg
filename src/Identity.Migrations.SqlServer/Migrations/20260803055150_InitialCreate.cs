@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Norse.Identity.Migrations.SqlServer.Migrations;
 
 /// <inheritdoc />
-public partial class _20260731003553_InitialCreate : Migration
+public partial class _20260803055150_InitialCreate : Migration
 {
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder)
@@ -77,7 +77,7 @@ public partial class _20260731003553_InitialCreate : Migration
                 Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                 SecurityStamp = table.Column<string>(type: "nchar(32)", fixedLength: true, maxLength: 32, nullable: false),
                 UserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
-                NormalizedUserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
+                NormalizedUserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                 Email = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                 NormalizedEmail = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                 EmailConfirmed = table.Column<bool>(type: "bit", nullable: false),
@@ -86,9 +86,7 @@ public partial class _20260731003553_InitialCreate : Migration
                 PhoneNumber = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
                 PhoneNumberConfirmed = table.Column<bool>(type: "bit", nullable: false),
                 TwoFactorEnabled = table.Column<bool>(type: "bit", nullable: false),
-                LockoutEnd = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true),
-                LockoutEnabled = table.Column<bool>(type: "bit", nullable: false),
-                AccessFailedCount = table.Column<int>(type: "int", nullable: false)
+                LockoutEnabled = table.Column<bool>(type: "bit", nullable: false)
             },
             constraints: table =>
             {
@@ -141,104 +139,19 @@ public partial class _20260731003553_InitialCreate : Migration
             });
 
         migrationBuilder.CreateTable(
-            name: "UserClaims",
+            name: "UserLockout",
             columns: table => new
             {
-                Id = table.Column<int>(type: "int", nullable: false)
-                    .Annotation("SqlServer:Identity", "1, 1"),
-                UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                ClaimType = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
-                ClaimValue = table.Column<string>(type: "nvarchar(max)", maxLength: -1, nullable: false)
+                Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                LockoutEnd = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true),
+                AccessFailedCount = table.Column<int>(type: "int", nullable: false)
             },
             constraints: table =>
             {
-                table.PrimaryKey("PK_UserClaims", x => x.Id);
+                table.PrimaryKey("PK_UserLockout", x => x.Id);
                 table.ForeignKey(
-                    name: "FK_UserClaims_Users_UserId",
-                    column: x => x.UserId,
-                    principalTable: "Users",
-                    principalColumn: "Id",
-                    onDelete: ReferentialAction.Cascade);
-            });
-
-        migrationBuilder.CreateTable(
-            name: "UserLogins",
-            columns: table => new
-            {
-                LoginProvider = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
-                ProviderKey = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
-                ProviderDisplayName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
-                UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
-            },
-            constraints: table =>
-            {
-                table.PrimaryKey("PK_UserLogins", x => new { x.LoginProvider, x.ProviderKey });
-                table.ForeignKey(
-                    name: "FK_UserLogins_Users_UserId",
-                    column: x => x.UserId,
-                    principalTable: "Users",
-                    principalColumn: "Id",
-                    onDelete: ReferentialAction.Cascade);
-            });
-
-        migrationBuilder.CreateTable(
-            name: "UserPasskeys",
-            columns: table => new
-            {
-                CredentialId = table.Column<byte[]>(type: "varbinary(1024)", maxLength: 1024, nullable: false),
-                UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                Data = table.Column<string>(type: "json", nullable: false)
-            },
-            constraints: table =>
-            {
-                table.PrimaryKey("PK_UserPasskeys", x => x.CredentialId);
-                table.ForeignKey(
-                    name: "FK_UserPasskeys_Users_UserId",
-                    column: x => x.UserId,
-                    principalTable: "Users",
-                    principalColumn: "Id",
-                    onDelete: ReferentialAction.Cascade);
-            });
-
-        migrationBuilder.CreateTable(
-            name: "UserRoles",
-            columns: table => new
-            {
-                UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                RoleId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
-            },
-            constraints: table =>
-            {
-                table.PrimaryKey("PK_UserRoles", x => new { x.UserId, x.RoleId });
-                table.ForeignKey(
-                    name: "FK_UserRoles_Roles_RoleId",
-                    column: x => x.RoleId,
-                    principalTable: "Roles",
-                    principalColumn: "Id",
-                    onDelete: ReferentialAction.Cascade);
-                table.ForeignKey(
-                    name: "FK_UserRoles_Users_UserId",
-                    column: x => x.UserId,
-                    principalTable: "Users",
-                    principalColumn: "Id",
-                    onDelete: ReferentialAction.Cascade);
-            });
-
-        migrationBuilder.CreateTable(
-            name: "UserTokens",
-            columns: table => new
-            {
-                UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                LoginProvider = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
-                Name = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
-                Value = table.Column<string>(type: "nvarchar(max)", maxLength: -1, nullable: true)
-            },
-            constraints: table =>
-            {
-                table.PrimaryKey("PK_UserTokens", x => new { x.UserId, x.LoginProvider, x.Name });
-                table.ForeignKey(
-                    name: "FK_UserTokens_Users_UserId",
-                    column: x => x.UserId,
+                    name: "FK_UserLockout_Users_Id",
+                    column: x => x.Id,
                     principalTable: "Users",
                     principalColumn: "Id",
                     onDelete: ReferentialAction.Cascade);
@@ -275,6 +188,110 @@ public partial class _20260731003553_InitialCreate : Migration
                     column: x => x.AuthorizationId,
                     principalTable: "Authorizations",
                     principalColumn: "Id");
+            });
+
+        migrationBuilder.CreateTable(
+            name: "UserClaims",
+            columns: table => new
+            {
+                Id = table.Column<int>(type: "int", nullable: false)
+                    .Annotation("SqlServer:Identity", "1, 1"),
+                UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                ClaimType = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
+                ClaimValue = table.Column<string>(type: "nvarchar(max)", maxLength: -1, nullable: false)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("PK_UserClaims", x => x.Id);
+                table.ForeignKey(
+                    name: "FK_UserClaims_UserLockout_UserId",
+                    column: x => x.UserId,
+                    principalTable: "UserLockout",
+                    principalColumn: "Id",
+                    onDelete: ReferentialAction.Cascade);
+            });
+
+        migrationBuilder.CreateTable(
+            name: "UserLogins",
+            columns: table => new
+            {
+                LoginProvider = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
+                ProviderKey = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
+                ProviderDisplayName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
+                UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("PK_UserLogins", x => new { x.LoginProvider, x.ProviderKey });
+                table.ForeignKey(
+                    name: "FK_UserLogins_UserLockout_UserId",
+                    column: x => x.UserId,
+                    principalTable: "UserLockout",
+                    principalColumn: "Id",
+                    onDelete: ReferentialAction.Cascade);
+            });
+
+        migrationBuilder.CreateTable(
+            name: "UserPasskeys",
+            columns: table => new
+            {
+                CredentialId = table.Column<byte[]>(type: "varbinary(1024)", maxLength: 1024, nullable: false),
+                UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                Data = table.Column<string>(type: "json", nullable: false)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("PK_UserPasskeys", x => x.CredentialId);
+                table.ForeignKey(
+                    name: "FK_UserPasskeys_UserLockout_UserId",
+                    column: x => x.UserId,
+                    principalTable: "UserLockout",
+                    principalColumn: "Id",
+                    onDelete: ReferentialAction.Cascade);
+            });
+
+        migrationBuilder.CreateTable(
+            name: "UserRoles",
+            columns: table => new
+            {
+                UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                RoleId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("PK_UserRoles", x => new { x.UserId, x.RoleId });
+                table.ForeignKey(
+                    name: "FK_UserRoles_Roles_RoleId",
+                    column: x => x.RoleId,
+                    principalTable: "Roles",
+                    principalColumn: "Id",
+                    onDelete: ReferentialAction.Cascade);
+                table.ForeignKey(
+                    name: "FK_UserRoles_UserLockout_UserId",
+                    column: x => x.UserId,
+                    principalTable: "UserLockout",
+                    principalColumn: "Id",
+                    onDelete: ReferentialAction.Cascade);
+            });
+
+        migrationBuilder.CreateTable(
+            name: "UserTokens",
+            columns: table => new
+            {
+                UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                LoginProvider = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
+                Name = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
+                Value = table.Column<string>(type: "nvarchar(max)", maxLength: -1, nullable: true)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("PK_UserTokens", x => new { x.UserId, x.LoginProvider, x.Name });
+                table.ForeignKey(
+                    name: "FK_UserTokens_UserLockout_UserId",
+                    column: x => x.UserId,
+                    principalTable: "UserLockout",
+                    principalColumn: "Id",
+                    onDelete: ReferentialAction.Cascade);
             });
 
         migrationBuilder.CreateIndex(
@@ -353,7 +370,8 @@ public partial class _20260731003553_InitialCreate : Migration
             name: "UserNameIndex",
             table: "Users",
             column: "NormalizedUserName",
-            unique: true);
+            unique: true,
+            filter: "[NormalizedUserName] IS NOT NULL");
     }
 
     /// <inheritdoc />
@@ -390,9 +408,12 @@ public partial class _20260731003553_InitialCreate : Migration
             name: "Roles");
 
         migrationBuilder.DropTable(
-            name: "Users");
+            name: "UserLockout");
 
         migrationBuilder.DropTable(
             name: "Applications");
+
+        migrationBuilder.DropTable(
+            name: "Users");
     }
 }

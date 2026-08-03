@@ -13,8 +13,8 @@ using Norse.Identity.EntityFramework;
 namespace Norse.Identity.Migrations.SqlServer.Migrations;
 
 [DbContext(typeof(NorseIdentityDbContext))]
-[Migration("20260731003553_InitialCreate")]
-partial class _20260731003553_InitialCreate
+[Migration("20260803055150_InitialCreate")]
+partial class _20260803055150_InitialCreate
 {
     /// <inheritdoc />
     protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -345,7 +345,6 @@ partial class _20260731003553_InitialCreate
                     .HasColumnType("nvarchar(256)");
 
                 b.Property<string>("NormalizedUserName")
-                    .IsRequired()
                     .HasMaxLength(256)
                     .HasColumnType("nvarchar(256)");
 
@@ -381,9 +380,17 @@ partial class _20260731003553_InitialCreate
 
                 b.HasIndex("NormalizedUserName")
                     .IsUnique()
-                    .HasDatabaseName("UserNameIndex");
+                    .HasDatabaseName("UserNameIndex")
+                    .HasFilter("[NormalizedUserName] IS NOT NULL");
 
                 b.ToTable("Users");
+
+                b.SplitToTable("UserLockout", null, t =>
+                    {
+                        t.Property("AccessFailedCount");
+
+                        t.Property("LockoutEnd");
+                    });
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserClaim", b =>
@@ -558,6 +565,15 @@ partial class _20260731003553_InitialCreate
                     .IsRequired();
 
                 b.Navigation("Role");
+            });
+
+        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUser", b =>
+            {
+                b.HasOne("Norse.Identity.EntityFramework.NorseUser", null)
+                    .WithOne()
+                    .HasForeignKey("Norse.Identity.EntityFramework.NorseUser", "Id")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserClaim", b =>

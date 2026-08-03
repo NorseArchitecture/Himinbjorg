@@ -13,8 +13,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Norse.Identity.Migrations.PostgreSQL.Migrations;
 
 [DbContext(typeof(NorseIdentityDbContext))]
-[Migration("20260731003544_InitialCreate")]
-partial class _20260731003544_InitialCreate
+[Migration("20260803054533_InitialCreate")]
+partial class _20260803054533_InitialCreate
 {
     /// <inheritdoc />
     protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -418,7 +418,6 @@ partial class _20260731003544_InitialCreate
                     .HasColumnName("normalized_email");
 
                 b.Property<string>("NormalizedUserName")
-                    .IsRequired()
                     .HasMaxLength(256)
                     .HasColumnType("character varying(256)")
                     .HasColumnName("normalized_user_name");
@@ -464,6 +463,13 @@ partial class _20260731003544_InitialCreate
                     .HasDatabaseName("user_name_index");
 
                 b.ToTable("users");
+
+                b.SplitToTable("UserLockout", null, t =>
+                    {
+                        t.Property("AccessFailedCount");
+
+                        t.Property("LockoutEnd");
+                    });
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserClaim", b =>
@@ -667,6 +673,16 @@ partial class _20260731003544_InitialCreate
                     .HasConstraintName("fk_role_claims_roles_role_id");
 
                 b.Navigation("Role");
+            });
+
+        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUser", b =>
+            {
+                b.HasOne("Norse.Identity.EntityFramework.NorseUser", null)
+                    .WithOne()
+                    .HasForeignKey("Norse.Identity.EntityFramework.NorseUser", "Id")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired()
+                    .HasConstraintName("fk_users_users_id");
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserClaim", b =>

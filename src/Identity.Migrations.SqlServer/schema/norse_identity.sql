@@ -54,7 +54,7 @@ CREATE TABLE [Users] (
     [Id] uniqueidentifier NOT NULL,
     [SecurityStamp] nchar(32) NOT NULL,
     [UserName] nvarchar(256) NOT NULL,
-    [NormalizedUserName] nvarchar(256) NOT NULL,
+    [NormalizedUserName] nvarchar(256) NULL,
     [Email] nvarchar(256) NULL,
     [NormalizedEmail] nvarchar(256) NULL,
     [EmailConfirmed] bit NOT NULL,
@@ -63,9 +63,7 @@ CREATE TABLE [Users] (
     [PhoneNumber] nvarchar(20) NULL,
     [PhoneNumberConfirmed] bit NOT NULL,
     [TwoFactorEnabled] bit NOT NULL,
-    [LockoutEnd] datetimeoffset NULL,
     [LockoutEnabled] bit NOT NULL,
-    [AccessFailedCount] int NOT NULL,
     CONSTRAINT [PK_Users] PRIMARY KEY ([Id])
 );
 GO
@@ -98,55 +96,12 @@ CREATE TABLE [RoleClaims] (
 GO
 
 
-CREATE TABLE [UserClaims] (
-    [Id] int NOT NULL IDENTITY,
-    [UserId] uniqueidentifier NOT NULL,
-    [ClaimType] nvarchar(256) NOT NULL,
-    [ClaimValue] nvarchar(max) NOT NULL,
-    CONSTRAINT [PK_UserClaims] PRIMARY KEY ([Id]),
-    CONSTRAINT [FK_UserClaims_Users_UserId] FOREIGN KEY ([UserId]) REFERENCES [Users] ([Id]) ON DELETE CASCADE
-);
-GO
-
-
-CREATE TABLE [UserLogins] (
-    [LoginProvider] nvarchar(128) NOT NULL,
-    [ProviderKey] nvarchar(256) NOT NULL,
-    [ProviderDisplayName] nvarchar(256) NULL,
-    [UserId] uniqueidentifier NOT NULL,
-    CONSTRAINT [PK_UserLogins] PRIMARY KEY ([LoginProvider], [ProviderKey]),
-    CONSTRAINT [FK_UserLogins_Users_UserId] FOREIGN KEY ([UserId]) REFERENCES [Users] ([Id]) ON DELETE CASCADE
-);
-GO
-
-
-CREATE TABLE [UserPasskeys] (
-    [CredentialId] varbinary(1024) NOT NULL,
-    [UserId] uniqueidentifier NOT NULL,
-    [Data] json NOT NULL,
-    CONSTRAINT [PK_UserPasskeys] PRIMARY KEY ([CredentialId]),
-    CONSTRAINT [FK_UserPasskeys_Users_UserId] FOREIGN KEY ([UserId]) REFERENCES [Users] ([Id]) ON DELETE CASCADE
-);
-GO
-
-
-CREATE TABLE [UserRoles] (
-    [UserId] uniqueidentifier NOT NULL,
-    [RoleId] uniqueidentifier NOT NULL,
-    CONSTRAINT [PK_UserRoles] PRIMARY KEY ([UserId], [RoleId]),
-    CONSTRAINT [FK_UserRoles_Roles_RoleId] FOREIGN KEY ([RoleId]) REFERENCES [Roles] ([Id]) ON DELETE CASCADE,
-    CONSTRAINT [FK_UserRoles_Users_UserId] FOREIGN KEY ([UserId]) REFERENCES [Users] ([Id]) ON DELETE CASCADE
-);
-GO
-
-
-CREATE TABLE [UserTokens] (
-    [UserId] uniqueidentifier NOT NULL,
-    [LoginProvider] nvarchar(128) NOT NULL,
-    [Name] nvarchar(128) NOT NULL,
-    [Value] nvarchar(max) NULL,
-    CONSTRAINT [PK_UserTokens] PRIMARY KEY ([UserId], [LoginProvider], [Name]),
-    CONSTRAINT [FK_UserTokens_Users_UserId] FOREIGN KEY ([UserId]) REFERENCES [Users] ([Id]) ON DELETE CASCADE
+CREATE TABLE [UserLockout] (
+    [Id] uniqueidentifier NOT NULL,
+    [LockoutEnd] datetimeoffset NULL,
+    [AccessFailedCount] int NOT NULL,
+    CONSTRAINT [PK_UserLockout] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_UserLockout_Users_Id] FOREIGN KEY ([Id]) REFERENCES [Users] ([Id]) ON DELETE CASCADE
 );
 GO
 
@@ -168,6 +123,59 @@ CREATE TABLE [Tokens] (
     CONSTRAINT [PK_Tokens] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_Tokens_Applications_ApplicationId] FOREIGN KEY ([ApplicationId]) REFERENCES [Applications] ([Id]),
     CONSTRAINT [FK_Tokens_Authorizations_AuthorizationId] FOREIGN KEY ([AuthorizationId]) REFERENCES [Authorizations] ([Id])
+);
+GO
+
+
+CREATE TABLE [UserClaims] (
+    [Id] int NOT NULL IDENTITY,
+    [UserId] uniqueidentifier NOT NULL,
+    [ClaimType] nvarchar(256) NOT NULL,
+    [ClaimValue] nvarchar(max) NOT NULL,
+    CONSTRAINT [PK_UserClaims] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_UserClaims_UserLockout_UserId] FOREIGN KEY ([UserId]) REFERENCES [UserLockout] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
+CREATE TABLE [UserLogins] (
+    [LoginProvider] nvarchar(128) NOT NULL,
+    [ProviderKey] nvarchar(256) NOT NULL,
+    [ProviderDisplayName] nvarchar(256) NULL,
+    [UserId] uniqueidentifier NOT NULL,
+    CONSTRAINT [PK_UserLogins] PRIMARY KEY ([LoginProvider], [ProviderKey]),
+    CONSTRAINT [FK_UserLogins_UserLockout_UserId] FOREIGN KEY ([UserId]) REFERENCES [UserLockout] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
+CREATE TABLE [UserPasskeys] (
+    [CredentialId] varbinary(1024) NOT NULL,
+    [UserId] uniqueidentifier NOT NULL,
+    [Data] json NOT NULL,
+    CONSTRAINT [PK_UserPasskeys] PRIMARY KEY ([CredentialId]),
+    CONSTRAINT [FK_UserPasskeys_UserLockout_UserId] FOREIGN KEY ([UserId]) REFERENCES [UserLockout] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
+CREATE TABLE [UserRoles] (
+    [UserId] uniqueidentifier NOT NULL,
+    [RoleId] uniqueidentifier NOT NULL,
+    CONSTRAINT [PK_UserRoles] PRIMARY KEY ([UserId], [RoleId]),
+    CONSTRAINT [FK_UserRoles_Roles_RoleId] FOREIGN KEY ([RoleId]) REFERENCES [Roles] ([Id]) ON DELETE CASCADE,
+    CONSTRAINT [FK_UserRoles_UserLockout_UserId] FOREIGN KEY ([UserId]) REFERENCES [UserLockout] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
+CREATE TABLE [UserTokens] (
+    [UserId] uniqueidentifier NOT NULL,
+    [LoginProvider] nvarchar(128) NOT NULL,
+    [Name] nvarchar(128) NOT NULL,
+    [Value] nvarchar(max) NULL,
+    CONSTRAINT [PK_UserTokens] PRIMARY KEY ([UserId], [LoginProvider], [Name]),
+    CONSTRAINT [FK_UserTokens_UserLockout_UserId] FOREIGN KEY ([UserId]) REFERENCES [UserLockout] ([Id]) ON DELETE CASCADE
 );
 GO
 
@@ -224,7 +232,7 @@ CREATE INDEX [EmailIndex] ON [Users] ([NormalizedEmail]);
 GO
 
 
-CREATE UNIQUE INDEX [UserNameIndex] ON [Users] ([NormalizedUserName]);
+CREATE UNIQUE INDEX [UserNameIndex] ON [Users] ([NormalizedUserName]) WHERE [NormalizedUserName] IS NOT NULL;
 GO
 
 
