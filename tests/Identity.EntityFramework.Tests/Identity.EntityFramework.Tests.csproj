@@ -1,8 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<ItemGroup>
+		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="11.*-*" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="11.*-*" />
-		<!-- The entity model itself is provider-neutral; these two only exist so the model-building
-		     tests can materialize it against a real relational provider. -->
+		<!-- The entity model itself is provider-neutral; these only exist so the model-building
+		     tests can materialize it against a real relational provider. Npgsql for standard tests;
+		     SqlServer for temporal table composition proof. -->
 		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="11.*-*" />
 		<ProjectReference Include="../../src/Identity.EntityFramework/Identity.EntityFramework.csproj" />
 	</ItemGroup>
