@@ -47,12 +47,12 @@ CREATE TABLE scopes (
 );
 
 
-CREATE TABLE subject_key (
+CREATE TABLE subject_keys (
     subject_id uuid NOT NULL,
     wrapped_key bytea NOT NULL,
     wrapping_key_id character varying(128) NOT NULL,
     created_at timestamp with time zone NOT NULL,
-    CONSTRAINT pk_subject_key PRIMARY KEY (subject_id)
+    CONSTRAINT pk_subject_keys PRIMARY KEY (subject_id)
 );
 
 

@@ -50,12 +50,12 @@ CREATE TABLE [Scopes] (
 GO
 
 
-CREATE TABLE [SubjectKey] (
+CREATE TABLE [SubjectKeys] (
     [SubjectId] uniqueidentifier NOT NULL,
     [WrappedKey] varbinary(64) NOT NULL,
     [WrappingKeyId] nvarchar(128) NOT NULL,
     [CreatedAt] datetimeoffset NOT NULL,
-    CONSTRAINT [PK_SubjectKey] PRIMARY KEY ([SubjectId])
+    CONSTRAINT [PK_SubjectKeys] PRIMARY KEY ([SubjectId])
 );
 GO
 

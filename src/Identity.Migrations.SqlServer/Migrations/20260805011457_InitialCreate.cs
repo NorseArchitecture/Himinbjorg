@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Norse.Identity.Migrations.SqlServer.Migrations;
 
 /// <inheritdoc />
-public partial class _20260805010739_InitialCreate : Migration
+public partial class _20260805011457_InitialCreate : Migration
 {
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder)
@@ -71,7 +71,7 @@ public partial class _20260805010739_InitialCreate : Migration
             });
 
         migrationBuilder.CreateTable(
-            name: "SubjectKey",
+            name: "SubjectKeys",
             columns: table => new
             {
                 SubjectId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
@@ -81,7 +81,7 @@ public partial class _20260805010739_InitialCreate : Migration
             },
             constraints: table =>
             {
-                table.PrimaryKey("PK_SubjectKey", x => x.SubjectId);
+                table.PrimaryKey("PK_SubjectKeys", x => x.SubjectId);
             });
 
         migrationBuilder.CreateTable(
@@ -381,7 +381,7 @@ public partial class _20260805010739_InitialCreate : Migration
             name: "Scopes");
 
         migrationBuilder.DropTable(
-            name: "SubjectKey");
+            name: "SubjectKeys");
 
         migrationBuilder.DropTable(
             name: "Tokens");

@@ -27,8 +27,6 @@ public sealed class NorseIdentityModelTests
 	static IModel SqlServerModel => _sqlServerModel.Value;
 	static IModel PostgresModel => _postgresModel.Value;
 
-	// Build the model per provider the way the design-time factories do; reuse any existing
-	// model-building helper in this test project.
 	[Fact]
 	void Normalized_user_name_is_nullable_and_its_unique_index_is_filtered_on_sql_server()
 	{
@@ -76,8 +74,14 @@ public sealed class NorseIdentityModelTests
 	void Subject_key_entity_exists_with_the_declared_shape()
 	{
 		var entity = SqlServerModel.FindEntityType(typeof(SubjectKey))!;
+		// Plural, like every sibling table (Users, Roles, ...) -- pinned per provider so a future
+		// edit that drops SubjectKey.Configure's ToTable("SubjectKeys") call regresses silently no
+		// longer: SQL Server keeps the raw PascalCase name, Postgres rewrites it to snake_case.
+		entity.GetTableName().ShouldBe("SubjectKeys");
 		entity.FindPrimaryKey()!.Properties.Single().Name.ShouldBe(nameof(SubjectKey.SubjectId));
 		entity.FindProperty(nameof(SubjectKey.WrappedKey))!.GetMaxLength().ShouldBe(64);
 		entity.FindProperty(nameof(SubjectKey.WrappingKeyId))!.GetMaxLength().ShouldBe(128);
+
+		PostgresModel.FindEntityType(typeof(SubjectKey))!.GetTableName().ShouldBe("subject_keys");
 	}
 }

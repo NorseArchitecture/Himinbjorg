@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Norse.Persistence.EntityFramework;
 
@@ -26,6 +27,9 @@ public sealed record SubjectKey : NorseEntityBase<SubjectKey>, INorseEntity<Subj
 	public required DateTimeOffset CreatedAt { get; init; }
 
 	/// <summary>Configures the EF entity mapping.</summary>
-	public static void Configure(EntityTypeBuilder<SubjectKey> builder) =>
+	public static void Configure(EntityTypeBuilder<SubjectKey> builder)
+	{
+		builder.ToTable("SubjectKeys");
 		builder.HasKey(k => k.SubjectId);
+	}
 }

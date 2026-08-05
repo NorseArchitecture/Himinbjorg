@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Norse.Identity.Migrations.PostgreSQL.Migrations;
 
 /// <inheritdoc />
-public partial class _20260805010730_InitialCreate : Migration
+public partial class _20260805011449_InitialCreate : Migration
 {
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder)
@@ -72,7 +72,7 @@ public partial class _20260805010730_InitialCreate : Migration
             });
 
         migrationBuilder.CreateTable(
-            name: "subject_key",
+            name: "subject_keys",
             columns: table => new
             {
                 subject_id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -82,7 +82,7 @@ public partial class _20260805010730_InitialCreate : Migration
             },
             constraints: table =>
             {
-                table.PrimaryKey("pk_subject_key", x => x.subject_id);
+                table.PrimaryKey("pk_subject_keys", x => x.subject_id);
             });
 
         migrationBuilder.CreateTable(
@@ -378,7 +378,7 @@ public partial class _20260805010730_InitialCreate : Migration
             name: "scopes");
 
         migrationBuilder.DropTable(
-            name: "subject_key");
+            name: "subject_keys");
 
         migrationBuilder.DropTable(
             name: "tokens");

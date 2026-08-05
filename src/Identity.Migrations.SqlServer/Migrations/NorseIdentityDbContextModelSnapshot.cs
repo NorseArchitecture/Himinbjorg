@@ -17,7 +17,7 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20260805010739_InitialCreate";
+    public override string LastMigrationId => "20260805011457_InitialCreate";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -548,7 +548,7 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
 
                 b.HasKey("SubjectId");
 
-                b.ToTable("SubjectKey");
+                b.ToTable("SubjectKeys");
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseOpenIddictAuthorization", b =>
