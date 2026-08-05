@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Norse.Identity.Migrations.SqlServer.Migrations;
 
 /// <inheritdoc />
-public partial class _20260805011457_InitialCreate : Migration
+public partial class _20260805035454_InitialCreate : Migration
 {
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder)
@@ -97,7 +97,7 @@ public partial class _20260805011457_InitialCreate : Migration
                 EmailConfirmed = table.Column<bool>(type: "bit", nullable: false),
                 PasswordHash = table.Column<byte[]>(type: "varbinary(128)", maxLength: 128, nullable: true),
                 ConcurrencyStamp = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                PhoneNumber = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
+                PhoneNumber = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                 PhoneNumberConfirmed = table.Column<bool>(type: "bit", nullable: false),
                 TwoFactorEnabled = table.Column<bool>(type: "bit", nullable: false),
                 LockoutEnd = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true),

@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Norse.Identity.Migrations.PostgreSQL.Migrations;
 
 /// <inheritdoc />
-public partial class _20260805011449_InitialCreate : Migration
+public partial class _20260805035438_InitialCreate : Migration
 {
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder)
@@ -98,7 +98,7 @@ public partial class _20260805011449_InitialCreate : Migration
                 email_confirmed = table.Column<bool>(type: "boolean", nullable: false),
                 password_hash = table.Column<byte[]>(type: "bytea", maxLength: 128, nullable: true),
                 concurrency_stamp = table.Column<Guid>(type: "uuid", nullable: false),
-                phone_number = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
+                phone_number = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
                 phone_number_confirmed = table.Column<bool>(type: "boolean", nullable: false),
                 two_factor_enabled = table.Column<bool>(type: "boolean", nullable: false),
                 lockout_end = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),

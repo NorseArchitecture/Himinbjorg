@@ -13,8 +13,8 @@ using Norse.Identity.EntityFramework;
 namespace Norse.Identity.Migrations.SqlServer.Migrations;
 
 [DbContext(typeof(NorseIdentityDbContext))]
-[Migration("20260805011457_InitialCreate")]
-partial class _20260805011457_InitialCreate
+[Migration("20260805035454_InitialCreate")]
+partial class _20260805035454_InitialCreate
 {
     /// <inheritdoc />
     protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -353,8 +353,8 @@ partial class _20260805011457_InitialCreate
                     .HasColumnType("varbinary(128)");
 
                 b.Property<string>("PhoneNumber")
-                    .HasMaxLength(20)
-                    .HasColumnType("nvarchar(20)");
+                    .HasMaxLength(256)
+                    .HasColumnType("nvarchar(256)");
 
                 b.Property<bool>("PhoneNumberConfirmed")
                     .HasColumnType("bit");

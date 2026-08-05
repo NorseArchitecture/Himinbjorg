@@ -13,8 +13,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Norse.Identity.Migrations.PostgreSQL.Migrations;
 
 [DbContext(typeof(NorseIdentityDbContext))]
-[Migration("20260805011449_InitialCreate")]
-partial class _20260805011449_InitialCreate
+[Migration("20260805035438_InitialCreate")]
+partial class _20260805035438_InitialCreate
 {
     /// <inheritdoc />
     protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -428,8 +428,8 @@ partial class _20260805011449_InitialCreate
                     .HasColumnName("password_hash");
 
                 b.Property<string>("PhoneNumber")
-                    .HasMaxLength(20)
-                    .HasColumnType("character varying(20)")
+                    .HasMaxLength(256)
+                    .HasColumnType("character varying(256)")
                     .HasColumnName("phone_number");
 
                 b.Property<bool>("PhoneNumberConfirmed")
