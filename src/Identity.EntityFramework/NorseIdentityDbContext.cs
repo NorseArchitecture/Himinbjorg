@@ -73,6 +73,15 @@ public sealed class NorseIdentityDbContext(DbContextOptions<NorseIdentityDbConte
 			NorseOpenIddictScope, NorseOpenIddictToken, Guid>();
 		builder.ApplyNorseConfigurations();
 
+		// PII primitives seam (2026-08-03 spec §4.5): no struct-typed IPiiScalar<TSelf> property exists
+		// on this schema yet -- IdentityUser<Guid>'s own [ProtectedPersonalData] properties (UserName,
+		// Email, PhoneNumber) already ride ASP.NET Core Identity's built-in IPersonalDataProtector
+		// conversion via ProtectPersonalData=true (see IdentityBuilderExtensions.AddNorseIdentity), which
+		// is a different, narrower mechanism than the platform's PII scalar seam. The call site for
+		// Norse.Persistence.EntityFramework.PiiProtectionModelExtensions.ProtectPiiScalars(builder,
+		// protector) lands here, right after ApplyNorseConfigurations, the day this schema's first
+		// struct-typed PII property (an EncryptedString-shaped value object) is added -- not before.
+
 		// Filter differs by provider: SQL Server needs an explicit filtered index since the column is
 		// nullable now (payload columns darken on erasure, they don't null -- but the lookup hash
 		// legitimately can be absent pre-hash or post-erasure); Postgres's NULLS DISTINCT default
