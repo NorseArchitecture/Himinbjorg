@@ -3,6 +3,30 @@
 -- Changes made here will be overwritten on the next migration.
 -- Run: dotnet ef migrations add <Name> to update this file.
 -- ============================================================
+DO $norse$
+BEGIN
+	IF pg_catalog.current_setting('server_version_num')::int < 190000 THEN
+		RAISE EXCEPTION 'Norse temporal tables require PostgreSQL 19 or later (server_version_num >= 190000); this server reports %.', pg_catalog.current_setting('server_version');
+	END IF;
+	IF pg_catalog.current_schema() <> 'public' THEN
+		RAISE EXCEPTION 'This migration declares no schema for its temporal tables, so the Norse temporal apparatus is qualified with PostgreSQL''s default schema (public), but the session default schema is %. Declare the schema explicitly (HasDefaultSchema or ToTable) so the table and its apparatus cannot land apart.', pg_catalog.current_schema();
+	END IF;
+END $norse$;
+
+
+DO $norse$
+BEGIN
+	IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_extension WHERE extname = 'btree_gist') THEN
+		BEGIN
+			CREATE EXTENSION btree_gist;
+		EXCEPTION
+			WHEN insufficient_privilege THEN
+				RAISE EXCEPTION 'The btree_gist extension is a Norse platform provisioning prerequisite in this environment: the migration role may not CREATE EXTENSION. Install btree_gist out-of-band, then rerun this migration.';
+		END;
+	END IF;
+END $norse$;
+
+
 CREATE TABLE applications (
     id uuid NOT NULL,
     application_type character varying(50),
@@ -24,6 +48,74 @@ CREATE TABLE applications (
 );
 
 
+ALTER TABLE "public"."applications" ADD COLUMN system_period tstzrange NOT NULL;
+
+
+CREATE TABLE "public"."applications_history" (
+	"id" uuid NOT NULL,
+	"application_type" character varying(50),
+	"client_id" character varying(100),
+	"client_secret" text,
+	"client_type" character varying(50),
+	"concurrency_token" character varying(50),
+	"consent_type" character varying(50),
+	"display_name" character varying(200),
+	"display_names" text,
+	"json_web_key_set" text,
+	"permissions" text,
+	"post_logout_redirect_uris" text,
+	"properties" text,
+	"redirect_uris" text,
+	"requirements" text,
+	"settings" text,
+	"system_period" tstzrange NOT NULL,
+	PRIMARY KEY ("id", "system_period" WITHOUT OVERLAPS)
+);
+
+
+CREATE FUNCTION "public"."applications_versioning"() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog AS $norse$
+DECLARE ts timestamptz;
+BEGIN
+	IF TG_OP = 'INSERT' THEN
+		IF NEW.system_period IS NOT NULL THEN
+			RAISE EXCEPTION 'system_period on "%.%" is database-owned; it cannot be written by clients.', TG_TABLE_SCHEMA, TG_TABLE_NAME;
+		END IF;
+		NEW.system_period := pg_catalog.tstzrange(pg_catalog.clock_timestamp(), 'infinity');
+		RETURN NEW;
+	END IF;
+	IF TG_OP = 'UPDATE' AND NEW.system_period IS DISTINCT FROM OLD.system_period THEN
+		RAISE EXCEPTION 'system_period on "%.%" is database-owned; it cannot be written by clients.', TG_TABLE_SCHEMA, TG_TABLE_NAME;
+	END IF;
+	IF TG_OP = 'UPDATE' AND ROW(OLD."id", OLD."application_type", OLD."client_id", OLD."client_secret", OLD."client_type", OLD."concurrency_token", OLD."consent_type", OLD."display_name", OLD."display_names", OLD."json_web_key_set", OLD."permissions", OLD."post_logout_redirect_uris", OLD."properties", OLD."redirect_uris", OLD."requirements", OLD."settings") IS NOT DISTINCT FROM ROW(NEW."id", NEW."application_type", NEW."client_id", NEW."client_secret", NEW."client_type", NEW."concurrency_token", NEW."consent_type", NEW."display_name", NEW."display_names", NEW."json_web_key_set", NEW."permissions", NEW."post_logout_redirect_uris", NEW."properties", NEW."redirect_uris", NEW."requirements", NEW."settings") THEN
+		RETURN NEW;
+	END IF;
+	ts := greatest(pg_catalog.clock_timestamp(), pg_catalog.lower(OLD.system_period) + interval '1 microsecond');
+	INSERT INTO "public"."applications_history" ("id", "application_type", "client_id", "client_secret", "client_type", "concurrency_token", "consent_type", "display_name", "display_names", "json_web_key_set", "permissions", "post_logout_redirect_uris", "properties", "redirect_uris", "requirements", "settings", system_period)
+		VALUES (OLD."id", OLD."application_type", OLD."client_id", OLD."client_secret", OLD."client_type", OLD."concurrency_token", OLD."consent_type", OLD."display_name", OLD."display_names", OLD."json_web_key_set", OLD."permissions", OLD."post_logout_redirect_uris", OLD."properties", OLD."redirect_uris", OLD."requirements", OLD."settings", pg_catalog.tstzrange(pg_catalog.lower(OLD.system_period), ts));
+	IF TG_OP = 'UPDATE' THEN
+		NEW.system_period := pg_catalog.tstzrange(ts, 'infinity');
+		RETURN NEW;
+	END IF;
+	RETURN OLD;
+END $norse$;
+REVOKE EXECUTE ON FUNCTION "public"."applications_versioning"() FROM PUBLIC;
+
+
+CREATE TRIGGER "applications_versioning_insert" BEFORE INSERT ON "public"."applications"
+	FOR EACH ROW EXECUTE FUNCTION "public"."applications_versioning"();
+CREATE TRIGGER "applications_versioning_update" BEFORE UPDATE ON "public"."applications"
+	FOR EACH ROW EXECUTE FUNCTION "public"."applications_versioning"();
+CREATE TRIGGER "applications_versioning_delete" BEFORE DELETE ON "public"."applications"
+	FOR EACH ROW EXECUTE FUNCTION "public"."applications_versioning"();
+
+
+CREATE VIEW "public"."applications_timeline" AS
+SELECT "id", "application_type", "client_id", "client_secret", "client_type", "concurrency_token", "consent_type", "display_name", "display_names", "json_web_key_set", "permissions", "post_logout_redirect_uris", "properties", "redirect_uris", "requirements", "settings", system_period FROM "public"."applications"
+UNION ALL
+SELECT "id", "application_type", "client_id", "client_secret", "client_type", "concurrency_token", "consent_type", "display_name", "display_names", "json_web_key_set", "permissions", "post_logout_redirect_uris", "properties", "redirect_uris", "requirements", "settings", system_period FROM "public"."applications_history";
+
+
 CREATE TABLE roles (
     id uuid NOT NULL,
     name character varying(256) NOT NULL,
@@ -31,6 +123,62 @@ CREATE TABLE roles (
     concurrency_stamp uuid NOT NULL,
     CONSTRAINT pk_roles PRIMARY KEY (id)
 );
+
+
+ALTER TABLE "public"."roles" ADD COLUMN system_period tstzrange NOT NULL;
+
+
+CREATE TABLE "public"."roles_history" (
+	"id" uuid NOT NULL,
+	"name" character varying(256),
+	"normalized_name" character varying(256),
+	"concurrency_stamp" uuid,
+	"system_period" tstzrange NOT NULL,
+	PRIMARY KEY ("id", "system_period" WITHOUT OVERLAPS)
+);
+
+
+CREATE FUNCTION "public"."roles_versioning"() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog AS $norse$
+DECLARE ts timestamptz;
+BEGIN
+	IF TG_OP = 'INSERT' THEN
+		IF NEW.system_period IS NOT NULL THEN
+			RAISE EXCEPTION 'system_period on "%.%" is database-owned; it cannot be written by clients.', TG_TABLE_SCHEMA, TG_TABLE_NAME;
+		END IF;
+		NEW.system_period := pg_catalog.tstzrange(pg_catalog.clock_timestamp(), 'infinity');
+		RETURN NEW;
+	END IF;
+	IF TG_OP = 'UPDATE' AND NEW.system_period IS DISTINCT FROM OLD.system_period THEN
+		RAISE EXCEPTION 'system_period on "%.%" is database-owned; it cannot be written by clients.', TG_TABLE_SCHEMA, TG_TABLE_NAME;
+	END IF;
+	IF TG_OP = 'UPDATE' AND ROW(OLD."id", OLD."name", OLD."normalized_name", OLD."concurrency_stamp") IS NOT DISTINCT FROM ROW(NEW."id", NEW."name", NEW."normalized_name", NEW."concurrency_stamp") THEN
+		RETURN NEW;
+	END IF;
+	ts := greatest(pg_catalog.clock_timestamp(), pg_catalog.lower(OLD.system_period) + interval '1 microsecond');
+	INSERT INTO "public"."roles_history" ("id", "name", "normalized_name", "concurrency_stamp", system_period)
+		VALUES (OLD."id", OLD."name", OLD."normalized_name", OLD."concurrency_stamp", pg_catalog.tstzrange(pg_catalog.lower(OLD.system_period), ts));
+	IF TG_OP = 'UPDATE' THEN
+		NEW.system_period := pg_catalog.tstzrange(ts, 'infinity');
+		RETURN NEW;
+	END IF;
+	RETURN OLD;
+END $norse$;
+REVOKE EXECUTE ON FUNCTION "public"."roles_versioning"() FROM PUBLIC;
+
+
+CREATE TRIGGER "roles_versioning_insert" BEFORE INSERT ON "public"."roles"
+	FOR EACH ROW EXECUTE FUNCTION "public"."roles_versioning"();
+CREATE TRIGGER "roles_versioning_update" BEFORE UPDATE ON "public"."roles"
+	FOR EACH ROW EXECUTE FUNCTION "public"."roles_versioning"();
+CREATE TRIGGER "roles_versioning_delete" BEFORE DELETE ON "public"."roles"
+	FOR EACH ROW EXECUTE FUNCTION "public"."roles_versioning"();
+
+
+CREATE VIEW "public"."roles_timeline" AS
+SELECT "id", "name", "normalized_name", "concurrency_stamp", system_period FROM "public"."roles"
+UNION ALL
+SELECT "id", "name", "normalized_name", "concurrency_stamp", system_period FROM "public"."roles_history";
 
 
 CREATE TABLE scopes (
@@ -45,6 +193,67 @@ CREATE TABLE scopes (
     resources text,
     CONSTRAINT pk_scopes PRIMARY KEY (id)
 );
+
+
+ALTER TABLE "public"."scopes" ADD COLUMN system_period tstzrange NOT NULL;
+
+
+CREATE TABLE "public"."scopes_history" (
+	"id" uuid NOT NULL,
+	"concurrency_token" character varying(50),
+	"description" character varying(1000),
+	"descriptions" text,
+	"display_name" character varying(200),
+	"display_names" text,
+	"name" character varying(200),
+	"properties" text,
+	"resources" text,
+	"system_period" tstzrange NOT NULL,
+	PRIMARY KEY ("id", "system_period" WITHOUT OVERLAPS)
+);
+
+
+CREATE FUNCTION "public"."scopes_versioning"() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog AS $norse$
+DECLARE ts timestamptz;
+BEGIN
+	IF TG_OP = 'INSERT' THEN
+		IF NEW.system_period IS NOT NULL THEN
+			RAISE EXCEPTION 'system_period on "%.%" is database-owned; it cannot be written by clients.', TG_TABLE_SCHEMA, TG_TABLE_NAME;
+		END IF;
+		NEW.system_period := pg_catalog.tstzrange(pg_catalog.clock_timestamp(), 'infinity');
+		RETURN NEW;
+	END IF;
+	IF TG_OP = 'UPDATE' AND NEW.system_period IS DISTINCT FROM OLD.system_period THEN
+		RAISE EXCEPTION 'system_period on "%.%" is database-owned; it cannot be written by clients.', TG_TABLE_SCHEMA, TG_TABLE_NAME;
+	END IF;
+	IF TG_OP = 'UPDATE' AND ROW(OLD."id", OLD."concurrency_token", OLD."description", OLD."descriptions", OLD."display_name", OLD."display_names", OLD."name", OLD."properties", OLD."resources") IS NOT DISTINCT FROM ROW(NEW."id", NEW."concurrency_token", NEW."description", NEW."descriptions", NEW."display_name", NEW."display_names", NEW."name", NEW."properties", NEW."resources") THEN
+		RETURN NEW;
+	END IF;
+	ts := greatest(pg_catalog.clock_timestamp(), pg_catalog.lower(OLD.system_period) + interval '1 microsecond');
+	INSERT INTO "public"."scopes_history" ("id", "concurrency_token", "description", "descriptions", "display_name", "display_names", "name", "properties", "resources", system_period)
+		VALUES (OLD."id", OLD."concurrency_token", OLD."description", OLD."descriptions", OLD."display_name", OLD."display_names", OLD."name", OLD."properties", OLD."resources", pg_catalog.tstzrange(pg_catalog.lower(OLD.system_period), ts));
+	IF TG_OP = 'UPDATE' THEN
+		NEW.system_period := pg_catalog.tstzrange(ts, 'infinity');
+		RETURN NEW;
+	END IF;
+	RETURN OLD;
+END $norse$;
+REVOKE EXECUTE ON FUNCTION "public"."scopes_versioning"() FROM PUBLIC;
+
+
+CREATE TRIGGER "scopes_versioning_insert" BEFORE INSERT ON "public"."scopes"
+	FOR EACH ROW EXECUTE FUNCTION "public"."scopes_versioning"();
+CREATE TRIGGER "scopes_versioning_update" BEFORE UPDATE ON "public"."scopes"
+	FOR EACH ROW EXECUTE FUNCTION "public"."scopes_versioning"();
+CREATE TRIGGER "scopes_versioning_delete" BEFORE DELETE ON "public"."scopes"
+	FOR EACH ROW EXECUTE FUNCTION "public"."scopes_versioning"();
+
+
+CREATE VIEW "public"."scopes_timeline" AS
+SELECT "id", "concurrency_token", "description", "descriptions", "display_name", "display_names", "name", "properties", "resources", system_period FROM "public"."scopes"
+UNION ALL
+SELECT "id", "concurrency_token", "description", "descriptions", "display_name", "display_names", "name", "properties", "resources", system_period FROM "public"."scopes_history";
 
 
 CREATE TABLE subject_keys (
@@ -76,6 +285,73 @@ CREATE TABLE users (
 );
 
 
+ALTER TABLE "public"."users" ADD COLUMN system_period tstzrange NOT NULL;
+
+
+CREATE TABLE "public"."users_history" (
+	"id" uuid NOT NULL,
+	"security_stamp" character varying(32),
+	"user_name" character varying(256),
+	"normalized_user_name" character varying(256),
+	"email" character varying(256),
+	"normalized_email" character varying(256),
+	"email_confirmed" boolean,
+	"password_hash" bytea,
+	"concurrency_stamp" uuid,
+	"phone_number" character varying(256),
+	"phone_number_confirmed" boolean,
+	"two_factor_enabled" boolean,
+	"lockout_end" timestamp with time zone,
+	"lockout_enabled" boolean,
+	"access_failed_count" integer,
+	"system_period" tstzrange NOT NULL,
+	PRIMARY KEY ("id", "system_period" WITHOUT OVERLAPS)
+);
+
+
+CREATE FUNCTION "public"."users_versioning"() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog AS $norse$
+DECLARE ts timestamptz;
+BEGIN
+	IF TG_OP = 'INSERT' THEN
+		IF NEW.system_period IS NOT NULL THEN
+			RAISE EXCEPTION 'system_period on "%.%" is database-owned; it cannot be written by clients.', TG_TABLE_SCHEMA, TG_TABLE_NAME;
+		END IF;
+		NEW.system_period := pg_catalog.tstzrange(pg_catalog.clock_timestamp(), 'infinity');
+		RETURN NEW;
+	END IF;
+	IF TG_OP = 'UPDATE' AND NEW.system_period IS DISTINCT FROM OLD.system_period THEN
+		RAISE EXCEPTION 'system_period on "%.%" is database-owned; it cannot be written by clients.', TG_TABLE_SCHEMA, TG_TABLE_NAME;
+	END IF;
+	IF TG_OP = 'UPDATE' AND ROW(OLD."id", OLD."security_stamp", OLD."user_name", OLD."normalized_user_name", OLD."email", OLD."normalized_email", OLD."email_confirmed", OLD."password_hash", OLD."concurrency_stamp", OLD."phone_number", OLD."phone_number_confirmed", OLD."two_factor_enabled", OLD."lockout_end", OLD."lockout_enabled", OLD."access_failed_count") IS NOT DISTINCT FROM ROW(NEW."id", NEW."security_stamp", NEW."user_name", NEW."normalized_user_name", NEW."email", NEW."normalized_email", NEW."email_confirmed", NEW."password_hash", NEW."concurrency_stamp", NEW."phone_number", NEW."phone_number_confirmed", NEW."two_factor_enabled", NEW."lockout_end", NEW."lockout_enabled", NEW."access_failed_count") THEN
+		RETURN NEW;
+	END IF;
+	ts := greatest(pg_catalog.clock_timestamp(), pg_catalog.lower(OLD.system_period) + interval '1 microsecond');
+	INSERT INTO "public"."users_history" ("id", "security_stamp", "user_name", "normalized_user_name", "email", "normalized_email", "email_confirmed", "password_hash", "concurrency_stamp", "phone_number", "phone_number_confirmed", "two_factor_enabled", "lockout_end", "lockout_enabled", "access_failed_count", system_period)
+		VALUES (OLD."id", OLD."security_stamp", OLD."user_name", OLD."normalized_user_name", OLD."email", OLD."normalized_email", OLD."email_confirmed", OLD."password_hash", OLD."concurrency_stamp", OLD."phone_number", OLD."phone_number_confirmed", OLD."two_factor_enabled", OLD."lockout_end", OLD."lockout_enabled", OLD."access_failed_count", pg_catalog.tstzrange(pg_catalog.lower(OLD.system_period), ts));
+	IF TG_OP = 'UPDATE' THEN
+		NEW.system_period := pg_catalog.tstzrange(ts, 'infinity');
+		RETURN NEW;
+	END IF;
+	RETURN OLD;
+END $norse$;
+REVOKE EXECUTE ON FUNCTION "public"."users_versioning"() FROM PUBLIC;
+
+
+CREATE TRIGGER "users_versioning_insert" BEFORE INSERT ON "public"."users"
+	FOR EACH ROW EXECUTE FUNCTION "public"."users_versioning"();
+CREATE TRIGGER "users_versioning_update" BEFORE UPDATE ON "public"."users"
+	FOR EACH ROW EXECUTE FUNCTION "public"."users_versioning"();
+CREATE TRIGGER "users_versioning_delete" BEFORE DELETE ON "public"."users"
+	FOR EACH ROW EXECUTE FUNCTION "public"."users_versioning"();
+
+
+CREATE VIEW "public"."users_timeline" AS
+SELECT "id", "security_stamp", "user_name", "normalized_user_name", "email", "normalized_email", "email_confirmed", "password_hash", "concurrency_stamp", "phone_number", "phone_number_confirmed", "two_factor_enabled", "lockout_end", "lockout_enabled", "access_failed_count", system_period FROM "public"."users"
+UNION ALL
+SELECT "id", "security_stamp", "user_name", "normalized_user_name", "email", "normalized_email", "email_confirmed", "password_hash", "concurrency_stamp", "phone_number", "phone_number_confirmed", "two_factor_enabled", "lockout_end", "lockout_enabled", "access_failed_count", system_period FROM "public"."users_history";
+
+
 CREATE TABLE authorizations (
     id uuid NOT NULL,
     application_id uuid,
@@ -101,6 +377,62 @@ CREATE TABLE role_claims (
 );
 
 
+ALTER TABLE "public"."role_claims" ADD COLUMN system_period tstzrange NOT NULL;
+
+
+CREATE TABLE "public"."role_claims_history" (
+	"id" integer NOT NULL,
+	"role_id" uuid,
+	"claim_type" character varying(256),
+	"claim_value" text,
+	"system_period" tstzrange NOT NULL,
+	PRIMARY KEY ("id", "system_period" WITHOUT OVERLAPS)
+);
+
+
+CREATE FUNCTION "public"."role_claims_versioning"() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog AS $norse$
+DECLARE ts timestamptz;
+BEGIN
+	IF TG_OP = 'INSERT' THEN
+		IF NEW.system_period IS NOT NULL THEN
+			RAISE EXCEPTION 'system_period on "%.%" is database-owned; it cannot be written by clients.', TG_TABLE_SCHEMA, TG_TABLE_NAME;
+		END IF;
+		NEW.system_period := pg_catalog.tstzrange(pg_catalog.clock_timestamp(), 'infinity');
+		RETURN NEW;
+	END IF;
+	IF TG_OP = 'UPDATE' AND NEW.system_period IS DISTINCT FROM OLD.system_period THEN
+		RAISE EXCEPTION 'system_period on "%.%" is database-owned; it cannot be written by clients.', TG_TABLE_SCHEMA, TG_TABLE_NAME;
+	END IF;
+	IF TG_OP = 'UPDATE' AND ROW(OLD."id", OLD."role_id", OLD."claim_type", OLD."claim_value") IS NOT DISTINCT FROM ROW(NEW."id", NEW."role_id", NEW."claim_type", NEW."claim_value") THEN
+		RETURN NEW;
+	END IF;
+	ts := greatest(pg_catalog.clock_timestamp(), pg_catalog.lower(OLD.system_period) + interval '1 microsecond');
+	INSERT INTO "public"."role_claims_history" ("id", "role_id", "claim_type", "claim_value", system_period)
+		VALUES (OLD."id", OLD."role_id", OLD."claim_type", OLD."claim_value", pg_catalog.tstzrange(pg_catalog.lower(OLD.system_period), ts));
+	IF TG_OP = 'UPDATE' THEN
+		NEW.system_period := pg_catalog.tstzrange(ts, 'infinity');
+		RETURN NEW;
+	END IF;
+	RETURN OLD;
+END $norse$;
+REVOKE EXECUTE ON FUNCTION "public"."role_claims_versioning"() FROM PUBLIC;
+
+
+CREATE TRIGGER "role_claims_versioning_insert" BEFORE INSERT ON "public"."role_claims"
+	FOR EACH ROW EXECUTE FUNCTION "public"."role_claims_versioning"();
+CREATE TRIGGER "role_claims_versioning_update" BEFORE UPDATE ON "public"."role_claims"
+	FOR EACH ROW EXECUTE FUNCTION "public"."role_claims_versioning"();
+CREATE TRIGGER "role_claims_versioning_delete" BEFORE DELETE ON "public"."role_claims"
+	FOR EACH ROW EXECUTE FUNCTION "public"."role_claims_versioning"();
+
+
+CREATE VIEW "public"."role_claims_timeline" AS
+SELECT "id", "role_id", "claim_type", "claim_value", system_period FROM "public"."role_claims"
+UNION ALL
+SELECT "id", "role_id", "claim_type", "claim_value", system_period FROM "public"."role_claims_history";
+
+
 CREATE TABLE user_claims (
     id integer GENERATED BY DEFAULT AS IDENTITY,
     user_id uuid NOT NULL,
@@ -111,6 +443,62 @@ CREATE TABLE user_claims (
 );
 
 
+ALTER TABLE "public"."user_claims" ADD COLUMN system_period tstzrange NOT NULL;
+
+
+CREATE TABLE "public"."user_claims_history" (
+	"id" integer NOT NULL,
+	"user_id" uuid,
+	"claim_type" character varying(256),
+	"claim_value" text,
+	"system_period" tstzrange NOT NULL,
+	PRIMARY KEY ("id", "system_period" WITHOUT OVERLAPS)
+);
+
+
+CREATE FUNCTION "public"."user_claims_versioning"() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog AS $norse$
+DECLARE ts timestamptz;
+BEGIN
+	IF TG_OP = 'INSERT' THEN
+		IF NEW.system_period IS NOT NULL THEN
+			RAISE EXCEPTION 'system_period on "%.%" is database-owned; it cannot be written by clients.', TG_TABLE_SCHEMA, TG_TABLE_NAME;
+		END IF;
+		NEW.system_period := pg_catalog.tstzrange(pg_catalog.clock_timestamp(), 'infinity');
+		RETURN NEW;
+	END IF;
+	IF TG_OP = 'UPDATE' AND NEW.system_period IS DISTINCT FROM OLD.system_period THEN
+		RAISE EXCEPTION 'system_period on "%.%" is database-owned; it cannot be written by clients.', TG_TABLE_SCHEMA, TG_TABLE_NAME;
+	END IF;
+	IF TG_OP = 'UPDATE' AND ROW(OLD."id", OLD."user_id", OLD."claim_type", OLD."claim_value") IS NOT DISTINCT FROM ROW(NEW."id", NEW."user_id", NEW."claim_type", NEW."claim_value") THEN
+		RETURN NEW;
+	END IF;
+	ts := greatest(pg_catalog.clock_timestamp(), pg_catalog.lower(OLD.system_period) + interval '1 microsecond');
+	INSERT INTO "public"."user_claims_history" ("id", "user_id", "claim_type", "claim_value", system_period)
+		VALUES (OLD."id", OLD."user_id", OLD."claim_type", OLD."claim_value", pg_catalog.tstzrange(pg_catalog.lower(OLD.system_period), ts));
+	IF TG_OP = 'UPDATE' THEN
+		NEW.system_period := pg_catalog.tstzrange(ts, 'infinity');
+		RETURN NEW;
+	END IF;
+	RETURN OLD;
+END $norse$;
+REVOKE EXECUTE ON FUNCTION "public"."user_claims_versioning"() FROM PUBLIC;
+
+
+CREATE TRIGGER "user_claims_versioning_insert" BEFORE INSERT ON "public"."user_claims"
+	FOR EACH ROW EXECUTE FUNCTION "public"."user_claims_versioning"();
+CREATE TRIGGER "user_claims_versioning_update" BEFORE UPDATE ON "public"."user_claims"
+	FOR EACH ROW EXECUTE FUNCTION "public"."user_claims_versioning"();
+CREATE TRIGGER "user_claims_versioning_delete" BEFORE DELETE ON "public"."user_claims"
+	FOR EACH ROW EXECUTE FUNCTION "public"."user_claims_versioning"();
+
+
+CREATE VIEW "public"."user_claims_timeline" AS
+SELECT "id", "user_id", "claim_type", "claim_value", system_period FROM "public"."user_claims"
+UNION ALL
+SELECT "id", "user_id", "claim_type", "claim_value", system_period FROM "public"."user_claims_history";
+
+
 CREATE TABLE user_logins (
     login_provider character varying(128) NOT NULL,
     provider_key character varying(256) NOT NULL,
@@ -119,6 +507,62 @@ CREATE TABLE user_logins (
     CONSTRAINT pk_user_logins PRIMARY KEY (login_provider, provider_key),
     CONSTRAINT fk_user_logins_users_user_id FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
+
+
+ALTER TABLE "public"."user_logins" ADD COLUMN system_period tstzrange NOT NULL;
+
+
+CREATE TABLE "public"."user_logins_history" (
+	"login_provider" character varying(128) NOT NULL,
+	"provider_key" character varying(256) NOT NULL,
+	"provider_display_name" character varying(256),
+	"user_id" uuid,
+	"system_period" tstzrange NOT NULL,
+	PRIMARY KEY ("login_provider", "provider_key", "system_period" WITHOUT OVERLAPS)
+);
+
+
+CREATE FUNCTION "public"."user_logins_versioning"() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog AS $norse$
+DECLARE ts timestamptz;
+BEGIN
+	IF TG_OP = 'INSERT' THEN
+		IF NEW.system_period IS NOT NULL THEN
+			RAISE EXCEPTION 'system_period on "%.%" is database-owned; it cannot be written by clients.', TG_TABLE_SCHEMA, TG_TABLE_NAME;
+		END IF;
+		NEW.system_period := pg_catalog.tstzrange(pg_catalog.clock_timestamp(), 'infinity');
+		RETURN NEW;
+	END IF;
+	IF TG_OP = 'UPDATE' AND NEW.system_period IS DISTINCT FROM OLD.system_period THEN
+		RAISE EXCEPTION 'system_period on "%.%" is database-owned; it cannot be written by clients.', TG_TABLE_SCHEMA, TG_TABLE_NAME;
+	END IF;
+	IF TG_OP = 'UPDATE' AND ROW(OLD."login_provider", OLD."provider_key", OLD."provider_display_name", OLD."user_id") IS NOT DISTINCT FROM ROW(NEW."login_provider", NEW."provider_key", NEW."provider_display_name", NEW."user_id") THEN
+		RETURN NEW;
+	END IF;
+	ts := greatest(pg_catalog.clock_timestamp(), pg_catalog.lower(OLD.system_period) + interval '1 microsecond');
+	INSERT INTO "public"."user_logins_history" ("login_provider", "provider_key", "provider_display_name", "user_id", system_period)
+		VALUES (OLD."login_provider", OLD."provider_key", OLD."provider_display_name", OLD."user_id", pg_catalog.tstzrange(pg_catalog.lower(OLD.system_period), ts));
+	IF TG_OP = 'UPDATE' THEN
+		NEW.system_period := pg_catalog.tstzrange(ts, 'infinity');
+		RETURN NEW;
+	END IF;
+	RETURN OLD;
+END $norse$;
+REVOKE EXECUTE ON FUNCTION "public"."user_logins_versioning"() FROM PUBLIC;
+
+
+CREATE TRIGGER "user_logins_versioning_insert" BEFORE INSERT ON "public"."user_logins"
+	FOR EACH ROW EXECUTE FUNCTION "public"."user_logins_versioning"();
+CREATE TRIGGER "user_logins_versioning_update" BEFORE UPDATE ON "public"."user_logins"
+	FOR EACH ROW EXECUTE FUNCTION "public"."user_logins_versioning"();
+CREATE TRIGGER "user_logins_versioning_delete" BEFORE DELETE ON "public"."user_logins"
+	FOR EACH ROW EXECUTE FUNCTION "public"."user_logins_versioning"();
+
+
+CREATE VIEW "public"."user_logins_timeline" AS
+SELECT "login_provider", "provider_key", "provider_display_name", "user_id", system_period FROM "public"."user_logins"
+UNION ALL
+SELECT "login_provider", "provider_key", "provider_display_name", "user_id", system_period FROM "public"."user_logins_history";
 
 
 CREATE TABLE user_passkeys (
@@ -137,6 +581,60 @@ CREATE TABLE user_roles (
     CONSTRAINT fk_user_roles_roles_role_id FOREIGN KEY (role_id) REFERENCES roles (id) ON DELETE CASCADE,
     CONSTRAINT fk_user_roles_users_user_id FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
+
+
+ALTER TABLE "public"."user_roles" ADD COLUMN system_period tstzrange NOT NULL;
+
+
+CREATE TABLE "public"."user_roles_history" (
+	"user_id" uuid NOT NULL,
+	"role_id" uuid NOT NULL,
+	"system_period" tstzrange NOT NULL,
+	PRIMARY KEY ("user_id", "role_id", "system_period" WITHOUT OVERLAPS)
+);
+
+
+CREATE FUNCTION "public"."user_roles_versioning"() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog AS $norse$
+DECLARE ts timestamptz;
+BEGIN
+	IF TG_OP = 'INSERT' THEN
+		IF NEW.system_period IS NOT NULL THEN
+			RAISE EXCEPTION 'system_period on "%.%" is database-owned; it cannot be written by clients.', TG_TABLE_SCHEMA, TG_TABLE_NAME;
+		END IF;
+		NEW.system_period := pg_catalog.tstzrange(pg_catalog.clock_timestamp(), 'infinity');
+		RETURN NEW;
+	END IF;
+	IF TG_OP = 'UPDATE' AND NEW.system_period IS DISTINCT FROM OLD.system_period THEN
+		RAISE EXCEPTION 'system_period on "%.%" is database-owned; it cannot be written by clients.', TG_TABLE_SCHEMA, TG_TABLE_NAME;
+	END IF;
+	IF TG_OP = 'UPDATE' AND ROW(OLD."user_id", OLD."role_id") IS NOT DISTINCT FROM ROW(NEW."user_id", NEW."role_id") THEN
+		RETURN NEW;
+	END IF;
+	ts := greatest(pg_catalog.clock_timestamp(), pg_catalog.lower(OLD.system_period) + interval '1 microsecond');
+	INSERT INTO "public"."user_roles_history" ("user_id", "role_id", system_period)
+		VALUES (OLD."user_id", OLD."role_id", pg_catalog.tstzrange(pg_catalog.lower(OLD.system_period), ts));
+	IF TG_OP = 'UPDATE' THEN
+		NEW.system_period := pg_catalog.tstzrange(ts, 'infinity');
+		RETURN NEW;
+	END IF;
+	RETURN OLD;
+END $norse$;
+REVOKE EXECUTE ON FUNCTION "public"."user_roles_versioning"() FROM PUBLIC;
+
+
+CREATE TRIGGER "user_roles_versioning_insert" BEFORE INSERT ON "public"."user_roles"
+	FOR EACH ROW EXECUTE FUNCTION "public"."user_roles_versioning"();
+CREATE TRIGGER "user_roles_versioning_update" BEFORE UPDATE ON "public"."user_roles"
+	FOR EACH ROW EXECUTE FUNCTION "public"."user_roles_versioning"();
+CREATE TRIGGER "user_roles_versioning_delete" BEFORE DELETE ON "public"."user_roles"
+	FOR EACH ROW EXECUTE FUNCTION "public"."user_roles_versioning"();
+
+
+CREATE VIEW "public"."user_roles_timeline" AS
+SELECT "user_id", "role_id", system_period FROM "public"."user_roles"
+UNION ALL
+SELECT "user_id", "role_id", system_period FROM "public"."user_roles_history";
 
 
 CREATE TABLE user_tokens (

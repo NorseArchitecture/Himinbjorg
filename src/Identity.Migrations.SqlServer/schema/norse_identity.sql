@@ -3,8 +3,11 @@
 -- Changes made here will be overwritten on the next migration.
 -- Run: dotnet ef migrations add <Name> to update this file.
 -- ============================================================
-CREATE TABLE [Applications] (
+DECLARE @historyTableSchema nvarchar(max) = QUOTENAME(SCHEMA_NAME())
+EXEC(N'CREATE TABLE [Applications] (
     [Id] uniqueidentifier NOT NULL,
+    [SystemPeriodEnd] datetime2 GENERATED ALWAYS AS ROW END HIDDEN NOT NULL,
+    [SystemPeriodStart] datetime2 GENERATED ALWAYS AS ROW START HIDDEN NOT NULL,
     [ApplicationType] nvarchar(50) NULL,
     [ClientId] nvarchar(100) NULL,
     [ClientSecret] nvarchar(max) NULL,
@@ -20,23 +23,31 @@ CREATE TABLE [Applications] (
     [RedirectUris] nvarchar(max) NULL,
     [Requirements] nvarchar(max) NULL,
     [Settings] nvarchar(max) NULL,
-    CONSTRAINT [PK_Applications] PRIMARY KEY ([Id])
-);
+    CONSTRAINT [PK_Applications] PRIMARY KEY ([Id]),
+    PERIOD FOR SYSTEM_TIME([SystemPeriodStart], [SystemPeriodEnd])
+) WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = ' + @historyTableSchema + N'.[ApplicationsHistory]))');
 GO
 
 
-CREATE TABLE [Roles] (
+DECLARE @historyTableSchema1 nvarchar(max) = QUOTENAME(SCHEMA_NAME())
+EXEC(N'CREATE TABLE [Roles] (
     [Id] uniqueidentifier NOT NULL,
+    [SystemPeriodEnd] datetime2 GENERATED ALWAYS AS ROW END HIDDEN NOT NULL,
+    [SystemPeriodStart] datetime2 GENERATED ALWAYS AS ROW START HIDDEN NOT NULL,
     [Name] nvarchar(256) NOT NULL,
     [NormalizedName] nvarchar(256) NOT NULL,
     [ConcurrencyStamp] uniqueidentifier NOT NULL,
-    CONSTRAINT [PK_Roles] PRIMARY KEY ([Id])
-);
+    CONSTRAINT [PK_Roles] PRIMARY KEY ([Id]),
+    PERIOD FOR SYSTEM_TIME([SystemPeriodStart], [SystemPeriodEnd])
+) WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = ' + @historyTableSchema1 + N'.[RolesHistory]))');
 GO
 
 
-CREATE TABLE [Scopes] (
+DECLARE @historyTableSchema2 nvarchar(max) = QUOTENAME(SCHEMA_NAME())
+EXEC(N'CREATE TABLE [Scopes] (
     [Id] uniqueidentifier NOT NULL,
+    [SystemPeriodEnd] datetime2 GENERATED ALWAYS AS ROW END HIDDEN NOT NULL,
+    [SystemPeriodStart] datetime2 GENERATED ALWAYS AS ROW START HIDDEN NOT NULL,
     [ConcurrencyToken] nvarchar(50) NULL,
     [Description] nvarchar(1000) NULL,
     [Descriptions] nvarchar(max) NULL,
@@ -45,8 +56,9 @@ CREATE TABLE [Scopes] (
     [Name] nvarchar(200) NULL,
     [Properties] nvarchar(max) NULL,
     [Resources] nvarchar(max) NULL,
-    CONSTRAINT [PK_Scopes] PRIMARY KEY ([Id])
-);
+    CONSTRAINT [PK_Scopes] PRIMARY KEY ([Id]),
+    PERIOD FOR SYSTEM_TIME([SystemPeriodStart], [SystemPeriodEnd])
+) WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = ' + @historyTableSchema2 + N'.[ScopesHistory]))');
 GO
 
 
@@ -60,9 +72,12 @@ CREATE TABLE [SubjectKeys] (
 GO
 
 
-CREATE TABLE [Users] (
+DECLARE @historyTableSchema3 nvarchar(max) = QUOTENAME(SCHEMA_NAME())
+EXEC(N'CREATE TABLE [Users] (
     [Id] uniqueidentifier NOT NULL,
     [SecurityStamp] nchar(32) NOT NULL,
+    [SystemPeriodEnd] datetime2 GENERATED ALWAYS AS ROW END HIDDEN NOT NULL,
+    [SystemPeriodStart] datetime2 GENERATED ALWAYS AS ROW START HIDDEN NOT NULL,
     [UserName] nvarchar(256) NOT NULL,
     [NormalizedUserName] nvarchar(256) NULL,
     [Email] nvarchar(256) NULL,
@@ -76,8 +91,9 @@ CREATE TABLE [Users] (
     [LockoutEnd] datetimeoffset NULL,
     [LockoutEnabled] bit NOT NULL,
     [AccessFailedCount] int NOT NULL,
-    CONSTRAINT [PK_Users] PRIMARY KEY ([Id])
-);
+    CONSTRAINT [PK_Users] PRIMARY KEY ([Id]),
+    PERIOD FOR SYSTEM_TIME([SystemPeriodStart], [SystemPeriodEnd])
+) WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = ' + @historyTableSchema3 + N'.[UsersHistory]))');
 GO
 
 
@@ -97,36 +113,48 @@ CREATE TABLE [Authorizations] (
 GO
 
 
-CREATE TABLE [RoleClaims] (
+DECLARE @historyTableSchema4 nvarchar(max) = QUOTENAME(SCHEMA_NAME())
+EXEC(N'CREATE TABLE [RoleClaims] (
     [Id] int NOT NULL IDENTITY,
+    [SystemPeriodEnd] datetime2 GENERATED ALWAYS AS ROW END HIDDEN NOT NULL,
+    [SystemPeriodStart] datetime2 GENERATED ALWAYS AS ROW START HIDDEN NOT NULL,
     [RoleId] uniqueidentifier NOT NULL,
     [ClaimType] nvarchar(256) NOT NULL,
     [ClaimValue] nvarchar(max) NOT NULL,
     CONSTRAINT [PK_RoleClaims] PRIMARY KEY ([Id]),
-    CONSTRAINT [FK_RoleClaims_Roles_RoleId] FOREIGN KEY ([RoleId]) REFERENCES [Roles] ([Id]) ON DELETE CASCADE
-);
+    CONSTRAINT [FK_RoleClaims_Roles_RoleId] FOREIGN KEY ([RoleId]) REFERENCES [Roles] ([Id]) ON DELETE CASCADE,
+    PERIOD FOR SYSTEM_TIME([SystemPeriodStart], [SystemPeriodEnd])
+) WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = ' + @historyTableSchema4 + N'.[RoleClaimsHistory]))');
 GO
 
 
-CREATE TABLE [UserClaims] (
+DECLARE @historyTableSchema5 nvarchar(max) = QUOTENAME(SCHEMA_NAME())
+EXEC(N'CREATE TABLE [UserClaims] (
     [Id] int NOT NULL IDENTITY,
+    [SystemPeriodEnd] datetime2 GENERATED ALWAYS AS ROW END HIDDEN NOT NULL,
+    [SystemPeriodStart] datetime2 GENERATED ALWAYS AS ROW START HIDDEN NOT NULL,
     [UserId] uniqueidentifier NOT NULL,
     [ClaimType] nvarchar(256) NOT NULL,
     [ClaimValue] nvarchar(max) NOT NULL,
     CONSTRAINT [PK_UserClaims] PRIMARY KEY ([Id]),
-    CONSTRAINT [FK_UserClaims_Users_UserId] FOREIGN KEY ([UserId]) REFERENCES [Users] ([Id]) ON DELETE CASCADE
-);
+    CONSTRAINT [FK_UserClaims_Users_UserId] FOREIGN KEY ([UserId]) REFERENCES [Users] ([Id]) ON DELETE CASCADE,
+    PERIOD FOR SYSTEM_TIME([SystemPeriodStart], [SystemPeriodEnd])
+) WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = ' + @historyTableSchema5 + N'.[UserClaimsHistory]))');
 GO
 
 
-CREATE TABLE [UserLogins] (
+DECLARE @historyTableSchema6 nvarchar(max) = QUOTENAME(SCHEMA_NAME())
+EXEC(N'CREATE TABLE [UserLogins] (
     [LoginProvider] nvarchar(128) NOT NULL,
     [ProviderKey] nvarchar(256) NOT NULL,
+    [SystemPeriodEnd] datetime2 GENERATED ALWAYS AS ROW END HIDDEN NOT NULL,
+    [SystemPeriodStart] datetime2 GENERATED ALWAYS AS ROW START HIDDEN NOT NULL,
     [ProviderDisplayName] nvarchar(256) NULL,
     [UserId] uniqueidentifier NOT NULL,
     CONSTRAINT [PK_UserLogins] PRIMARY KEY ([LoginProvider], [ProviderKey]),
-    CONSTRAINT [FK_UserLogins_Users_UserId] FOREIGN KEY ([UserId]) REFERENCES [Users] ([Id]) ON DELETE CASCADE
-);
+    CONSTRAINT [FK_UserLogins_Users_UserId] FOREIGN KEY ([UserId]) REFERENCES [Users] ([Id]) ON DELETE CASCADE,
+    PERIOD FOR SYSTEM_TIME([SystemPeriodStart], [SystemPeriodEnd])
+) WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = ' + @historyTableSchema6 + N'.[UserLoginsHistory]))');
 GO
 
 
@@ -140,13 +168,17 @@ CREATE TABLE [UserPasskeys] (
 GO
 
 
-CREATE TABLE [UserRoles] (
+DECLARE @historyTableSchema7 nvarchar(max) = QUOTENAME(SCHEMA_NAME())
+EXEC(N'CREATE TABLE [UserRoles] (
     [UserId] uniqueidentifier NOT NULL,
     [RoleId] uniqueidentifier NOT NULL,
+    [SystemPeriodEnd] datetime2 GENERATED ALWAYS AS ROW END HIDDEN NOT NULL,
+    [SystemPeriodStart] datetime2 GENERATED ALWAYS AS ROW START HIDDEN NOT NULL,
     CONSTRAINT [PK_UserRoles] PRIMARY KEY ([UserId], [RoleId]),
     CONSTRAINT [FK_UserRoles_Roles_RoleId] FOREIGN KEY ([RoleId]) REFERENCES [Roles] ([Id]) ON DELETE CASCADE,
-    CONSTRAINT [FK_UserRoles_Users_UserId] FOREIGN KEY ([UserId]) REFERENCES [Users] ([Id]) ON DELETE CASCADE
-);
+    CONSTRAINT [FK_UserRoles_Users_UserId] FOREIGN KEY ([UserId]) REFERENCES [Users] ([Id]) ON DELETE CASCADE,
+    PERIOD FOR SYSTEM_TIME([SystemPeriodStart], [SystemPeriodEnd])
+) WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = ' + @historyTableSchema7 + N'.[UserRolesHistory]))');
 GO
 
 

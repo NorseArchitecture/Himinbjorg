@@ -13,8 +13,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Norse.Identity.Migrations.PostgreSQL.Migrations;
 
 [DbContext(typeof(NorseIdentityDbContext))]
-[Migration("20260805035438_InitialCreate")]
-partial class _20260805035438_InitialCreate
+[Migration("20260805231543_InitialCreate")]
+partial class _20260805231543_InitialCreate
 {
     /// <inheritdoc />
     protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -117,6 +117,8 @@ partial class _20260805035438_InitialCreate
                     .HasDatabaseName("ix_applications_client_id");
 
                 b.ToTable("applications");
+
+                b.HasAnnotation("Norse:Temporal", true);
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseOpenIddictAuthorization", b =>
@@ -230,6 +232,8 @@ partial class _20260805035438_InitialCreate
                     .HasDatabaseName("ix_scopes_name");
 
                 b.ToTable("scopes");
+
+                b.HasAnnotation("Norse:Temporal", true);
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseOpenIddictToken", b =>
@@ -343,6 +347,8 @@ partial class _20260805035438_InitialCreate
                     .HasDatabaseName("role_name_index");
 
                 b.ToTable("roles");
+
+                b.HasAnnotation("Norse:Temporal", true);
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseRoleClaim", b =>
@@ -377,6 +383,8 @@ partial class _20260805035438_InitialCreate
                     .HasDatabaseName("ix_role_claims_role_id");
 
                 b.ToTable("role_claims");
+
+                b.HasAnnotation("Norse:Temporal", true);
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUser", b =>
@@ -463,6 +471,8 @@ partial class _20260805035438_InitialCreate
                     .HasDatabaseName("user_name_index");
 
                 b.ToTable("users");
+
+                b.HasAnnotation("Norse:Temporal", true);
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserClaim", b =>
@@ -497,6 +507,8 @@ partial class _20260805035438_InitialCreate
                     .HasDatabaseName("ix_user_claims_user_id");
 
                 b.ToTable("user_claims");
+
+                b.HasAnnotation("Norse:Temporal", true);
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserLogin", b =>
@@ -527,6 +539,8 @@ partial class _20260805035438_InitialCreate
                     .HasDatabaseName("ix_user_logins_user_id");
 
                 b.ToTable("user_logins");
+
+                b.HasAnnotation("Norse:Temporal", true);
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserPasskey", b =>
@@ -600,6 +614,8 @@ partial class _20260805035438_InitialCreate
                     .HasDatabaseName("ix_user_roles_role_id");
 
                 b.ToTable("user_roles");
+
+                b.HasAnnotation("Norse:Temporal", true);
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserToken", b =>

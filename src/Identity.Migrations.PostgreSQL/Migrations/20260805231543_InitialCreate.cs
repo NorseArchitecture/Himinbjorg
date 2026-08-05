@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Norse.Identity.Migrations.PostgreSQL.Migrations;
 
 /// <inheritdoc />
-public partial class _20260805035438_InitialCreate : Migration
+public partial class _20260805231543_InitialCreate : Migration
 {
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder)
@@ -36,7 +36,8 @@ public partial class _20260805035438_InitialCreate : Migration
             constraints: table =>
             {
                 table.PrimaryKey("pk_applications", x => x.id);
-            });
+            })
+            .Annotation("Norse:Temporal", true);
 
         migrationBuilder.CreateTable(
             name: "roles",
@@ -50,7 +51,8 @@ public partial class _20260805035438_InitialCreate : Migration
             constraints: table =>
             {
                 table.PrimaryKey("pk_roles", x => x.id);
-            });
+            })
+            .Annotation("Norse:Temporal", true);
 
         migrationBuilder.CreateTable(
             name: "scopes",
@@ -69,7 +71,8 @@ public partial class _20260805035438_InitialCreate : Migration
             constraints: table =>
             {
                 table.PrimaryKey("pk_scopes", x => x.id);
-            });
+            })
+            .Annotation("Norse:Temporal", true);
 
         migrationBuilder.CreateTable(
             name: "subject_keys",
@@ -108,7 +111,8 @@ public partial class _20260805035438_InitialCreate : Migration
             constraints: table =>
             {
                 table.PrimaryKey("pk_users", x => x.id);
-            });
+            })
+            .Annotation("Norse:Temporal", true);
 
         migrationBuilder.CreateTable(
             name: "authorizations",
@@ -153,7 +157,8 @@ public partial class _20260805035438_InitialCreate : Migration
                     principalTable: "roles",
                     principalColumn: "id",
                     onDelete: ReferentialAction.Cascade);
-            });
+            })
+            .Annotation("Norse:Temporal", true);
 
         migrationBuilder.CreateTable(
             name: "user_claims",
@@ -174,7 +179,8 @@ public partial class _20260805035438_InitialCreate : Migration
                     principalTable: "users",
                     principalColumn: "id",
                     onDelete: ReferentialAction.Cascade);
-            });
+            })
+            .Annotation("Norse:Temporal", true);
 
         migrationBuilder.CreateTable(
             name: "user_logins",
@@ -194,7 +200,8 @@ public partial class _20260805035438_InitialCreate : Migration
                     principalTable: "users",
                     principalColumn: "id",
                     onDelete: ReferentialAction.Cascade);
-            });
+            })
+            .Annotation("Norse:Temporal", true);
 
         migrationBuilder.CreateTable(
             name: "user_passkeys",
@@ -237,7 +244,8 @@ public partial class _20260805035438_InitialCreate : Migration
                     principalTable: "users",
                     principalColumn: "id",
                     onDelete: ReferentialAction.Cascade);
-            });
+            })
+            .Annotation("Norse:Temporal", true);
 
         migrationBuilder.CreateTable(
             name: "user_tokens",
@@ -372,10 +380,12 @@ public partial class _20260805035438_InitialCreate : Migration
     protected override void Down(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.DropTable(
-            name: "role_claims");
+            name: "role_claims")
+            .Annotation("Norse:Temporal", true);
 
         migrationBuilder.DropTable(
-            name: "scopes");
+            name: "scopes")
+            .Annotation("Norse:Temporal", true);
 
         migrationBuilder.DropTable(
             name: "subject_keys");
@@ -384,16 +394,19 @@ public partial class _20260805035438_InitialCreate : Migration
             name: "tokens");
 
         migrationBuilder.DropTable(
-            name: "user_claims");
+            name: "user_claims")
+            .Annotation("Norse:Temporal", true);
 
         migrationBuilder.DropTable(
-            name: "user_logins");
+            name: "user_logins")
+            .Annotation("Norse:Temporal", true);
 
         migrationBuilder.DropTable(
             name: "user_passkeys");
 
         migrationBuilder.DropTable(
-            name: "user_roles");
+            name: "user_roles")
+            .Annotation("Norse:Temporal", true);
 
         migrationBuilder.DropTable(
             name: "user_tokens");
@@ -402,12 +415,15 @@ public partial class _20260805035438_InitialCreate : Migration
             name: "authorizations");
 
         migrationBuilder.DropTable(
-            name: "roles");
+            name: "roles")
+            .Annotation("Norse:Temporal", true);
 
         migrationBuilder.DropTable(
-            name: "users");
+            name: "users")
+            .Annotation("Norse:Temporal", true);
 
         migrationBuilder.DropTable(
-            name: "applications");
+            name: "applications")
+            .Annotation("Norse:Temporal", true);
     }
 }
