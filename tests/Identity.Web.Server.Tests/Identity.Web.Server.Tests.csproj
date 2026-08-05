@@ -1,8 +1,24 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<ItemGroup>
+		<!-- Direct, not transitive: Identity.Migrations.PostgreSQL marks its own NorseDesignRef to the
+		     Design chassis PrivateAssets="all", which blocks it from flowing here, and this project
+		     references NorseIdentityDbContextFactory (NorseDesignTimeDbContextFactory<>) directly for
+		     the migrations-assembly name, same as Identity.Migrations.Tests. -->
+		<NorseDesignRef Include="Persistence.EntityFramework.Design">
+			<Repo>Urdarbrunnr</Repo>
+		</NorseDesignRef>
+		<!-- Direct, not transitive: nothing in this project's existing reference closure flows the
+		     dev-grade key seam (Mímir integration-test precedent); PostgresIdentityFixture needs it
+		     for AddNorseDevelopmentKeys(). -->
+		<NorseRef Include="Infrastructure.Backend">
+			<Repo>Midgard</Repo>
+		</NorseRef>
 		<PackageReference Include="Microsoft.AspNetCore.TestHost" Version="11.*-*" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="11.*-*" />
 		<PackageReference Include="OpenTelemetry.Exporter.InMemory" Version="1.*" />
+		<PackageReference Include="Testcontainers.PostgreSql" Version="*" />
+		<ProjectReference Include="../../src/Identity.Migrations/Identity.Migrations.csproj" />
+		<ProjectReference Include="../../src/Identity.Migrations.PostgreSQL/Identity.Migrations.PostgreSQL.csproj" />
 		<ProjectReference Include="../../src/Identity.Web.Server/Identity.Web.Server.csproj" />
 	</ItemGroup>
 </Project>

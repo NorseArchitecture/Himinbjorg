@@ -17,7 +17,7 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20260731003544_InitialCreate";
+    public override string LastMigrationId => "20260805035438_InitialCreate";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -420,7 +420,6 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .HasColumnName("normalized_email");
 
                 b.Property<string>("NormalizedUserName")
-                    .IsRequired()
                     .HasMaxLength(256)
                     .HasColumnType("character varying(256)")
                     .HasColumnName("normalized_user_name");
@@ -431,8 +430,8 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .HasColumnName("password_hash");
 
                 b.Property<string>("PhoneNumber")
-                    .HasMaxLength(20)
-                    .HasColumnType("character varying(20)")
+                    .HasMaxLength(256)
+                    .HasColumnType("character varying(256)")
                     .HasColumnName("phone_number");
 
                 b.Property<bool>("PhoneNumberConfirmed")
@@ -630,6 +629,35 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .HasName("pk_user_tokens");
 
                 b.ToTable("user_tokens");
+            });
+
+        modelBuilder.Entity("Norse.Identity.EntityFramework.SubjectKey", b =>
+            {
+                b.Property<Guid>("SubjectId")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("uuid")
+                    .HasColumnName("subject_id");
+
+                b.Property<DateTimeOffset>("CreatedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("created_at");
+
+                b.Property<byte[]>("WrappedKey")
+                    .IsRequired()
+                    .HasMaxLength(64)
+                    .HasColumnType("bytea")
+                    .HasColumnName("wrapped_key");
+
+                b.Property<string>("WrappingKeyId")
+                    .IsRequired()
+                    .HasMaxLength(128)
+                    .HasColumnType("character varying(128)")
+                    .HasColumnName("wrapping_key_id");
+
+                b.HasKey("SubjectId")
+                    .HasName("pk_subject_keys");
+
+                b.ToTable("subject_keys");
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseOpenIddictAuthorization", b =>

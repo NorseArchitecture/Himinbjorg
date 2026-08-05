@@ -47,17 +47,26 @@ CREATE TABLE scopes (
 );
 
 
+CREATE TABLE subject_keys (
+    subject_id uuid NOT NULL,
+    wrapped_key bytea NOT NULL,
+    wrapping_key_id character varying(128) NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    CONSTRAINT pk_subject_keys PRIMARY KEY (subject_id)
+);
+
+
 CREATE TABLE users (
     id uuid NOT NULL,
     security_stamp character varying(32) NOT NULL,
     user_name character varying(256) NOT NULL,
-    normalized_user_name character varying(256) NOT NULL,
+    normalized_user_name character varying(256),
     email character varying(256),
     normalized_email character varying(256),
     email_confirmed boolean NOT NULL,
     password_hash bytea,
     concurrency_stamp uuid NOT NULL,
-    phone_number character varying(20),
+    phone_number character varying(256),
     phone_number_confirmed boolean NOT NULL,
     two_factor_enabled boolean NOT NULL,
     lockout_end timestamp with time zone,

@@ -13,8 +13,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Norse.Identity.Migrations.PostgreSQL.Migrations;
 
 [DbContext(typeof(NorseIdentityDbContext))]
-[Migration("20260731003544_InitialCreate")]
-partial class _20260731003544_InitialCreate
+[Migration("20260805035438_InitialCreate")]
+partial class _20260805035438_InitialCreate
 {
     /// <inheritdoc />
     protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -418,7 +418,6 @@ partial class _20260731003544_InitialCreate
                     .HasColumnName("normalized_email");
 
                 b.Property<string>("NormalizedUserName")
-                    .IsRequired()
                     .HasMaxLength(256)
                     .HasColumnType("character varying(256)")
                     .HasColumnName("normalized_user_name");
@@ -429,8 +428,8 @@ partial class _20260731003544_InitialCreate
                     .HasColumnName("password_hash");
 
                 b.Property<string>("PhoneNumber")
-                    .HasMaxLength(20)
-                    .HasColumnType("character varying(20)")
+                    .HasMaxLength(256)
+                    .HasColumnType("character varying(256)")
                     .HasColumnName("phone_number");
 
                 b.Property<bool>("PhoneNumberConfirmed")
@@ -628,6 +627,35 @@ partial class _20260731003544_InitialCreate
                     .HasName("pk_user_tokens");
 
                 b.ToTable("user_tokens");
+            });
+
+        modelBuilder.Entity("Norse.Identity.EntityFramework.SubjectKey", b =>
+            {
+                b.Property<Guid>("SubjectId")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("uuid")
+                    .HasColumnName("subject_id");
+
+                b.Property<DateTimeOffset>("CreatedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("created_at");
+
+                b.Property<byte[]>("WrappedKey")
+                    .IsRequired()
+                    .HasMaxLength(64)
+                    .HasColumnType("bytea")
+                    .HasColumnName("wrapped_key");
+
+                b.Property<string>("WrappingKeyId")
+                    .IsRequired()
+                    .HasMaxLength(128)
+                    .HasColumnType("character varying(128)")
+                    .HasColumnName("wrapping_key_id");
+
+                b.HasKey("SubjectId")
+                    .HasName("pk_subject_keys");
+
+                b.ToTable("subject_keys");
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseOpenIddictAuthorization", b =>

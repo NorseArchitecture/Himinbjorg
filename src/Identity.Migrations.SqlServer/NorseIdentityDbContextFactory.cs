@@ -31,8 +31,20 @@ public sealed class NorseIdentityDbContextFactory : NorseDesignTimeDbContextFact
 	{
 		base.ConfigureOptions(builder);
 
+		// ProtectPersonalData must mirror the runtime flag: with it on, ASP.NET Core Identity's own
+		// OnModelCreatingVersion3 resolves IPersonalDataProtector from this application service provider
+		// while building the model (it converts every [ProtectedPersonalData] property, e.g. UserName
+		// and Email), throwing InvalidOperationException if the service can't be found -- design time
+		// never decrypts, but the no-op registrations below let model build succeed anyway.
 		var applicationServices = new ServiceCollection()
-			.Configure<IdentityOptions>(o => o.Stores.SchemaVersion = IdentitySchemaVersions.Version3)
+			.Configure<IdentityOptions>(o =>
+			{
+				o.Stores.SchemaVersion = IdentitySchemaVersions.Version3;
+				o.Stores.ProtectPersonalData = true;
+			})
+			.AddSingleton<IPersonalDataProtector, DesignTimePersonalDataProtector>()
+			.AddSingleton<ILookupProtector, DesignTimeLookupProtector>()
+			.AddSingleton<ILookupProtectorKeyRing, DesignTimeLookupProtectorKeyRing>()
 			.BuildServiceProvider();
 
 		builder.UseApplicationServiceProvider(applicationServices);
@@ -41,4 +53,41 @@ public sealed class NorseIdentityDbContextFactory : NorseDesignTimeDbContextFact
 	/// <inheritdoc />
 	protected override NorseIdentityDbContext CreateContext(DbContextOptions<NorseIdentityDbContext> options) =>
 		new(options);
+}
+
+/// <summary>
+/// Design-time-only <see cref="IPersonalDataProtector"/>: model build needs the service to exist so
+/// ASP.NET Core Identity's <c>OnModelCreatingVersion3</c> can resolve it, but migrations never touch
+/// plaintext, so both members throw if ever actually invoked.
+/// </summary>
+file sealed class DesignTimePersonalDataProtector : IPersonalDataProtector
+{
+	public string? Protect(string? data) =>
+		throw new NotSupportedException("Design time never touches plaintext.");
+
+	public string? Unprotect(string? data) =>
+		throw new NotSupportedException("Design time never touches plaintext.");
+}
+
+/// <summary>Design-time-only <see cref="ILookupProtector"/> -- see <see cref="DesignTimePersonalDataProtector"/>.</summary>
+file sealed class DesignTimeLookupProtector : ILookupProtector
+{
+	public string? Protect(string keyId, string? data) =>
+		throw new NotSupportedException("Design time never touches plaintext.");
+
+	public string? Unprotect(string keyId, string? data) =>
+		throw new NotSupportedException("Design time never touches plaintext.");
+}
+
+/// <summary>Design-time-only <see cref="ILookupProtectorKeyRing"/> -- see <see cref="DesignTimePersonalDataProtector"/>.</summary>
+file sealed class DesignTimeLookupProtectorKeyRing : ILookupProtectorKeyRing
+{
+	public string CurrentKeyId =>
+		throw new NotSupportedException("Design time never touches plaintext.");
+
+	public string this[string keyId] =>
+		throw new NotSupportedException("Design time never touches plaintext.");
+
+	public IEnumerable<string> GetAllKeyIds() =>
+		throw new NotSupportedException("Design time never touches plaintext.");
 }

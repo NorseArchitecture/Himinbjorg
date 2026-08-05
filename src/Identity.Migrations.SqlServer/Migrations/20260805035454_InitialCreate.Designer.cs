@@ -13,8 +13,8 @@ using Norse.Identity.EntityFramework;
 namespace Norse.Identity.Migrations.SqlServer.Migrations;
 
 [DbContext(typeof(NorseIdentityDbContext))]
-[Migration("20260731003553_InitialCreate")]
-partial class _20260731003553_InitialCreate
+[Migration("20260805035454_InitialCreate")]
+partial class _20260805035454_InitialCreate
 {
     /// <inheritdoc />
     protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -345,7 +345,6 @@ partial class _20260731003553_InitialCreate
                     .HasColumnType("nvarchar(256)");
 
                 b.Property<string>("NormalizedUserName")
-                    .IsRequired()
                     .HasMaxLength(256)
                     .HasColumnType("nvarchar(256)");
 
@@ -354,8 +353,8 @@ partial class _20260731003553_InitialCreate
                     .HasColumnType("varbinary(128)");
 
                 b.Property<string>("PhoneNumber")
-                    .HasMaxLength(20)
-                    .HasColumnType("nvarchar(20)");
+                    .HasMaxLength(256)
+                    .HasColumnType("nvarchar(256)");
 
                 b.Property<bool>("PhoneNumberConfirmed")
                     .HasColumnType("bit");
@@ -381,7 +380,8 @@ partial class _20260731003553_InitialCreate
 
                 b.HasIndex("NormalizedUserName")
                     .IsUnique()
-                    .HasDatabaseName("UserNameIndex");
+                    .HasDatabaseName("UserNameIndex")
+                    .HasFilter("[NormalizedUserName] IS NOT NULL");
 
                 b.ToTable("Users");
             });
@@ -523,6 +523,30 @@ partial class _20260731003553_InitialCreate
                 b.HasKey("UserId", "LoginProvider", "Name");
 
                 b.ToTable("UserTokens");
+            });
+
+        modelBuilder.Entity("Norse.Identity.EntityFramework.SubjectKey", b =>
+            {
+                b.Property<Guid>("SubjectId")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("uniqueidentifier");
+
+                b.Property<DateTimeOffset>("CreatedAt")
+                    .HasColumnType("datetimeoffset");
+
+                b.Property<byte[]>("WrappedKey")
+                    .IsRequired()
+                    .HasMaxLength(64)
+                    .HasColumnType("varbinary(64)");
+
+                b.Property<string>("WrappingKeyId")
+                    .IsRequired()
+                    .HasMaxLength(128)
+                    .HasColumnType("nvarchar(128)");
+
+                b.HasKey("SubjectId");
+
+                b.ToTable("SubjectKeys");
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseOpenIddictAuthorization", b =>
