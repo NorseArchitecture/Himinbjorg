@@ -30,8 +30,18 @@ public sealed class NorseUserManager(
 	}
 
 	/// <inheritdoc />
+	/// <exception cref="InvalidOperationException">
+	/// <paramref name="user"/> has no id yet (<see cref="Guid.Empty"/>). Establishing the ambient scope
+	/// on an empty id would mint a DEK for nobody -- the exact silent fallback
+	/// <see cref="SubjectCryptoScope"/> exists to forbid -- so this fails loudly before the store is
+	/// ever called instead of quietly encrypting under an all-zeros subject.
+	/// </exception>
 	protected override async Task<IdentityResult> UpdateUserAsync(NorseUser user)
 	{
+		ArgumentNullException.ThrowIfNull(user);
+		if (user.Id == Guid.Empty)
+			throw new InvalidOperationException(
+				"NorseUserManager.UpdateUserAsync was called with an empty user id -- the subject must exist (see CreateAsync) before the store can establish an ambient crypto scope and encrypt.");
 		using (SubjectCryptoScope.Begin(user.Id))
 			return await base.UpdateUserAsync(user).ConfigureAwait(false);
 	}

@@ -69,9 +69,13 @@ public sealed class NorsePersonalDataProtector(ISubjectKeyStore keyStore) : IPer
 		if (data is null)
 			return null;
 
+		// The exception paths below never echo `data` -- it may be legacy/foreign plaintext (e.g. a
+		// column written before this protector existed), and a diagnostic that includes it would leak
+		// PII into exception messages, logs, and telemetry. Diagnose by shape only.
 		var parts = data.Split(':', 3);
 		if (parts.Length != 3 || parts[0] != EnvelopeVersion)
-			throw new FormatException($"'{data}' is not a v1 NorsePersonalDataProtector envelope.");
+			throw new FormatException(
+				$"Value is not a v1 NorsePersonalDataProtector envelope: expected 3 ':'-separated parts starting with '{EnvelopeVersion}:', found {parts.Length} part(s).");
 
 		var subjectId = Guid.ParseExact(parts[1], "D");
 		var envelope = Convert.FromBase64String(parts[2]);

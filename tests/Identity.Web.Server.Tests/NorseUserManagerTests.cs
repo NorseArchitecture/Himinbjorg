@@ -7,8 +7,11 @@ namespace Norse.Identity.Web.Server.Tests;
 public sealed class NorseUserManagerTests
 {
 	// The wired-not-designed test for the scope chokepoint: NO manual SubjectCryptoScope anywhere in
-	// this test. If the manager fails to establish the ambient subject, the protector's fail-loud
-	// law makes CreateAsync throw — a green test IS the proof the seam is wired end to end.
+	// this test. TestUserManager runs with ProtectPersonalData off, so no protector participates here --
+	// the substituted store's CreateAsync/UpdateAsync captures SubjectCryptoScope.CurrentSubject at
+	// invocation time, proving the manager itself establishes the ambient subject around the base call.
+	// The composition-level proof -- that a real NorsePersonalDataProtector genuinely rides this scope
+	// end to end -- lands with Task 18's real-DI Postgres fixture.
 	[Fact]
 	async Task Create_through_the_manager_establishes_the_scope_without_any_manual_begin()
 	{
@@ -54,5 +57,20 @@ public sealed class NorseUserManagerTests
 
 		result.Succeeded.ShouldBeTrue();
 		observed.ShouldBe(user.Id);
+	}
+
+	// The empty-subject guard: an unsaved user (Guid.Empty) must never establish an ambient scope --
+	// that would mint a DEK for nobody, the exact silent fallback the seam forbids. The store must never
+	// even be asked.
+	[Fact]
+	async Task Update_with_an_empty_id_throws_before_the_store_is_ever_called()
+	{
+		var store = Substitute.For<IUserStore<NorseUser>>();
+		using var manager = TestUserManager.Create(store);
+
+		NorseUser user = new() { Id = Guid.Empty, UserName = "buvy@example.com" };
+
+		await Should.ThrowAsync<InvalidOperationException>(() => manager.UpdateAsync(user));
+		await store.DidNotReceiveWithAnyArgs().UpdateAsync(default!, TestContext.Current.CancellationToken);
 	}
 }
