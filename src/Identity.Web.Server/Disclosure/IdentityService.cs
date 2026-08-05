@@ -14,10 +14,11 @@ namespace Norse.Identity.Web.Server.Disclosure;
 /// and sends it through Midgard's pipeline via Asgard's <see cref="ISender"/> -- the command's
 /// <c>TResponse</c> <em>is</em> the wire result type, so egress is pure passthrough.
 ///
-/// <c>[Authorize]</c> is mirrored from the interface arm onto every method here deliberately, not
-/// redundantly -- ASP.NET Core's gRPC endpoint metadata is gathered by reflecting on this concrete
-/// runtime type, not the interface it implements. Public: Yggdrasil's composition root maps this
-/// type directly.
+/// <c>[Authorize]</c> is mirrored from the command wrappers (<see cref="GetMyPersonalDataCommand"/>/
+/// <see cref="MaskedPersonalDataCommand"/> carry the real policy) onto every method here deliberately,
+/// not redundantly -- ASP.NET Core's gRPC endpoint metadata is gathered by reflecting on this concrete
+/// runtime type, not the interface it implements, which carries no <c>[Authorize]</c> at all (wire
+/// purity). Public: Yggdrasil's composition root maps this type directly.
 /// </summary>
 public sealed class IdentityService(ISender sender) : IIdentityService
 {
