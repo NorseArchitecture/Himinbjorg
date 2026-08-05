@@ -78,7 +78,7 @@ public sealed class PostgresIdentityFixture : IAsyncLifetime
 		var rawNormalizedEmail = await smokeContext.Database
 			.SqlQuery<string>($"""SELECT normalized_email AS "Value" FROM users WHERE id = {smokeUser.Id}""")
 			.SingleAsync(CancellationToken.None);
-		Convert.FromBase64String(rawNormalizedEmail); // HMAC output is base64 -- throws otherwise.
+		Convert.FromBase64String(rawNormalizedEmail).Length.ShouldBe(32); // HMAC-SHA256 -- exactly 32 bytes decoded, not just "some base64".
 	}
 
 	/// <inheritdoc />
@@ -86,7 +86,17 @@ public sealed class PostgresIdentityFixture : IAsyncLifetime
 	{
 		foreach (var scope in _scopes)
 			scope.Dispose();
-		_host.Dispose();
+		// IHost itself only declares IDisposable; the concrete Host the builder returns also
+		// implements IAsyncDisposable, so dispose asynchronously when it's there rather than block.
+		switch (_host)
+		{
+			case IAsyncDisposable asyncDisposable:
+				await asyncDisposable.DisposeAsync();
+				break;
+			case not null:
+				_host.Dispose();
+				break;
+		}
 		await _container.DisposeAsync();
 		if (Directory.Exists(_keysRoot))
 			Directory.Delete(_keysRoot, recursive: true);

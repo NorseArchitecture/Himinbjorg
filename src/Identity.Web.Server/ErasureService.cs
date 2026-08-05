@@ -17,6 +17,17 @@ namespace Norse.Identity.Web.Server;
 /// machinery's contract). Payload ciphertext stays in place, dark. This is the ceremony, not the
 /// trigger.
 /// </summary>
+/// <remarks>
+/// <see cref="ShredAsync"/>'s single act 1-2 write is <c>ExecuteUpdateAsync</c>, which bypasses the
+/// change tracker entirely -- it never reads or updates any tracked <see cref="NorseUser"/> instance
+/// in <paramref name="context"/>'s scope, it only issues a raw <c>UPDATE</c> against the row. A
+/// tracked, pre-shred <see cref="NorseUser"/> already loaded into the SAME scope still holds the old
+/// hashes and stamp in memory; if that scope later calls <c>SaveChanges</c> on the tracked instance,
+/// EF writes the stale values straight back over the just-nulled columns -- un-shredding the blind
+/// index. Callers must run <see cref="ShredAsync"/> from a dedicated scope with nothing else
+/// tracked, never a scope shared with other pending writes on the same subject -- recorded as the
+/// future DSAR machinery's contract, same as the retry-until-receipt obligation above.
+/// </remarks>
 public sealed class ErasureService(NorseIdentityDbContext context, ISubjectKeyStore keyStore)
 {
 	/// <summary>Severs the subject. NotFound when no row exists -- no key is burned for a ghost.</summary>

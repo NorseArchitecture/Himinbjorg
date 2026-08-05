@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Norse.Abstractions.Backend.Keys;
 using Norse.Abstractions.Contracts;
@@ -41,7 +43,8 @@ public sealed class ErasureServiceTests(PostgresIdentityFixture fixture) : IClas
 		var outcome = await service.ShredAsync(user.Id, TestContext.Current.CancellationToken);
 
 		outcome.TryGetValue(out Success<ErasureReceipt> success).ShouldBeTrue();
-		_ = success;
+		success.Value.ReceiptId.ShouldNotBe(Guid.Empty); // a real Syn ledger reference, not a placeholder
+
 		// Projected, deliberately not the full entity: Email/UserName are still ciphertext on this
 		// row (payload columns darken on erasure, they don't null) and the key is now destroyed, so
 		// materializing them here would throw KeyDestroyedException at the value converter -- exactly
@@ -67,30 +70,33 @@ public sealed class ErasureServiceTests(PostgresIdentityFixture fixture) : IClas
 		// the allowlist ever drops or renames the stamp claim, the dead-session mechanism breaks HERE,
 		// not silently in production), and the post-shred verdict comes from
 		// SignInManager.ValidateSecurityStampAsync -- the exact comparison cookie revalidation runs.
+		//
+		// The clean null below is NOT free: without Act 3 destroying the key, revalidation would
+		// still die on the rotated-stamp mismatch alone. WITH the key destroyed, re-materializing the
+		// row (UserManager.GetUserAsync -> NorseUserStore.FindByIdAsync) also touches Email/UserName,
+		// both wired through NorsePersonalDataProtector's EF value converter, which throws
+		// KeyDestroyedException -- unwrapped, straight out of EF's materializer. NorseSignInManager
+		// narrowly catches exactly that exception at this one revalidation boundary and folds it to
+		// null; every other read path still throws (by design -- see NorseSignInManager's doc
+		// comment). This is the record for the future disclosure-surface fold.
 		var (context, keyStore) = await fixture.CreateScopeAsync();
 		var user = await fixture.SeedUserAsync("session@example.com");
 		var signInManager = fixture.CreateSignInManager();
 		var principal = await signInManager.CreateUserPrincipalAsync(user); // "the cookie" as issued pre-shred
+		var stampClaimBeforeShred = principal.FindFirstValue(new IdentityOptions().ClaimsIdentity.SecurityStampClaimType);
 
 		(await signInManager.ValidateSecurityStampAsync(principal)).ShouldNotBeNull(); // sanity arm: live before shred
 
 		await new ErasureService(context, keyStore).ShredAsync(user.Id, TestContext.Current.CancellationToken);
 
-		// DISCOVERED GAP (Task 18 review -- Task 19b's fold depends on knowing): revalidation does
-		// not die with a clean null verdict here. SignInManager.ValidateSecurityStampAsync calls
-		// UserManager.GetUserAsync -> NorseUserStore.FindByIdAsync, which re-materializes the row by
-		// id (rows are never deleted, only hashes nulled + the stamp rotated) -- including
-		// Email/UserName, both still wired through NorsePersonalDataProtector's EF value converter.
-		// Act 3 already destroyed the key, so materializing those columns throws
-		// KeyDestroyedException, UNWRAPPED by EF (it propagates straight out of the async
-		// enumerator, confirmed via the stack trace at materialization) -- SignInManager has no
-		// try/catch around GetUserAsync, so the exception reaches this call site directly instead of
-		// the null the ceremony's narrative implied. The session is still provably dead -- this
-		// exception IS the kill -- just not via the null-return contract; a future revalidation-path
-		// fold (Task 19b) is the right place to translate KeyDestroyedException into "invalid
-		// session" at this boundary, not ErasureService.
-		await Should.ThrowAsync<KeyDestroyedException>(
-			async () => await signInManager.ValidateSecurityStampAsync(principal));
+		// Projected read, not full materialization -- see the note on the first test above.
+		var rotatedStamp = await context.Users.AsNoTracking()
+			.Where(u => u.Id == user.Id)
+			.Select(u => u.SecurityStamp)
+			.SingleAsync(TestContext.Current.CancellationToken);
+		rotatedStamp.ShouldNotBe(stampClaimBeforeShred); // the cookie's own stamp claim is now stale
+
+		(await signInManager.ValidateSecurityStampAsync(principal)).ShouldBeNull(); // dead within one revalidation interval
 	}
 
 	[Fact]

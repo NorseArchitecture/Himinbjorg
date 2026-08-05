@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
+using Norse.Abstractions.Backend.Keys;
 using Norse.Abstractions.Web.Server.DeferredSignIn;
 using Norse.Identity.EntityFramework;
 
@@ -65,5 +66,32 @@ public sealed class NorseSignInManager(
 
 		var key = deferredSignIn.StashSignOut(AuthenticationScheme);
 		Context.Items[DeferredSignInKeyItemName] = key;
+	}
+
+	/// <summary>
+	/// Folds a destroyed key into a clean dead-session verdict. Law: a destroyed key IS a dead
+	/// session -- the shred ceremony's (<c>Norse.Identity.Web.Server.ErasureService</c>) third act
+	/// destroys the subject's key, and every subsequent attempt to re-materialize the row's
+	/// protected columns (<c>Email</c>, <c>UserName</c>, both still wired through
+	/// <see cref="NorsePersonalDataProtector"/>'s EF value converter) throws
+	/// <see cref="KeyDestroyedException"/>, unwrapped, straight out of EF's materializer -- including
+	/// from <c>UserManager.GetUserAsync</c>, which the base implementation calls to re-hydrate the
+	/// principal's subject. Left uncaught, a shredded subject's surviving cookie 500-loops out of the
+	/// cookie authentication middleware on every request instead of being rejected cleanly. This
+	/// catch is deliberately narrow: it lives ONLY at this revalidation boundary. Every other path
+	/// (<see cref="NorseUserStore"/>, <see cref="NorsePersonalDataProtector"/> itself) must keep
+	/// throwing -- the disclosure surface's <c>Erased</c> fold (a later task) depends on the
+	/// exception surviving there, and catching it earlier would silence that signal for good.
+	/// </summary>
+	public override async Task<NorseUser?> ValidateSecurityStampAsync(ClaimsPrincipal? principal)
+	{
+		try
+		{
+			return await base.ValidateSecurityStampAsync(principal).ConfigureAwait(false);
+		}
+		catch (KeyDestroyedException)
+		{
+			return null;
+		}
 	}
 }
