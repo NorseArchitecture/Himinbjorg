@@ -7,7 +7,10 @@ using Norse.Primitives;
 
 namespace Norse.Identity.Web.Server.Tests;
 
-public sealed class ErasureServiceTests(PostgresIdentityFixture fixture) : IClassFixture<PostgresIdentityFixture>
+// Real-Postgres tests share exactly one PostgresIdentityFixture instance across the whole
+// collection (see its own remark, and PostgresTestGroup) -- never a per-class IClassFixture.
+[Collection(PostgresTestGroup.Name)]
+public sealed class ErasureServiceTests(PostgresIdentityFixture fixture)
 {
 	// Decorator: GetAsync/GetOrCreateAsync delegate; the first DestroyAsync throws to simulate a
 	// vault outage, every subsequent call (including the retry) delegates normally.

@@ -119,11 +119,6 @@ public static class IdentityComponentsEndpointRouteBuilderExtensions
 				return TypedResults.Challenge(properties, [provider]);
 			});
 
-			// DownloadPersonalData is deleted, not deprecated (2026-08-04 ruling): downloading personal
-			// data is now a gRPC call -- IIdentityService.GetMyPersonalDataAsync, materialized
-			// client-side by Heimdall's ported PersonalData.razor (AuthN.Components.FluentUI). This
-			// scaffold endpoint's only caller was that page's own form-POST, gone in the same move.
-
 			return accountGroup.ExcludeFromDescription();
 		}
 	}

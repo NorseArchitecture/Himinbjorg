@@ -34,7 +34,7 @@ sealed class GetMaskedPersonalDataHandler(NorseIdentityDbContext context) :
 				return Outcome<MaskedPersonalDataResponse>.Err(ErrorCategory.NotFound);
 			return Outcome<MaskedPersonalDataResponse>.Ok(new()
 			{
-				Email = Mask<EmailAddress>(row.Email),
+				Email = row.Email is { Length: > 0 } email ? Mask<EmailAddress>(email) : "",
 				PhoneNumber = row.PhoneNumber is { Length: > 0 } phone ? Mask<PhoneNumber>(phone) : ""
 			});
 		}

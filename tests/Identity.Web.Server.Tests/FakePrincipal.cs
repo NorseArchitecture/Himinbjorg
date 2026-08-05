@@ -15,8 +15,16 @@ static class FakePrincipal
 	public static IPrincipalAccessor For(Guid subjectId)
 	{
 		ClaimsIdentity identity = new([new Claim(ClaimTypes.NameIdentifier, subjectId.ToString())], "Test");
+		return Wrap(new ClaimsPrincipal(identity));
+	}
+
+	/// <summary>Returns an <see cref="IPrincipalAccessor"/> whose principal carries no claims at all -- the missing-user-id-claim case.</summary>
+	public static IPrincipalAccessor Empty() =>
+		Wrap(new ClaimsPrincipal(new ClaimsIdentity("Test")));
+
+	static IPrincipalAccessor Wrap(ClaimsPrincipal principal)
+	{
 		var accessor = Substitute.For<IPrincipalAccessor>();
-		ClaimsPrincipal principal = new(identity);
 		accessor.GetPrincipalAsync(Arg.Any<CancellationToken>()).Returns(_ => ValueTask.FromResult(principal));
 		return accessor;
 	}

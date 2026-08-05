@@ -1,6 +1,9 @@
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
 using Norse.Abstractions.Backend.Keys;
 using Norse.Abstractions.Contracts;
 using Norse.AuthN.Services;
+using Norse.Identity.EntityFramework;
 using Norse.Identity.Web.Server.Disclosure;
 using Norse.Primitives;
 
@@ -14,20 +17,35 @@ namespace Norse.Identity.Web.Server.Tests;
 /// <see cref="KeyDestroyedException"/> catch survives a real EF materialization round trip, not a
 /// hand-thrown stand-in (spec §8 verify item 11).
 /// </summary>
-public sealed class DisclosureHandlerTests(PostgresIdentityFixture fixture) : IClassFixture<PostgresIdentityFixture>
+// Real-Postgres tests share exactly one PostgresIdentityFixture instance across the whole
+// collection (see its own remark, and PostgresTestGroup) -- never a per-class IClassFixture.
+[Collection(PostgresTestGroup.Name)]
+public sealed class DisclosureHandlerTests(PostgresIdentityFixture fixture)
 {
 	[Fact]
 	async Task Self_disclosure_returns_full_decrypted_wire_strings()
 	{
 		var (context, _) = await fixture.CreateScopeAsync();
 		var user = await fixture.SeedUserAsync("me@example.com", phone: "+15551234567");
-		GetMyPersonalDataHandler handler = new(context, FakePrincipal.For(user.Id));
+		GetMyPersonalDataHandler handler = new(context, FakePrincipal.For(user.Id), Options.Create(new IdentityOptions()));
 
 		var outcome = await handler.Handle(new(new GetMyPersonalDataRequest()), TestContext.Current.CancellationToken);
 
 		outcome.TryGetValue(out Success<PersonalDataResponse> success).ShouldBeTrue();
 		success.Value.Email.ShouldBe("me@example.com");
 		success.Value.PhoneNumber.ShouldBe("+15551234567");
+	}
+
+	[Fact]
+	async Task Self_disclosure_with_no_user_id_claim_fails_loudly_naming_the_claim_type()
+	{
+		var (context, _) = await fixture.CreateScopeAsync();
+		GetMyPersonalDataHandler handler = new(context, FakePrincipal.Empty(), Options.Create(new IdentityOptions()));
+
+		var exception = await Should.ThrowAsync<InvalidOperationException>(
+			async () => await handler.Handle(new(new GetMyPersonalDataRequest()), TestContext.Current.CancellationToken));
+
+		exception.Message.ShouldContain(new IdentityOptions().ClaimsIdentity.UserIdClaimType); // names the missing claim type, not an opaque Guid.Parse(null) failure
 	}
 
 	[Fact]
@@ -42,6 +60,25 @@ public sealed class DisclosureHandlerTests(PostgresIdentityFixture fixture) : IC
 		outcome.TryGetValue(out Success<MaskedPersonalDataResponse> success).ShouldBeTrue();
 		success.Value.Email.ShouldBe("j***@d***.com");
 		success.Value.PhoneNumber.ShouldBe("***4567");
+	}
+
+	[Fact]
+	async Task Masked_disclosure_of_an_email_less_subject_answers_empty_string_not_a_fault()
+	{
+		// Email is nullable in the model -- only UserName is required (NorseUser.Configure) -- so a
+		// legal row can carry no email at all. Seeded directly through UserManager rather than
+		// fixture.SeedUserAsync, which always sets Email = the username argument.
+		var (context, _) = await fixture.CreateScopeAsync();
+		var userManager = fixture.CreateUserManager();
+		NorseUser user = new() { UserName = "no-email-user" };
+		(await userManager.CreateAsync(user)).Succeeded.ShouldBeTrue();
+
+		GetMaskedPersonalDataHandler handler = new(context);
+		var outcome = await handler.Handle(new(new GetMaskedPersonalDataRequest { SubjectId = user.Id }), TestContext.Current.CancellationToken);
+
+		outcome.TryGetValue(out Success<MaskedPersonalDataResponse> success).ShouldBeTrue(); // not a Fault -- a legal row shape
+		success.Value.Email.ShouldBe("");
+		success.Value.PhoneNumber.ShouldBe("");
 	}
 
 	[Fact]

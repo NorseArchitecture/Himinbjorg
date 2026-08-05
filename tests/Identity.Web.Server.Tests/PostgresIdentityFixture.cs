@@ -25,6 +25,29 @@ namespace Norse.Identity.Web.Server.Tests;
 /// dependencies actually resolve end to end, not merely in isolation: the fixture-level smoke
 /// assertion below fails loudly the moment that graph doesn't wire up.
 /// </summary>
+/// <remarks>
+/// <b>Exactly one instance may ever exist per process.</b> Every test class that needs it consumes it
+/// as a shared <c>ICollectionFixture</c> (<see cref="PostgresTestGroup"/>'s
+/// <c>[Collection(PostgresTestGroup.Name)]</c>), never as its own <c>IClassFixture</c> -- found the
+/// hard way, root-caused after the fact: ASP.NET Core Identity's <c>OnModelCreating</c> resolves
+/// <see cref="Microsoft.AspNetCore.Identity.IPersonalDataProtector"/> from the context's
+/// <c>ApplicationServiceProvider</c> once, at model-build time, and closes over that exact instance
+/// inside the compiled model's <c>PersonalDataConverter</c> value converters. EF Core's own
+/// <c>ServiceProviderCache</c>/<c>ModelSource</c> then caches that compiled model keyed by an options
+/// fingerprint that does <em>not</em> include the connection string -- so a second
+/// <see cref="NorseIdentityDbContext"/> built from a second host in the same process (a second
+/// <c>IClassFixture</c> instance) silently reuses the first host's cached model, and therefore the
+/// first host's <see cref="IPersonalDataProtector"/> and key store, even though it is talking to its
+/// own, different Postgres container and its own, different <c>norse-identity-keys-*</c> directory on
+/// disk. That mismatch is exactly what produced the spurious <c>KeyMissingException</c>/
+/// <c>DirectoryNotFoundException</c> flake discovered while writing the disclosure-surface tests
+/// (Task 19b): the second fixture's rows were being encrypted and decrypted through the first
+/// fixture's key store, and once the first fixture disposed (deleting its own keys directory), every
+/// key lookup routed through it from the second fixture's still-running tests broke. One
+/// <see cref="IPersonalDataProtector"/> per process-wide EF model is production-safe by construction
+/// (exactly one host per process there); a second in-process fixture instance is a bug, not a
+/// tolerance to design around.
+/// </remarks>
 public sealed class PostgresIdentityFixture : IAsyncLifetime
 {
 	readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:19beta2")
@@ -134,5 +157,17 @@ public sealed class PostgresIdentityFixture : IAsyncLifetime
 		var scope = _host.Services.CreateScope();
 		_scopes.Add(scope);
 		return scope.ServiceProvider.GetRequiredService<SignInManager<NorseUser>>();
+	}
+
+	/// <summary>
+	/// Resolves a real <see cref="UserManager{TUser}"/> from a new DI scope -- for tests that need a
+	/// shape <see cref="SeedUserAsync"/> can't produce, e.g. a user with no email at all
+	/// (<c>SeedUserAsync</c> always sets one, standing in for the username).
+	/// </summary>
+	public UserManager<NorseUser> CreateUserManager()
+	{
+		var scope = _host.Services.CreateScope();
+		_scopes.Add(scope);
+		return scope.ServiceProvider.GetRequiredService<UserManager<NorseUser>>();
 	}
 }
