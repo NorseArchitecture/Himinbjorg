@@ -45,7 +45,8 @@ static class IdentityBuilderExtensions
 				.AddUserStore<NorseUserStore>()
 				.AddUserManager<NorseUserManager>()
 				.AddEntityFrameworkStores<NorseIdentityDbContext>()
-				.AddDefaultTokenProviders();
+				.AddDefaultTokenProviders()
+				.AddClaimsPrincipalFactory<NorseUserClaimsPrincipalFactory>();
 
 			// AddIdentity's default cookie name (".AspNetCore.Identity.Application") fingerprints the
 			// stack to anyone inspecting cookies -- Norse.Identity carries the same information a
