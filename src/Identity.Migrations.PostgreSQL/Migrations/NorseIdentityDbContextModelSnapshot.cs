@@ -17,7 +17,7 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20260803054533_InitialCreate";
+    public override string LastMigrationId => "20260805160004_InitialCreate";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -430,8 +430,8 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .HasColumnName("password_hash");
 
                 b.Property<string>("PhoneNumber")
-                    .HasMaxLength(20)
-                    .HasColumnType("character varying(20)")
+                    .HasMaxLength(256)
+                    .HasColumnType("character varying(256)")
                     .HasColumnName("phone_number");
 
                 b.Property<bool>("PhoneNumberConfirmed")
@@ -454,8 +454,7 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .HasColumnType("character varying(256)")
                     .HasColumnName("user_name");
 
-                b.HasKey("Id")
-                    .HasName("pk_users");
+                b.HasKey("Id");
 
                 b.HasIndex("NormalizedEmail")
                     .HasDatabaseName("email_index");
@@ -466,7 +465,7 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
 
                 b.ToTable("users");
 
-                b.SplitToTable("UserLockout", null, t =>
+                b.SplitToTable("user_lockout", null, t =>
                     {
                         t.Property("AccessFailedCount");
 
@@ -638,6 +637,35 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                 b.ToTable("user_tokens");
             });
 
+        modelBuilder.Entity("Norse.Identity.EntityFramework.SubjectKey", b =>
+            {
+                b.Property<Guid>("SubjectId")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("uuid")
+                    .HasColumnName("subject_id");
+
+                b.Property<DateTimeOffset>("CreatedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("created_at");
+
+                b.Property<byte[]>("WrappedKey")
+                    .IsRequired()
+                    .HasMaxLength(64)
+                    .HasColumnType("bytea")
+                    .HasColumnName("wrapped_key");
+
+                b.Property<string>("WrappingKeyId")
+                    .IsRequired()
+                    .HasMaxLength(128)
+                    .HasColumnType("character varying(128)")
+                    .HasColumnName("wrapping_key_id");
+
+                b.HasKey("SubjectId")
+                    .HasName("pk_subject_keys");
+
+                b.ToTable("subject_keys");
+            });
+
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseOpenIddictAuthorization", b =>
             {
                 b.HasOne("Norse.Identity.EntityFramework.NorseOpenIddictApplication", "Application")
@@ -683,8 +711,7 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .WithOne()
                     .HasForeignKey("Norse.Identity.EntityFramework.NorseUser", "Id")
                     .OnDelete(DeleteBehavior.Cascade)
-                    .IsRequired()
-                    .HasConstraintName("fk_users_users_id");
+                    .IsRequired();
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserClaim", b =>

@@ -28,7 +28,10 @@ public sealed class NorseUserConfigureTests
 	{
 		var entityType = BuildEntityType();
 
-		entityType.FindProperty(nameof(NorseUser.PhoneNumber))!.GetMaxLength().ShouldBe(20);
+		// 256, not a raw E.164 bound: this column now carries the NorsePersonalDataProtector envelope
+		// ("v1:{subjectId:D}:{base64}"), not a bare phone number -- mirrors Email's own ASP.NET Core
+		// Identity convention bound, which fits the same envelope shape comfortably.
+		entityType.FindProperty(nameof(NorseUser.PhoneNumber))!.GetMaxLength().ShouldBe(256);
 	}
 
 	[Fact]
@@ -66,14 +69,10 @@ public sealed class NorseUserConfigureTests
 		fk.IsRequired.ShouldBeTrue();
 	}
 
-	[Fact]
-	void Configure_sets_unique_index_on_NormalizedUserName()
-	{
-		var entityType = BuildEntityType();
-		var index = entityType.GetIndexes().Single(i => i.GetDatabaseName() == "IX_Users_NormalizedUserName");
-
-		index.IsUnique.ShouldBeTrue();
-	}
+	// The NormalizedUserName unique index moved to NorseIdentityDbContext.OnModelCreating (2026-08-03
+	// PII spec §4.2): the filter differs by provider ([NormalizedUserName] IS NOT NULL on SQL Server,
+	// unfiltered on Postgres), a decision only the context can make since NorseUser.Configure never
+	// sees the provider. Covered by NorseIdentityModelTests now.
 
 	static IEntityType FindType<T>(IModel model) =>
 		model.FindEntityType(typeof(T))!;

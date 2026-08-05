@@ -18,16 +18,35 @@ static class IdentityBuilderExtensions
 		/// project is shared with migration tooling and must not reference a <c>SignInManager</c> override; a
 		/// caller that needs one chains <c>.AddSignInManager&lt;T&gt;()</c> on the returned builder itself.
 		/// </summary>
+		/// <remarks>
+		/// Personal data protection is on: <see cref="NorsePersonalDataProtector"/>,
+		/// <see cref="NorseLookupProtector"/>, and <see cref="NorseLookupProtectorKeyRing"/> are singletons
+		/// over singleton seam dependencies, and <see cref="NorseUserManager"/> is the scope chokepoint that
+		/// gives every write path the ambient crypto subject without Heimdall or any other caller needing to
+		/// know the seam exists. Email is this platform's username, so <c>NormalizedEmail</c> and
+		/// <c>NormalizedUserName</c> end up holding the same blind-index HMAC once both normalized values are
+		/// updated -- that duplication is correct and expected, never a bug to "fix".
+		/// </remarks>
 		/// <returns>The <see cref="IdentityBuilder"/> for further chaining.</returns>
 		public IdentityBuilder AddNorseIdentity()
 		{
-			services.Configure<IdentityOptions>(o => o.Stores.SchemaVersion = IdentitySchemaVersions.Version3);
+			services.Configure<IdentityOptions>(o =>
+			{
+				o.Stores.SchemaVersion = IdentitySchemaVersions.Version3;
+				o.Stores.ProtectPersonalData = true;
+			});
+			services
+				.AddSingleton<IPersonalDataProtector, NorsePersonalDataProtector>()
+				.AddSingleton<ILookupProtector, NorseLookupProtector>()
+				.AddSingleton<ILookupProtectorKeyRing, NorseLookupProtectorKeyRing>();
 
 			var identityBuilder = services
 				.AddIdentity<NorseUser, NorseRole>()
 				.AddUserStore<NorseUserStore>()
+				.AddUserManager<NorseUserManager>()
 				.AddEntityFrameworkStores<NorseIdentityDbContext>()
-				.AddDefaultTokenProviders();
+				.AddDefaultTokenProviders()
+				.AddClaimsPrincipalFactory<NorseUserClaimsPrincipalFactory>();
 
 			// AddIdentity's default cookie name (".AspNetCore.Identity.Application") fingerprints the
 			// stack to anyone inspecting cookies -- Norse.Identity carries the same information a

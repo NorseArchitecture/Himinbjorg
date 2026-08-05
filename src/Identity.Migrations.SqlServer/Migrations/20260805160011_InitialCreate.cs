@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Norse.Identity.Migrations.SqlServer.Migrations;
 
 /// <inheritdoc />
-public partial class _20260803055150_InitialCreate : Migration
+public partial class _20260805160011_InitialCreate : Migration
 {
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder)
@@ -71,6 +71,20 @@ public partial class _20260803055150_InitialCreate : Migration
             });
 
         migrationBuilder.CreateTable(
+            name: "SubjectKeys",
+            columns: table => new
+            {
+                SubjectId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                WrappedKey = table.Column<byte[]>(type: "varbinary(64)", maxLength: 64, nullable: false),
+                WrappingKeyId = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
+                CreatedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("PK_SubjectKeys", x => x.SubjectId);
+            });
+
+        migrationBuilder.CreateTable(
             name: "Users",
             columns: table => new
             {
@@ -83,7 +97,7 @@ public partial class _20260803055150_InitialCreate : Migration
                 EmailConfirmed = table.Column<bool>(type: "bit", nullable: false),
                 PasswordHash = table.Column<byte[]>(type: "varbinary(128)", maxLength: 128, nullable: true),
                 ConcurrencyStamp = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                PhoneNumber = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
+                PhoneNumber = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                 PhoneNumberConfirmed = table.Column<bool>(type: "bit", nullable: false),
                 TwoFactorEnabled = table.Column<bool>(type: "bit", nullable: false),
                 LockoutEnabled = table.Column<bool>(type: "bit", nullable: false)
@@ -382,6 +396,9 @@ public partial class _20260803055150_InitialCreate : Migration
 
         migrationBuilder.DropTable(
             name: "Scopes");
+
+        migrationBuilder.DropTable(
+            name: "SubjectKeys");
 
         migrationBuilder.DropTable(
             name: "Tokens");

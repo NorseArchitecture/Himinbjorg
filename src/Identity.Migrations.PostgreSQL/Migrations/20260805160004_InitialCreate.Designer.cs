@@ -3,18 +3,18 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Norse.Identity.EntityFramework;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace Norse.Identity.Migrations.SqlServer.Migrations;
+namespace Norse.Identity.Migrations.PostgreSQL.Migrations;
 
 [DbContext(typeof(NorseIdentityDbContext))]
-[Migration("20260803055150_InitialCreate")]
-partial class _20260803055150_InitialCreate
+[Migration("20260805160004_InitialCreate")]
+partial class _20260805160004_InitialCreate
 {
     /// <inheritdoc />
     protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -22,370 +22,448 @@ partial class _20260803055150_InitialCreate
 #pragma warning disable 612, 618
         modelBuilder
             .HasAnnotation("ProductVersion", "11.0.0-preview.6.26359.118")
-            .HasAnnotation("Relational:MaxIdentifierLength", 128);
+            .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
-        SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+        NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseOpenIddictApplication", b =>
             {
                 b.Property<Guid>("Id")
                     .ValueGeneratedOnAdd()
-                    .HasColumnType("uniqueidentifier");
+                    .HasColumnType("uuid")
+                    .HasColumnName("id");
 
                 b.Property<string>("ApplicationType")
                     .HasMaxLength(50)
-                    .HasColumnType("nvarchar(50)");
+                    .HasColumnType("character varying(50)")
+                    .HasColumnName("application_type");
 
                 b.Property<string>("ClientId")
                     .HasMaxLength(100)
-                    .HasColumnType("nvarchar(100)");
+                    .HasColumnType("character varying(100)")
+                    .HasColumnName("client_id");
 
                 b.Property<string>("ClientSecret")
                     .HasMaxLength(-1)
-                    .HasColumnType("nvarchar(max)");
+                    .HasColumnType("text")
+                    .HasColumnName("client_secret");
 
                 b.Property<string>("ClientType")
                     .HasMaxLength(50)
-                    .HasColumnType("nvarchar(50)");
+                    .HasColumnType("character varying(50)")
+                    .HasColumnName("client_type");
 
                 b.Property<string>("ConcurrencyToken")
                     .IsConcurrencyToken()
                     .HasMaxLength(50)
-                    .HasColumnType("nvarchar(50)");
+                    .HasColumnType("character varying(50)")
+                    .HasColumnName("concurrency_token");
 
                 b.Property<string>("ConsentType")
                     .HasMaxLength(50)
-                    .HasColumnType("nvarchar(50)");
+                    .HasColumnType("character varying(50)")
+                    .HasColumnName("consent_type");
 
                 b.Property<string>("DisplayName")
                     .HasMaxLength(200)
-                    .HasColumnType("nvarchar(200)");
+                    .HasColumnType("character varying(200)")
+                    .HasColumnName("display_name");
 
                 b.Property<string>("DisplayNames")
                     .HasMaxLength(-1)
-                    .HasColumnType("nvarchar(max)");
+                    .HasColumnType("text")
+                    .HasColumnName("display_names");
 
                 b.Property<string>("JsonWebKeySet")
                     .HasMaxLength(-1)
-                    .HasColumnType("nvarchar(max)");
+                    .HasColumnType("text")
+                    .HasColumnName("json_web_key_set");
 
                 b.Property<string>("Permissions")
                     .HasMaxLength(-1)
-                    .HasColumnType("nvarchar(max)");
+                    .HasColumnType("text")
+                    .HasColumnName("permissions");
 
                 b.Property<string>("PostLogoutRedirectUris")
                     .HasMaxLength(-1)
-                    .HasColumnType("nvarchar(max)");
+                    .HasColumnType("text")
+                    .HasColumnName("post_logout_redirect_uris");
 
                 b.Property<string>("Properties")
                     .HasMaxLength(-1)
-                    .HasColumnType("nvarchar(max)");
+                    .HasColumnType("text")
+                    .HasColumnName("properties");
 
                 b.Property<string>("RedirectUris")
                     .HasMaxLength(-1)
-                    .HasColumnType("nvarchar(max)");
+                    .HasColumnType("text")
+                    .HasColumnName("redirect_uris");
 
                 b.Property<string>("Requirements")
                     .HasMaxLength(-1)
-                    .HasColumnType("nvarchar(max)");
+                    .HasColumnType("text")
+                    .HasColumnName("requirements");
 
                 b.Property<string>("Settings")
                     .HasMaxLength(-1)
-                    .HasColumnType("nvarchar(max)");
+                    .HasColumnType("text")
+                    .HasColumnName("settings");
 
-                b.HasKey("Id");
+                b.HasKey("Id")
+                    .HasName("pk_applications");
 
                 b.HasIndex("ClientId")
                     .IsUnique()
-                    .HasFilter("[ClientId] IS NOT NULL");
+                    .HasDatabaseName("ix_applications_client_id");
 
-                b.ToTable("Applications");
+                b.ToTable("applications");
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseOpenIddictAuthorization", b =>
             {
                 b.Property<Guid>("Id")
                     .ValueGeneratedOnAdd()
-                    .HasColumnType("uniqueidentifier");
+                    .HasColumnType("uuid")
+                    .HasColumnName("id");
 
                 b.Property<Guid?>("ApplicationId")
-                    .HasColumnType("uniqueidentifier");
+                    .HasColumnType("uuid")
+                    .HasColumnName("application_id");
 
                 b.Property<string>("ConcurrencyToken")
                     .IsConcurrencyToken()
                     .HasMaxLength(50)
-                    .HasColumnType("nvarchar(50)");
+                    .HasColumnType("character varying(50)")
+                    .HasColumnName("concurrency_token");
 
                 b.Property<DateTime?>("CreationDate")
-                    .HasColumnType("datetime2");
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("creation_date");
 
                 b.Property<string>("Properties")
                     .HasMaxLength(-1)
-                    .HasColumnType("nvarchar(max)");
+                    .HasColumnType("text")
+                    .HasColumnName("properties");
 
                 b.Property<string>("Scopes")
                     .HasMaxLength(-1)
-                    .HasColumnType("nvarchar(max)");
+                    .HasColumnType("text")
+                    .HasColumnName("scopes");
 
                 b.Property<string>("Status")
                     .HasMaxLength(50)
-                    .HasColumnType("nvarchar(50)");
+                    .HasColumnType("character varying(50)")
+                    .HasColumnName("status");
 
                 b.Property<string>("Subject")
                     .HasMaxLength(400)
-                    .HasColumnType("nvarchar(400)");
+                    .HasColumnType("character varying(400)")
+                    .HasColumnName("subject");
 
                 b.Property<string>("Type")
                     .HasMaxLength(50)
-                    .HasColumnType("nvarchar(50)");
+                    .HasColumnType("character varying(50)")
+                    .HasColumnName("type");
 
-                b.HasKey("Id");
+                b.HasKey("Id")
+                    .HasName("pk_authorizations");
 
-                b.HasIndex("ApplicationId", "Status", "Subject", "Type");
+                b.HasIndex("ApplicationId", "Status", "Subject", "Type")
+                    .HasDatabaseName("ix_authorizations_application_id_status_subject_type");
 
-                b.ToTable("Authorizations");
+                b.ToTable("authorizations");
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseOpenIddictScope", b =>
             {
                 b.Property<Guid>("Id")
                     .ValueGeneratedOnAdd()
-                    .HasColumnType("uniqueidentifier");
+                    .HasColumnType("uuid")
+                    .HasColumnName("id");
 
                 b.Property<string>("ConcurrencyToken")
                     .IsConcurrencyToken()
                     .HasMaxLength(50)
-                    .HasColumnType("nvarchar(50)");
+                    .HasColumnType("character varying(50)")
+                    .HasColumnName("concurrency_token");
 
                 b.Property<string>("Description")
                     .HasMaxLength(1000)
-                    .HasColumnType("nvarchar(1000)");
+                    .HasColumnType("character varying(1000)")
+                    .HasColumnName("description");
 
                 b.Property<string>("Descriptions")
                     .HasMaxLength(-1)
-                    .HasColumnType("nvarchar(max)");
+                    .HasColumnType("text")
+                    .HasColumnName("descriptions");
 
                 b.Property<string>("DisplayName")
                     .HasMaxLength(200)
-                    .HasColumnType("nvarchar(200)");
+                    .HasColumnType("character varying(200)")
+                    .HasColumnName("display_name");
 
                 b.Property<string>("DisplayNames")
                     .HasMaxLength(-1)
-                    .HasColumnType("nvarchar(max)");
+                    .HasColumnType("text")
+                    .HasColumnName("display_names");
 
                 b.Property<string>("Name")
                     .HasMaxLength(200)
-                    .HasColumnType("nvarchar(200)");
+                    .HasColumnType("character varying(200)")
+                    .HasColumnName("name");
 
                 b.Property<string>("Properties")
                     .HasMaxLength(-1)
-                    .HasColumnType("nvarchar(max)");
+                    .HasColumnType("text")
+                    .HasColumnName("properties");
 
                 b.Property<string>("Resources")
                     .HasMaxLength(-1)
-                    .HasColumnType("nvarchar(max)");
+                    .HasColumnType("text")
+                    .HasColumnName("resources");
 
-                b.HasKey("Id");
+                b.HasKey("Id")
+                    .HasName("pk_scopes");
 
                 b.HasIndex("Name")
                     .IsUnique()
-                    .HasFilter("[Name] IS NOT NULL");
+                    .HasDatabaseName("ix_scopes_name");
 
-                b.ToTable("Scopes");
+                b.ToTable("scopes");
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseOpenIddictToken", b =>
             {
                 b.Property<Guid>("Id")
                     .ValueGeneratedOnAdd()
-                    .HasColumnType("uniqueidentifier");
+                    .HasColumnType("uuid")
+                    .HasColumnName("id");
 
                 b.Property<Guid?>("ApplicationId")
-                    .HasColumnType("uniqueidentifier");
+                    .HasColumnType("uuid")
+                    .HasColumnName("application_id");
 
                 b.Property<Guid?>("AuthorizationId")
-                    .HasColumnType("uniqueidentifier");
+                    .HasColumnType("uuid")
+                    .HasColumnName("authorization_id");
 
                 b.Property<string>("ConcurrencyToken")
                     .IsConcurrencyToken()
                     .HasMaxLength(50)
-                    .HasColumnType("nvarchar(50)");
+                    .HasColumnType("character varying(50)")
+                    .HasColumnName("concurrency_token");
 
                 b.Property<DateTime?>("CreationDate")
-                    .HasColumnType("datetime2");
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("creation_date");
 
                 b.Property<DateTime?>("ExpirationDate")
-                    .HasColumnType("datetime2");
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("expiration_date");
 
                 b.Property<string>("Payload")
                     .HasMaxLength(-1)
-                    .HasColumnType("nvarchar(max)");
+                    .HasColumnType("text")
+                    .HasColumnName("payload");
 
                 b.Property<string>("Properties")
                     .HasMaxLength(-1)
-                    .HasColumnType("nvarchar(max)");
+                    .HasColumnType("text")
+                    .HasColumnName("properties");
 
                 b.Property<DateTime?>("RedemptionDate")
-                    .HasColumnType("datetime2");
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("redemption_date");
 
                 b.Property<string>("ReferenceId")
                     .HasMaxLength(100)
-                    .HasColumnType("nvarchar(100)");
+                    .HasColumnType("character varying(100)")
+                    .HasColumnName("reference_id");
 
                 b.Property<string>("Status")
                     .HasMaxLength(50)
-                    .HasColumnType("nvarchar(50)");
+                    .HasColumnType("character varying(50)")
+                    .HasColumnName("status");
 
                 b.Property<string>("Subject")
                     .HasMaxLength(400)
-                    .HasColumnType("nvarchar(400)");
+                    .HasColumnType("character varying(400)")
+                    .HasColumnName("subject");
 
                 b.Property<string>("Type")
                     .HasMaxLength(150)
-                    .HasColumnType("nvarchar(150)");
+                    .HasColumnType("character varying(150)")
+                    .HasColumnName("type");
 
-                b.HasKey("Id");
+                b.HasKey("Id")
+                    .HasName("pk_tokens");
 
-                b.HasIndex("AuthorizationId");
+                b.HasIndex("AuthorizationId")
+                    .HasDatabaseName("ix_tokens_authorization_id");
 
                 b.HasIndex("ReferenceId")
                     .IsUnique()
-                    .HasFilter("[ReferenceId] IS NOT NULL");
+                    .HasDatabaseName("ix_tokens_reference_id");
 
-                b.HasIndex("ApplicationId", "Status", "Subject", "Type");
+                b.HasIndex("ApplicationId", "Status", "Subject", "Type")
+                    .HasDatabaseName("ix_tokens_application_id_status_subject_type");
 
-                b.ToTable("Tokens");
+                b.ToTable("tokens");
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseRole", b =>
             {
                 b.Property<Guid>("Id")
                     .ValueGeneratedOnAdd()
-                    .HasColumnType("uniqueidentifier");
+                    .HasColumnType("uuid")
+                    .HasColumnName("id");
 
                 b.Property<Guid>("ConcurrencyStamp")
                     .IsConcurrencyToken()
-                    .HasColumnType("uniqueidentifier");
+                    .HasColumnType("uuid")
+                    .HasColumnName("concurrency_stamp");
 
                 b.Property<string>("Name")
                     .IsRequired()
                     .HasMaxLength(256)
-                    .HasColumnType("nvarchar(256)");
+                    .HasColumnType("character varying(256)")
+                    .HasColumnName("name");
 
                 b.Property<string>("NormalizedName")
                     .IsRequired()
                     .HasMaxLength(256)
-                    .HasColumnType("nvarchar(256)");
+                    .HasColumnType("character varying(256)")
+                    .HasColumnName("normalized_name");
 
-                b.HasKey("Id");
+                b.HasKey("Id")
+                    .HasName("pk_roles");
 
                 b.HasIndex("NormalizedName")
                     .IsUnique()
-                    .HasDatabaseName("RoleNameIndex");
+                    .HasDatabaseName("role_name_index");
 
-                b.ToTable("Roles");
+                b.ToTable("roles");
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseRoleClaim", b =>
             {
                 var id = b.Property<int>("Id")
                     .ValueGeneratedOnAdd()
-                    .HasColumnType("int");
+                    .HasColumnType("integer")
+                    .HasColumnName("id");
 
-                SqlServerPropertyBuilderExtensions.UseIdentityColumn(id);
+                NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(id);
 
                 b.Property<string>("ClaimType")
                     .IsRequired()
                     .HasMaxLength(256)
-                    .HasColumnType("nvarchar(256)");
+                    .HasColumnType("character varying(256)")
+                    .HasColumnName("claim_type");
 
                 b.Property<string>("ClaimValue")
                     .IsRequired()
                     .HasMaxLength(-1)
-                    .HasColumnType("nvarchar(max)");
+                    .HasColumnType("text")
+                    .HasColumnName("claim_value");
 
                 b.Property<Guid>("RoleId")
-                    .HasColumnType("uniqueidentifier");
+                    .HasColumnType("uuid")
+                    .HasColumnName("role_id");
 
-                b.HasKey("Id");
+                b.HasKey("Id")
+                    .HasName("pk_role_claims");
 
-                b.HasIndex("RoleId");
+                b.HasIndex("RoleId")
+                    .HasDatabaseName("ix_role_claims_role_id");
 
-                b.ToTable("RoleClaims");
+                b.ToTable("role_claims");
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUser", b =>
             {
                 b.Property<Guid>("Id")
                     .ValueGeneratedOnAdd()
-                    .HasColumnType("uniqueidentifier");
+                    .HasColumnType("uuid")
+                    .HasColumnName("id");
 
                 b.Property<int>("AccessFailedCount")
-                    .HasColumnType("int");
+                    .HasColumnType("integer")
+                    .HasColumnName("access_failed_count");
 
                 b.Property<Guid>("ConcurrencyStamp")
                     .IsConcurrencyToken()
-                    .HasColumnType("uniqueidentifier");
+                    .HasColumnType("uuid")
+                    .HasColumnName("concurrency_stamp");
 
                 b.Property<string>("Email")
                     .HasMaxLength(256)
-                    .HasColumnType("nvarchar(256)");
+                    .HasColumnType("character varying(256)")
+                    .HasColumnName("email");
 
                 b.Property<bool>("EmailConfirmed")
-                    .HasColumnType("bit");
+                    .HasColumnType("boolean")
+                    .HasColumnName("email_confirmed");
 
                 b.Property<bool>("LockoutEnabled")
-                    .HasColumnType("bit");
+                    .HasColumnType("boolean")
+                    .HasColumnName("lockout_enabled");
 
                 b.Property<DateTimeOffset?>("LockoutEnd")
-                    .HasColumnType("datetimeoffset");
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("lockout_end");
 
                 b.Property<string>("NormalizedEmail")
                     .HasMaxLength(256)
-                    .HasColumnType("nvarchar(256)");
+                    .HasColumnType("character varying(256)")
+                    .HasColumnName("normalized_email");
 
                 b.Property<string>("NormalizedUserName")
                     .HasMaxLength(256)
-                    .HasColumnType("nvarchar(256)");
+                    .HasColumnType("character varying(256)")
+                    .HasColumnName("normalized_user_name");
 
                 b.Property<byte[]>("PasswordHash")
                     .HasMaxLength(128)
-                    .HasColumnType("varbinary(128)");
+                    .HasColumnType("bytea")
+                    .HasColumnName("password_hash");
 
                 b.Property<string>("PhoneNumber")
-                    .HasMaxLength(20)
-                    .HasColumnType("nvarchar(20)");
+                    .HasMaxLength(256)
+                    .HasColumnType("character varying(256)")
+                    .HasColumnName("phone_number");
 
                 b.Property<bool>("PhoneNumberConfirmed")
-                    .HasColumnType("bit");
+                    .HasColumnType("boolean")
+                    .HasColumnName("phone_number_confirmed");
 
                 b.Property<string>("SecurityStamp")
                     .IsRequired()
                     .HasMaxLength(32)
-                    .HasColumnType("nchar(32)")
-                    .IsFixedLength();
+                    .HasColumnType("character varying(32)")
+                    .HasColumnName("security_stamp");
 
                 b.Property<bool>("TwoFactorEnabled")
-                    .HasColumnType("bit");
+                    .HasColumnType("boolean")
+                    .HasColumnName("two_factor_enabled");
 
                 b.Property<string>("UserName")
                     .IsRequired()
                     .HasMaxLength(256)
-                    .HasColumnType("nvarchar(256)");
+                    .HasColumnType("character varying(256)")
+                    .HasColumnName("user_name");
 
                 b.HasKey("Id");
 
                 b.HasIndex("NormalizedEmail")
-                    .HasDatabaseName("EmailIndex");
+                    .HasDatabaseName("email_index");
 
                 b.HasIndex("NormalizedUserName")
                     .IsUnique()
-                    .HasDatabaseName("UserNameIndex")
-                    .HasFilter("[NormalizedUserName] IS NOT NULL");
+                    .HasDatabaseName("user_name_index");
 
-                b.ToTable("Users");
+                b.ToTable("users");
 
-                b.SplitToTable("UserLockout", null, t =>
+                b.SplitToTable("user_lockout", null, t =>
                     {
                         t.Property("AccessFailedCount");
 
@@ -397,62 +475,76 @@ partial class _20260803055150_InitialCreate
             {
                 var id = b.Property<int>("Id")
                     .ValueGeneratedOnAdd()
-                    .HasColumnType("int");
+                    .HasColumnType("integer")
+                    .HasColumnName("id");
 
-                SqlServerPropertyBuilderExtensions.UseIdentityColumn(id);
+                NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(id);
 
                 b.Property<string>("ClaimType")
                     .IsRequired()
                     .HasMaxLength(256)
-                    .HasColumnType("nvarchar(256)");
+                    .HasColumnType("character varying(256)")
+                    .HasColumnName("claim_type");
 
                 b.Property<string>("ClaimValue")
                     .IsRequired()
                     .HasMaxLength(-1)
-                    .HasColumnType("nvarchar(max)");
+                    .HasColumnType("text")
+                    .HasColumnName("claim_value");
 
                 b.Property<Guid>("UserId")
-                    .HasColumnType("uniqueidentifier");
+                    .HasColumnType("uuid")
+                    .HasColumnName("user_id");
 
-                b.HasKey("Id");
+                b.HasKey("Id")
+                    .HasName("pk_user_claims");
 
-                b.HasIndex("UserId");
+                b.HasIndex("UserId")
+                    .HasDatabaseName("ix_user_claims_user_id");
 
-                b.ToTable("UserClaims");
+                b.ToTable("user_claims");
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserLogin", b =>
             {
                 b.Property<string>("LoginProvider")
                     .HasMaxLength(128)
-                    .HasColumnType("nvarchar(128)");
+                    .HasColumnType("character varying(128)")
+                    .HasColumnName("login_provider");
 
                 b.Property<string>("ProviderKey")
                     .HasMaxLength(256)
-                    .HasColumnType("nvarchar(256)");
+                    .HasColumnType("character varying(256)")
+                    .HasColumnName("provider_key");
 
                 b.Property<string>("ProviderDisplayName")
                     .HasMaxLength(256)
-                    .HasColumnType("nvarchar(256)");
+                    .HasColumnType("character varying(256)")
+                    .HasColumnName("provider_display_name");
 
                 b.Property<Guid>("UserId")
-                    .HasColumnType("uniqueidentifier");
+                    .HasColumnType("uuid")
+                    .HasColumnName("user_id");
 
-                b.HasKey("LoginProvider", "ProviderKey");
+                b.HasKey("LoginProvider", "ProviderKey")
+                    .HasName("pk_user_logins");
 
-                b.HasIndex("UserId");
+                b.HasIndex("UserId")
+                    .HasDatabaseName("ix_user_logins_user_id");
 
-                b.ToTable("UserLogins");
+                b.ToTable("user_logins");
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserPasskey", b =>
             {
                 b.Property<byte[]>("CredentialId")
                     .HasMaxLength(1024)
-                    .HasColumnType("varbinary(1024)");
+                    .HasColumnType("bytea")
+                    .HasColumnName("credential_id");
 
                 b.Property<Guid>("UserId")
-                    .HasColumnType("uniqueidentifier");
+                    .HasColumnType("uuid")
+                    .HasColumnName("user_id");
 
                 b.ComplexProperty(typeof(Dictionary<string, object>), "Data", "Norse.Identity.EntityFramework.NorseUserPasskey.Data#IdentityPasskeyData", b1 =>
                     {
@@ -484,59 +576,100 @@ partial class _20260803055150_InitialCreate
                         b1.PrimitiveCollection<string>("Transports");
 
                         b1
-                            .ToJson("Data")
-                            .HasColumnType("json");
+                            .ToJson("data")
+                            .HasColumnType("jsonb");
                     });
 
-                b.HasKey("CredentialId");
+                b.HasKey("CredentialId")
+                    .HasName("pk_user_passkeys");
 
-                b.HasIndex("UserId");
+                b.HasIndex("UserId")
+                    .HasDatabaseName("ix_user_passkeys_user_id");
 
-                b.ToTable("UserPasskeys");
+                b.ToTable("user_passkeys");
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserRole", b =>
             {
                 b.Property<Guid>("UserId")
-                    .HasColumnType("uniqueidentifier");
+                    .HasColumnType("uuid")
+                    .HasColumnName("user_id");
 
                 b.Property<Guid>("RoleId")
-                    .HasColumnType("uniqueidentifier");
+                    .HasColumnType("uuid")
+                    .HasColumnName("role_id");
 
-                b.HasKey("UserId", "RoleId");
+                b.HasKey("UserId", "RoleId")
+                    .HasName("pk_user_roles");
 
-                b.HasIndex("RoleId");
+                b.HasIndex("RoleId")
+                    .HasDatabaseName("ix_user_roles_role_id");
 
-                b.ToTable("UserRoles");
+                b.ToTable("user_roles");
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserToken", b =>
             {
                 b.Property<Guid>("UserId")
-                    .HasColumnType("uniqueidentifier");
+                    .HasColumnType("uuid")
+                    .HasColumnName("user_id");
 
                 b.Property<string>("LoginProvider")
                     .HasMaxLength(128)
-                    .HasColumnType("nvarchar(128)");
+                    .HasColumnType("character varying(128)")
+                    .HasColumnName("login_provider");
 
                 b.Property<string>("Name")
                     .HasMaxLength(128)
-                    .HasColumnType("nvarchar(128)");
+                    .HasColumnType("character varying(128)")
+                    .HasColumnName("name");
 
                 b.Property<string>("Value")
                     .HasMaxLength(-1)
-                    .HasColumnType("nvarchar(max)");
+                    .HasColumnType("text")
+                    .HasColumnName("value");
 
-                b.HasKey("UserId", "LoginProvider", "Name");
+                b.HasKey("UserId", "LoginProvider", "Name")
+                    .HasName("pk_user_tokens");
 
-                b.ToTable("UserTokens");
+                b.ToTable("user_tokens");
+            });
+
+        modelBuilder.Entity("Norse.Identity.EntityFramework.SubjectKey", b =>
+            {
+                b.Property<Guid>("SubjectId")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("uuid")
+                    .HasColumnName("subject_id");
+
+                b.Property<DateTimeOffset>("CreatedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("created_at");
+
+                b.Property<byte[]>("WrappedKey")
+                    .IsRequired()
+                    .HasMaxLength(64)
+                    .HasColumnType("bytea")
+                    .HasColumnName("wrapped_key");
+
+                b.Property<string>("WrappingKeyId")
+                    .IsRequired()
+                    .HasMaxLength(128)
+                    .HasColumnType("character varying(128)")
+                    .HasColumnName("wrapping_key_id");
+
+                b.HasKey("SubjectId")
+                    .HasName("pk_subject_keys");
+
+                b.ToTable("subject_keys");
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseOpenIddictAuthorization", b =>
             {
                 b.HasOne("Norse.Identity.EntityFramework.NorseOpenIddictApplication", "Application")
                     .WithMany("Authorizations")
-                    .HasForeignKey("ApplicationId");
+                    .HasForeignKey("ApplicationId")
+                    .HasConstraintName("fk_authorizations_applications_application_id");
 
                 b.Navigation("Application");
             });
@@ -545,11 +678,13 @@ partial class _20260803055150_InitialCreate
             {
                 b.HasOne("Norse.Identity.EntityFramework.NorseOpenIddictApplication", "Application")
                     .WithMany("Tokens")
-                    .HasForeignKey("ApplicationId");
+                    .HasForeignKey("ApplicationId")
+                    .HasConstraintName("fk_tokens_applications_application_id");
 
                 b.HasOne("Norse.Identity.EntityFramework.NorseOpenIddictAuthorization", "Authorization")
                     .WithMany("Tokens")
-                    .HasForeignKey("AuthorizationId");
+                    .HasForeignKey("AuthorizationId")
+                    .HasConstraintName("fk_tokens_authorizations_authorization_id");
 
                 b.Navigation("Application");
 
@@ -562,7 +697,8 @@ partial class _20260803055150_InitialCreate
                     .WithMany("Claims")
                     .HasForeignKey("RoleId")
                     .OnDelete(DeleteBehavior.Cascade)
-                    .IsRequired();
+                    .IsRequired()
+                    .HasConstraintName("fk_role_claims_roles_role_id");
 
                 b.Navigation("Role");
             });
@@ -582,7 +718,8 @@ partial class _20260803055150_InitialCreate
                     .WithMany("Claims")
                     .HasForeignKey("UserId")
                     .OnDelete(DeleteBehavior.Cascade)
-                    .IsRequired();
+                    .IsRequired()
+                    .HasConstraintName("fk_user_claims_users_user_id");
 
                 b.Navigation("User");
             });
@@ -593,7 +730,8 @@ partial class _20260803055150_InitialCreate
                     .WithMany("Logins")
                     .HasForeignKey("UserId")
                     .OnDelete(DeleteBehavior.Cascade)
-                    .IsRequired();
+                    .IsRequired()
+                    .HasConstraintName("fk_user_logins_users_user_id");
 
                 b.Navigation("User");
             });
@@ -604,7 +742,8 @@ partial class _20260803055150_InitialCreate
                     .WithMany("Passkeys")
                     .HasForeignKey("UserId")
                     .OnDelete(DeleteBehavior.Cascade)
-                    .IsRequired();
+                    .IsRequired()
+                    .HasConstraintName("fk_user_passkeys_users_user_id");
 
                 b.Navigation("User");
             });
@@ -615,13 +754,15 @@ partial class _20260803055150_InitialCreate
                     .WithMany()
                     .HasForeignKey("RoleId")
                     .OnDelete(DeleteBehavior.Cascade)
-                    .IsRequired();
+                    .IsRequired()
+                    .HasConstraintName("fk_user_roles_roles_role_id");
 
                 b.HasOne("Norse.Identity.EntityFramework.NorseUser", "User")
                     .WithMany()
                     .HasForeignKey("UserId")
                     .OnDelete(DeleteBehavior.Cascade)
-                    .IsRequired();
+                    .IsRequired()
+                    .HasConstraintName("fk_user_roles_users_user_id");
 
                 b.Navigation("Role");
 
@@ -634,7 +775,8 @@ partial class _20260803055150_InitialCreate
                     .WithMany("Tokens")
                     .HasForeignKey("UserId")
                     .OnDelete(DeleteBehavior.Cascade)
-                    .IsRequired();
+                    .IsRequired()
+                    .HasConstraintName("fk_user_tokens_users_user_id");
 
                 b.Navigation("User");
             });

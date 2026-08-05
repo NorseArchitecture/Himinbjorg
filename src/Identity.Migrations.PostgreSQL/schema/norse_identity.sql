@@ -47,6 +47,15 @@ CREATE TABLE scopes (
 );
 
 
+CREATE TABLE subject_keys (
+    subject_id uuid NOT NULL,
+    wrapped_key bytea NOT NULL,
+    wrapping_key_id character varying(128) NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    CONSTRAINT pk_subject_keys PRIMARY KEY (subject_id)
+);
+
+
 CREATE TABLE users (
     id uuid NOT NULL,
     security_stamp character varying(32) NOT NULL,
@@ -57,11 +66,11 @@ CREATE TABLE users (
     email_confirmed boolean NOT NULL,
     password_hash bytea,
     concurrency_stamp uuid NOT NULL,
-    phone_number character varying(20),
+    phone_number character varying(256),
     phone_number_confirmed boolean NOT NULL,
     two_factor_enabled boolean NOT NULL,
     lockout_enabled boolean NOT NULL,
-    CONSTRAINT pk_users PRIMARY KEY (id)
+    CONSTRAINT "PK_users" PRIMARY KEY (id)
 );
 
 
@@ -90,12 +99,12 @@ CREATE TABLE role_claims (
 );
 
 
-CREATE TABLE "UserLockout" (
+CREATE TABLE user_lockout (
     id uuid NOT NULL,
     lockout_end timestamp with time zone,
     access_failed_count integer NOT NULL,
-    CONSTRAINT pk_users PRIMARY KEY (id),
-    CONSTRAINT fk_users_users_id FOREIGN KEY (id) REFERENCES users (id) ON DELETE CASCADE
+    CONSTRAINT "PK_user_lockout" PRIMARY KEY (id),
+    CONSTRAINT "FK_user_lockout_users_id" FOREIGN KEY (id) REFERENCES users (id) ON DELETE CASCADE
 );
 
 
@@ -125,7 +134,7 @@ CREATE TABLE user_claims (
     claim_type character varying(256) NOT NULL,
     claim_value text NOT NULL,
     CONSTRAINT pk_user_claims PRIMARY KEY (id),
-    CONSTRAINT fk_user_claims_users_user_id FOREIGN KEY (user_id) REFERENCES "UserLockout" (id) ON DELETE CASCADE
+    CONSTRAINT fk_user_claims_users_user_id FOREIGN KEY (user_id) REFERENCES user_lockout (id) ON DELETE CASCADE
 );
 
 
@@ -135,7 +144,7 @@ CREATE TABLE user_logins (
     provider_display_name character varying(256),
     user_id uuid NOT NULL,
     CONSTRAINT pk_user_logins PRIMARY KEY (login_provider, provider_key),
-    CONSTRAINT fk_user_logins_users_user_id FOREIGN KEY (user_id) REFERENCES "UserLockout" (id) ON DELETE CASCADE
+    CONSTRAINT fk_user_logins_users_user_id FOREIGN KEY (user_id) REFERENCES user_lockout (id) ON DELETE CASCADE
 );
 
 
@@ -144,7 +153,7 @@ CREATE TABLE user_passkeys (
     user_id uuid NOT NULL,
     data jsonb NOT NULL,
     CONSTRAINT pk_user_passkeys PRIMARY KEY (credential_id),
-    CONSTRAINT fk_user_passkeys_users_user_id FOREIGN KEY (user_id) REFERENCES "UserLockout" (id) ON DELETE CASCADE
+    CONSTRAINT fk_user_passkeys_users_user_id FOREIGN KEY (user_id) REFERENCES user_lockout (id) ON DELETE CASCADE
 );
 
 
@@ -153,7 +162,7 @@ CREATE TABLE user_roles (
     role_id uuid NOT NULL,
     CONSTRAINT pk_user_roles PRIMARY KEY (user_id, role_id),
     CONSTRAINT fk_user_roles_roles_role_id FOREIGN KEY (role_id) REFERENCES roles (id) ON DELETE CASCADE,
-    CONSTRAINT fk_user_roles_users_user_id FOREIGN KEY (user_id) REFERENCES "UserLockout" (id) ON DELETE CASCADE
+    CONSTRAINT fk_user_roles_users_user_id FOREIGN KEY (user_id) REFERENCES user_lockout (id) ON DELETE CASCADE
 );
 
 
@@ -163,7 +172,7 @@ CREATE TABLE user_tokens (
     name character varying(128) NOT NULL,
     value text,
     CONSTRAINT pk_user_tokens PRIMARY KEY (user_id, login_provider, name),
-    CONSTRAINT fk_user_tokens_users_user_id FOREIGN KEY (user_id) REFERENCES "UserLockout" (id) ON DELETE CASCADE
+    CONSTRAINT fk_user_tokens_users_user_id FOREIGN KEY (user_id) REFERENCES user_lockout (id) ON DELETE CASCADE
 );
 
 

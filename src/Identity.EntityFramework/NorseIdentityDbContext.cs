@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 // Microsoft.NET.Sdk, not Sdk.Web: DI's implicit using doesn't come for free here.
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Norse.Persistence.EntityFramework;
 using Norse.Primitives.Identifiers;
 
@@ -24,6 +25,11 @@ public sealed class NorseIdentityDbContext(DbContextOptions<NorseIdentityDbConte
 		NorseUserClaim, NorseUserRole, NorseUserLogin,
 		NorseRoleClaim, NorseUserToken, NorseUserPasskey>(options), INorseDbContext
 {
+	// Field initializer, not a captured primary-ctor parameter (CS9107): mirrors NorseDbContext's own
+	// field -- this context can't inherit that base (it inherits IdentityDbContext), so it replicates
+	// the read independently, same as the fixed-length/SequentialGuid checks below.
+	readonly Action<IConventionEntityType>? _temporalRealizationHook = options.GetTemporalRealizationHook();
+
 	/// <summary>
 	/// Guarantees ASP.NET Core Identity's <c>Version3</c> schema shape (including the passkey table)
 	/// regardless of caller. ASP.NET Core Identity decides schema shape by reading
@@ -61,7 +67,8 @@ public sealed class NorseIdentityDbContext(DbContextOptions<NorseIdentityDbConte
 		var isSqlServer = Database.ProviderName == NorseDbContextOptionsExtensions.SqlServerProviderName;
 		NorseModelConventions.Apply(configurationBuilder,
 			applyFixedLength: isSqlServer,
-			sequentialGuidOrder: isSqlServer ? GuidByteOrder.SqlServer : GuidByteOrder.Rfc9562);
+			sequentialGuidOrder: isSqlServer ? GuidByteOrder.SqlServer : GuidByteOrder.Rfc9562,
+			temporalRealizationHook: _temporalRealizationHook);
 	}
 
 	/// <inheritdoc />
@@ -72,5 +79,31 @@ public sealed class NorseIdentityDbContext(DbContextOptions<NorseIdentityDbConte
 			NorseOpenIddictApplication, NorseOpenIddictAuthorization,
 			NorseOpenIddictScope, NorseOpenIddictToken, Guid>();
 		builder.ApplyNorseConfigurations();
+
+		// PII primitives seam (2026-08-03 spec §4.5): no struct-typed IPiiScalar<TSelf> property exists
+		// on this schema yet -- IdentityUser<Guid>'s own [ProtectedPersonalData] properties (UserName,
+		// Email, PhoneNumber) already ride ASP.NET Core Identity's built-in IPersonalDataProtector
+		// conversion via ProtectPersonalData=true (see IdentityBuilderExtensions.AddNorseIdentity), which
+		// is a different, narrower mechanism than the platform's PII scalar seam. The call site for
+		// Norse.Persistence.EntityFramework.PiiProtectionModelExtensions.ProtectPiiScalars(builder,
+		// protector) lands here, right after ApplyNorseConfigurations, the day this schema's first
+		// struct-typed PII property (an EncryptedString-shaped value object) is added -- not before.
+
+		// Filter differs by provider: SQL Server needs an explicit filtered index since the column is
+		// nullable now (payload columns darken on erasure, they don't null -- but the lookup hash
+		// legitimately can be absent pre-hash or post-erasure); Postgres's NULLS DISTINCT default
+		// already treats multiple NULLs as non-colliding, so no filter is needed there.
+		// Temporal system-versioning (spec §4.3) is deferred to a future effort -- IsTemporal() composed
+		// with SplitToTable() on the same entity built a valid model but crashed SQL Server's migrations
+		// SQL generator (NullReferenceException escaping the split table's inherited, incorrectly-null
+		// period-column identifiers) at DDL-generation time. Recorded with a fold-in trigger in
+		// ../Glitnir/docs/Platform/plans/2026-08-03-pii-primitives-identity-erasure-seam.md.
+		var isSqlServer = Database.ProviderName == NorseDbContextOptionsExtensions.SqlServerProviderName;
+		builder.Entity<NorseUser>(entity =>
+		{
+			entity.HasIndex(u => u.NormalizedUserName)
+				.IsUnique()
+				.HasFilter(isSqlServer ? "[NormalizedUserName] IS NOT NULL" : null);
+		});
 	}
 }

@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Norse.Identity.Migrations.PostgreSQL.Migrations;
 
 /// <inheritdoc />
-public partial class _20260803054533_InitialCreate : Migration
+public partial class _20260805160004_InitialCreate : Migration
 {
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder)
@@ -72,6 +72,20 @@ public partial class _20260803054533_InitialCreate : Migration
             });
 
         migrationBuilder.CreateTable(
+            name: "subject_keys",
+            columns: table => new
+            {
+                subject_id = table.Column<Guid>(type: "uuid", nullable: false),
+                wrapped_key = table.Column<byte[]>(type: "bytea", maxLength: 64, nullable: false),
+                wrapping_key_id = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
+                created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("pk_subject_keys", x => x.subject_id);
+            });
+
+        migrationBuilder.CreateTable(
             name: "users",
             columns: table => new
             {
@@ -84,14 +98,14 @@ public partial class _20260803054533_InitialCreate : Migration
                 email_confirmed = table.Column<bool>(type: "boolean", nullable: false),
                 password_hash = table.Column<byte[]>(type: "bytea", maxLength: 128, nullable: true),
                 concurrency_stamp = table.Column<Guid>(type: "uuid", nullable: false),
-                phone_number = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
+                phone_number = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
                 phone_number_confirmed = table.Column<bool>(type: "boolean", nullable: false),
                 two_factor_enabled = table.Column<bool>(type: "boolean", nullable: false),
                 lockout_enabled = table.Column<bool>(type: "boolean", nullable: false)
             },
             constraints: table =>
             {
-                table.PrimaryKey("pk_users", x => x.id);
+                table.PrimaryKey("PK_users", x => x.id);
             });
 
         migrationBuilder.CreateTable(
@@ -140,7 +154,7 @@ public partial class _20260803054533_InitialCreate : Migration
             });
 
         migrationBuilder.CreateTable(
-            name: "UserLockout",
+            name: "user_lockout",
             columns: table => new
             {
                 id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -149,9 +163,9 @@ public partial class _20260803054533_InitialCreate : Migration
             },
             constraints: table =>
             {
-                table.PrimaryKey("pk_users", x => x.id);
+                table.PrimaryKey("PK_user_lockout", x => x.id);
                 table.ForeignKey(
-                    name: "fk_users_users_id",
+                    name: "FK_user_lockout_users_id",
                     column: x => x.id,
                     principalTable: "users",
                     principalColumn: "id",
@@ -207,7 +221,7 @@ public partial class _20260803054533_InitialCreate : Migration
                 table.ForeignKey(
                     name: "fk_user_claims_users_user_id",
                     column: x => x.user_id,
-                    principalTable: "UserLockout",
+                    principalTable: "user_lockout",
                     principalColumn: "id",
                     onDelete: ReferentialAction.Cascade);
             });
@@ -227,7 +241,7 @@ public partial class _20260803054533_InitialCreate : Migration
                 table.ForeignKey(
                     name: "fk_user_logins_users_user_id",
                     column: x => x.user_id,
-                    principalTable: "UserLockout",
+                    principalTable: "user_lockout",
                     principalColumn: "id",
                     onDelete: ReferentialAction.Cascade);
             });
@@ -246,7 +260,7 @@ public partial class _20260803054533_InitialCreate : Migration
                 table.ForeignKey(
                     name: "fk_user_passkeys_users_user_id",
                     column: x => x.user_id,
-                    principalTable: "UserLockout",
+                    principalTable: "user_lockout",
                     principalColumn: "id",
                     onDelete: ReferentialAction.Cascade);
             });
@@ -270,7 +284,7 @@ public partial class _20260803054533_InitialCreate : Migration
                 table.ForeignKey(
                     name: "fk_user_roles_users_user_id",
                     column: x => x.user_id,
-                    principalTable: "UserLockout",
+                    principalTable: "user_lockout",
                     principalColumn: "id",
                     onDelete: ReferentialAction.Cascade);
             });
@@ -290,7 +304,7 @@ public partial class _20260803054533_InitialCreate : Migration
                 table.ForeignKey(
                     name: "fk_user_tokens_users_user_id",
                     column: x => x.user_id,
-                    principalTable: "UserLockout",
+                    principalTable: "user_lockout",
                     principalColumn: "id",
                     onDelete: ReferentialAction.Cascade);
             });
@@ -381,6 +395,9 @@ public partial class _20260803054533_InitialCreate : Migration
             name: "scopes");
 
         migrationBuilder.DropTable(
+            name: "subject_keys");
+
+        migrationBuilder.DropTable(
             name: "tokens");
 
         migrationBuilder.DropTable(
@@ -405,7 +422,7 @@ public partial class _20260803054533_InitialCreate : Migration
             name: "roles");
 
         migrationBuilder.DropTable(
-            name: "UserLockout");
+            name: "user_lockout");
 
         migrationBuilder.DropTable(
             name: "applications");

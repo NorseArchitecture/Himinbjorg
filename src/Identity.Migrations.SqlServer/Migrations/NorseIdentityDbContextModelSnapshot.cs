@@ -17,7 +17,7 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20260803055150_InitialCreate";
+    public override string LastMigrationId => "20260805160011_InitialCreate";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -355,8 +355,8 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .HasColumnType("varbinary(128)");
 
                 b.Property<string>("PhoneNumber")
-                    .HasMaxLength(20)
-                    .HasColumnType("nvarchar(20)");
+                    .HasMaxLength(256)
+                    .HasColumnType("nvarchar(256)");
 
                 b.Property<bool>("PhoneNumberConfirmed")
                     .HasColumnType("bit");
@@ -532,6 +532,30 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                 b.HasKey("UserId", "LoginProvider", "Name");
 
                 b.ToTable("UserTokens");
+            });
+
+        modelBuilder.Entity("Norse.Identity.EntityFramework.SubjectKey", b =>
+            {
+                b.Property<Guid>("SubjectId")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("uniqueidentifier");
+
+                b.Property<DateTimeOffset>("CreatedAt")
+                    .HasColumnType("datetimeoffset");
+
+                b.Property<byte[]>("WrappedKey")
+                    .IsRequired()
+                    .HasMaxLength(64)
+                    .HasColumnType("varbinary(64)");
+
+                b.Property<string>("WrappingKeyId")
+                    .IsRequired()
+                    .HasMaxLength(128)
+                    .HasColumnType("nvarchar(128)");
+
+                b.HasKey("SubjectId");
+
+                b.ToTable("SubjectKeys");
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseOpenIddictAuthorization", b =>

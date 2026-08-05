@@ -50,6 +50,16 @@ CREATE TABLE [Scopes] (
 GO
 
 
+CREATE TABLE [SubjectKeys] (
+    [SubjectId] uniqueidentifier NOT NULL,
+    [WrappedKey] varbinary(64) NOT NULL,
+    [WrappingKeyId] nvarchar(128) NOT NULL,
+    [CreatedAt] datetimeoffset NOT NULL,
+    CONSTRAINT [PK_SubjectKeys] PRIMARY KEY ([SubjectId])
+);
+GO
+
+
 CREATE TABLE [Users] (
     [Id] uniqueidentifier NOT NULL,
     [SecurityStamp] nchar(32) NOT NULL,
@@ -60,7 +70,7 @@ CREATE TABLE [Users] (
     [EmailConfirmed] bit NOT NULL,
     [PasswordHash] varbinary(128) NULL,
     [ConcurrencyStamp] uniqueidentifier NOT NULL,
-    [PhoneNumber] nvarchar(20) NULL,
+    [PhoneNumber] nvarchar(256) NULL,
     [PhoneNumberConfirmed] bit NOT NULL,
     [TwoFactorEnabled] bit NOT NULL,
     [LockoutEnabled] bit NOT NULL,
