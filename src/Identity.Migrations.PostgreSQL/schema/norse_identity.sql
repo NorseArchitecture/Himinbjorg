@@ -47,11 +47,20 @@ CREATE TABLE scopes (
 );
 
 
+CREATE TABLE subject_key (
+    subject_id uuid NOT NULL,
+    wrapped_key bytea NOT NULL,
+    wrapping_key_id character varying(128) NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    CONSTRAINT pk_subject_key PRIMARY KEY (subject_id)
+);
+
+
 CREATE TABLE users (
     id uuid NOT NULL,
     security_stamp character varying(32) NOT NULL,
     user_name character varying(256) NOT NULL,
-    normalized_user_name character varying(256) NOT NULL,
+    normalized_user_name character varying(256),
     email character varying(256),
     normalized_email character varying(256),
     email_confirmed boolean NOT NULL,

@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Norse.Identity.Migrations.SqlServer.Migrations;
 
 /// <inheritdoc />
-public partial class _20260731003553_InitialCreate : Migration
+public partial class _20260805010739_InitialCreate : Migration
 {
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder)
@@ -71,13 +71,27 @@ public partial class _20260731003553_InitialCreate : Migration
             });
 
         migrationBuilder.CreateTable(
+            name: "SubjectKey",
+            columns: table => new
+            {
+                SubjectId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                WrappedKey = table.Column<byte[]>(type: "varbinary(64)", maxLength: 64, nullable: false),
+                WrappingKeyId = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
+                CreatedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("PK_SubjectKey", x => x.SubjectId);
+            });
+
+        migrationBuilder.CreateTable(
             name: "Users",
             columns: table => new
             {
                 Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                 SecurityStamp = table.Column<string>(type: "nchar(32)", fixedLength: true, maxLength: 32, nullable: false),
                 UserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
-                NormalizedUserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
+                NormalizedUserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                 Email = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                 NormalizedEmail = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                 EmailConfirmed = table.Column<bool>(type: "bit", nullable: false),
@@ -353,7 +367,8 @@ public partial class _20260731003553_InitialCreate : Migration
             name: "UserNameIndex",
             table: "Users",
             column: "NormalizedUserName",
-            unique: true);
+            unique: true,
+            filter: "[NormalizedUserName] IS NOT NULL");
     }
 
     /// <inheritdoc />
@@ -364,6 +379,9 @@ public partial class _20260731003553_InitialCreate : Migration
 
         migrationBuilder.DropTable(
             name: "Scopes");
+
+        migrationBuilder.DropTable(
+            name: "SubjectKey");
 
         migrationBuilder.DropTable(
             name: "Tokens");

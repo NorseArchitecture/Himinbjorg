@@ -3,9 +3,20 @@
 		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="11.*-*" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="11.*-*" />
 		<!-- The entity model itself is provider-neutral; these only exist so the model-building
-		     tests can materialize it against a real relational provider. Npgsql for standard tests;
-		     SqlServer for temporal table composition proof. -->
+		     tests can materialize it against a real relational provider: Npgsql and SqlServer both,
+		     since NorseIdentityModelTests asserts the filtered-vs-unfiltered NormalizedUserName index
+		     per provider. -->
 		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="11.*-*" />
 		<ProjectReference Include="../../src/Identity.EntityFramework/Identity.EntityFramework.csproj" />
+		<!-- The real provider bindings, so NorseIdentityModelTests builds the model the same way the
+		     design-time factories do (ApplyNorseProviderOptions): notably the SQL Server compatibility-
+		     level-170 floor, without which ComplexProperty<T>().ToJson() (the passkey Data mapping) does
+		     not compose the same way a bare UseSqlServer(...) call would produce. -->
+		<NorseRef Include="Persistence.EntityFramework.SqlServer">
+			<Repo>Urdarbrunnr</Repo>
+		</NorseRef>
+		<NorseRef Include="Persistence.EntityFramework.PostgreSQL">
+			<Repo>Urdarbrunnr</Repo>
+		</NorseRef>
 	</ItemGroup>
 </Project>

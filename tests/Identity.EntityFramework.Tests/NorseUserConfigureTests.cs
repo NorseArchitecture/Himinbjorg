@@ -66,14 +66,10 @@ public sealed class NorseUserConfigureTests
 		fk.IsRequired.ShouldBeTrue();
 	}
 
-	[Fact]
-	void Configure_sets_unique_index_on_NormalizedUserName()
-	{
-		var entityType = BuildEntityType();
-		var index = entityType.GetIndexes().Single(i => i.GetDatabaseName() == "IX_Users_NormalizedUserName");
-
-		index.IsUnique.ShouldBeTrue();
-	}
+	// The NormalizedUserName unique index moved to NorseIdentityDbContext.OnModelCreating (2026-08-03
+	// PII spec §4.2): the filter differs by provider ([NormalizedUserName] IS NOT NULL on SQL Server,
+	// unfiltered on Postgres), a decision only the context can make since NorseUser.Configure never
+	// sees the provider. Covered by NorseIdentityModelTests now.
 
 	static IEntityType FindType<T>(IModel model) =>
 		model.FindEntityType(typeof(T))!;

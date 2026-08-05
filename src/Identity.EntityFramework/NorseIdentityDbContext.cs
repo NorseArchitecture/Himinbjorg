@@ -72,5 +72,22 @@ public sealed class NorseIdentityDbContext(DbContextOptions<NorseIdentityDbConte
 			NorseOpenIddictApplication, NorseOpenIddictAuthorization,
 			NorseOpenIddictScope, NorseOpenIddictToken, Guid>();
 		builder.ApplyNorseConfigurations();
+
+		// Filter differs by provider: SQL Server needs an explicit filtered index since the column is
+		// nullable now (payload columns darken on erasure, they don't null -- but the lookup hash
+		// legitimately can be absent pre-hash or post-erasure); Postgres's NULLS DISTINCT default
+		// already treats multiple NULLs as non-colliding, so no filter is needed there.
+		// Temporal system-versioning (spec §4.3) is deferred to a future effort -- IsTemporal() composed
+		// with SplitToTable() on the same entity built a valid model but crashed SQL Server's migrations
+		// SQL generator (NullReferenceException escaping the split table's inherited, incorrectly-null
+		// period-column identifiers) at DDL-generation time. Recorded with a fold-in trigger in
+		// ../Glitnir/docs/Platform/plans/2026-08-03-pii-primitives-identity-erasure-seam.md.
+		var isSqlServer = Database.ProviderName == NorseDbContextOptionsExtensions.SqlServerProviderName;
+		builder.Entity<NorseUser>(entity =>
+		{
+			entity.HasIndex(u => u.NormalizedUserName)
+				.IsUnique()
+				.HasFilter(isSqlServer ? "[NormalizedUserName] IS NOT NULL" : null);
+		});
 	}
 }

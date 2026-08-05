@@ -60,13 +60,11 @@ public sealed class NorseUser : IdentityUser<Guid>, INorseEntity<NorseUser>
 		builder.Property(u => u.PasswordHash).HasConversion(IdentityValueConverters.Hash).HasMaxLength(128);
 		builder.Property(u => u.PhoneNumber).HasMaxLength(20);
 		builder.Property(u => u.UserName).IsRequired();
-		builder.Property(u => u.NormalizedUserName).IsRequired();
 
 		builder.HasMany(u => u.Claims).WithOne(c => c.User).HasForeignKey(c => c.UserId).IsRequired();
 		builder.HasMany(u => u.Logins).WithOne(l => l.User).HasForeignKey(l => l.UserId).IsRequired();
 		builder.HasMany(u => u.Tokens).WithOne(t => t.User).HasForeignKey(t => t.UserId).IsRequired();
 		builder.HasMany(u => u.Passkeys).WithOne(p => p.User).HasForeignKey(p => p.UserId).IsRequired();
 		builder.HasIndex(u => u.NormalizedEmail);
-		builder.HasIndex(u => u.NormalizedUserName).IsUnique();
 	}
 }

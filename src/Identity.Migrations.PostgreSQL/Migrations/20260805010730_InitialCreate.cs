@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Norse.Identity.Migrations.PostgreSQL.Migrations;
 
 /// <inheritdoc />
-public partial class _20260731003544_InitialCreate : Migration
+public partial class _20260805010730_InitialCreate : Migration
 {
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder)
@@ -72,13 +72,27 @@ public partial class _20260731003544_InitialCreate : Migration
             });
 
         migrationBuilder.CreateTable(
+            name: "subject_key",
+            columns: table => new
+            {
+                subject_id = table.Column<Guid>(type: "uuid", nullable: false),
+                wrapped_key = table.Column<byte[]>(type: "bytea", maxLength: 64, nullable: false),
+                wrapping_key_id = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
+                created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("pk_subject_key", x => x.subject_id);
+            });
+
+        migrationBuilder.CreateTable(
             name: "users",
             columns: table => new
             {
                 id = table.Column<Guid>(type: "uuid", nullable: false),
                 security_stamp = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
                 user_name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
-                normalized_user_name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                normalized_user_name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
                 email = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
                 normalized_email = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
                 email_confirmed = table.Column<bool>(type: "boolean", nullable: false),
@@ -362,6 +376,9 @@ public partial class _20260731003544_InitialCreate : Migration
 
         migrationBuilder.DropTable(
             name: "scopes");
+
+        migrationBuilder.DropTable(
+            name: "subject_key");
 
         migrationBuilder.DropTable(
             name: "tokens");

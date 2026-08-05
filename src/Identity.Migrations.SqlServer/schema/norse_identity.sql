@@ -50,11 +50,21 @@ CREATE TABLE [Scopes] (
 GO
 
 
+CREATE TABLE [SubjectKey] (
+    [SubjectId] uniqueidentifier NOT NULL,
+    [WrappedKey] varbinary(64) NOT NULL,
+    [WrappingKeyId] nvarchar(128) NOT NULL,
+    [CreatedAt] datetimeoffset NOT NULL,
+    CONSTRAINT [PK_SubjectKey] PRIMARY KEY ([SubjectId])
+);
+GO
+
+
 CREATE TABLE [Users] (
     [Id] uniqueidentifier NOT NULL,
     [SecurityStamp] nchar(32) NOT NULL,
     [UserName] nvarchar(256) NOT NULL,
-    [NormalizedUserName] nvarchar(256) NOT NULL,
+    [NormalizedUserName] nvarchar(256) NULL,
     [Email] nvarchar(256) NULL,
     [NormalizedEmail] nvarchar(256) NULL,
     [EmailConfirmed] bit NOT NULL,
@@ -224,7 +234,7 @@ CREATE INDEX [EmailIndex] ON [Users] ([NormalizedEmail]);
 GO
 
 
-CREATE UNIQUE INDEX [UserNameIndex] ON [Users] ([NormalizedUserName]);
+CREATE UNIQUE INDEX [UserNameIndex] ON [Users] ([NormalizedUserName]) WHERE [NormalizedUserName] IS NOT NULL;
 GO
 
 
