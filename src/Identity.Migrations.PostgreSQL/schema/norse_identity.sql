@@ -66,7 +66,7 @@ CREATE TABLE users (
     email_confirmed boolean NOT NULL,
     password_hash bytea,
     concurrency_stamp uuid NOT NULL,
-    phone_number character varying(20),
+    phone_number character varying(256),
     phone_number_confirmed boolean NOT NULL,
     two_factor_enabled boolean NOT NULL,
     lockout_end timestamp with time zone,

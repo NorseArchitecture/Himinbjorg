@@ -17,7 +17,7 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20260805011449_InitialCreate";
+    public override string LastMigrationId => "20260805035438_InitialCreate";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -430,8 +430,8 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .HasColumnName("password_hash");
 
                 b.Property<string>("PhoneNumber")
-                    .HasMaxLength(20)
-                    .HasColumnType("character varying(20)")
+                    .HasMaxLength(256)
+                    .HasColumnType("character varying(256)")
                     .HasColumnName("phone_number");
 
                 b.Property<bool>("PhoneNumberConfirmed")

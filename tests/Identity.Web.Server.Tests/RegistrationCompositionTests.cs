@@ -2,6 +2,7 @@ using FluentValidation;
 using Microsoft.Extensions.Hosting;
 using Norse.Abstractions.Web.Server.Mediator;
 using Norse.AuthN.Services;
+using Norse.Identity.Web.Server.Disclosure;
 
 namespace Norse.Identity.Web.Server.Tests;
 
@@ -19,18 +20,24 @@ public sealed class RegistrationCompositionTests
 		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<LoginCommand, LoginResult>));
 		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<RegisterCommand, RegisterResult>));
 		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<LogoutCommand, LogoutResult>));
-		services.Count(d => d.ServiceType == typeof(ISenderDispatch)).ShouldBe(3);
+		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<GetMyPersonalDataCommand, PersonalDataResponse>));
+		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<MaskedPersonalDataCommand, MaskedPersonalDataResponse>));
+		services.Count(d => d.ServiceType == typeof(ISenderDispatch)).ShouldBe(5);
 
 		// The generated CommandRequestValidator<TCommand,TWire,TResponse> adapters — emitted
-		// uniformly for every wrapper command, LogoutCommand included even though no IValidator<Unit>
-		// exists anywhere (an empty child collection validates clean; absence is a pass).
+		// uniformly for every wrapper command, LogoutCommand/GetMyPersonalDataCommand included even
+		// though no IValidator<Unit>/IValidator<GetMyPersonalDataRequest> exists anywhere (an empty
+		// child collection validates clean; absence is a pass).
 		services.ShouldContain(d => d.ServiceType == typeof(IValidator<LoginCommand>));
 		services.ShouldContain(d => d.ServiceType == typeof(IValidator<RegisterCommand>));
 		services.ShouldContain(d => d.ServiceType == typeof(IValidator<LogoutCommand>));
+		services.ShouldContain(d => d.ServiceType == typeof(IValidator<GetMyPersonalDataCommand>));
+		services.ShouldContain(d => d.ServiceType == typeof(IValidator<MaskedPersonalDataCommand>));
 
 		// Heimdall's real wire validators — registered under IValidator<TWire> so the adapters above
 		// have something to resolve and run.
 		services.ShouldContain(d => d.ServiceType == typeof(IValidator<LoginRequest>));
 		services.ShouldContain(d => d.ServiceType == typeof(IValidator<RegisterRequest>));
+		services.ShouldContain(d => d.ServiceType == typeof(IValidator<GetMaskedPersonalDataRequest>));
 	}
 }

@@ -58,7 +58,12 @@ public sealed class NorseUser : IdentityUser<Guid>, INorseEntity<NorseUser>
 		// downside, no upside, for Postgres.
 		builder.Property(u => u.SecurityStamp).HasMaxLength(32).IsRequired();
 		builder.Property(u => u.PasswordHash).HasConversion(IdentityValueConverters.Hash).HasMaxLength(128);
-		builder.Property(u => u.PhoneNumber).HasMaxLength(20);
+		// 20 fit a raw E.164 number; it doesn't fit the NorsePersonalDataProtector envelope
+		// ("v1:{subjectId:D}:{base64}") ProtectPersonalData now writes here instead -- 256 mirrors
+		// Email's own ASP.NET Core Identity convention bound (also unbounded-by-us, also ciphertext at
+		// rest, also fits comfortably: worst case is "v1:" + a 36-char GUID + ":" + base64(12-byte
+		// nonce + 16-byte E.164 plaintext + 16-byte tag), well under 100 characters).
+		builder.Property(u => u.PhoneNumber).HasMaxLength(256);
 		builder.Property(u => u.UserName).IsRequired();
 
 		builder.HasMany(u => u.Claims).WithOne(c => c.User).HasForeignKey(c => c.UserId).IsRequired();

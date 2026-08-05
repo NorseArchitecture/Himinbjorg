@@ -70,7 +70,7 @@ CREATE TABLE [Users] (
     [EmailConfirmed] bit NOT NULL,
     [PasswordHash] varbinary(128) NULL,
     [ConcurrencyStamp] uniqueidentifier NOT NULL,
-    [PhoneNumber] nvarchar(20) NULL,
+    [PhoneNumber] nvarchar(256) NULL,
     [PhoneNumberConfirmed] bit NOT NULL,
     [TwoFactorEnabled] bit NOT NULL,
     [LockoutEnd] datetimeoffset NULL,

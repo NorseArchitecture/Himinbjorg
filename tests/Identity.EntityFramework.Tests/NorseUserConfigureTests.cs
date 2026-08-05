@@ -28,7 +28,10 @@ public sealed class NorseUserConfigureTests
 	{
 		var entityType = BuildEntityType();
 
-		entityType.FindProperty(nameof(NorseUser.PhoneNumber))!.GetMaxLength().ShouldBe(20);
+		// 256, not a raw E.164 bound: this column now carries the NorsePersonalDataProtector envelope
+		// ("v1:{subjectId:D}:{base64}"), not a bare phone number -- mirrors Email's own ASP.NET Core
+		// Identity convention bound, which fits the same envelope shape comfortably.
+		entityType.FindProperty(nameof(NorseUser.PhoneNumber))!.GetMaxLength().ShouldBe(256);
 	}
 
 	[Fact]

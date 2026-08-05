@@ -113,12 +113,14 @@ public sealed class PostgresIdentityFixture : IAsyncLifetime
 	}
 
 	/// <summary>Seeds a user through the real <c>NorseUserManager</c> chokepoint -- no manual <c>SubjectCryptoScope</c>.</summary>
-	public async Task<NorseUser> SeedUserAsync(string email)
+	/// <param name="email">The user's email -- also stands in as the username.</param>
+	/// <param name="phone">The user's phone number, E.164. Omitted leaves the column null, same as a user who never supplied one.</param>
+	public async Task<NorseUser> SeedUserAsync(string email, string? phone = null)
 	{
 		var scope = _host.Services.CreateScope();
 		_scopes.Add(scope);
 		var userManager = scope.ServiceProvider.GetRequiredService<UserManager<NorseUser>>();
-		NorseUser user = new() { UserName = email, Email = email };
+		NorseUser user = new() { UserName = email, Email = email, PhoneNumber = phone };
 		var result = await userManager.CreateAsync(user);
 		return result.Succeeded ?
 			user :
