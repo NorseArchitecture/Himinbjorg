@@ -170,4 +170,12 @@ public sealed class PostgresIdentityFixture : IAsyncLifetime
 		_scopes.Add(scope);
 		return scope.ServiceProvider.GetRequiredService<UserManager<NorseUser>>();
 	}
+
+	/// <summary>Resolves a real <see cref="RoleManager{TRole}"/> from a new DI scope, for tests that grant and revoke roles.</summary>
+	public RoleManager<NorseRole> CreateRoleManager()
+	{
+		var scope = _host.Services.CreateScope();
+		_scopes.Add(scope);
+		return scope.ServiceProvider.GetRequiredService<RoleManager<NorseRole>>();
+	}
 }

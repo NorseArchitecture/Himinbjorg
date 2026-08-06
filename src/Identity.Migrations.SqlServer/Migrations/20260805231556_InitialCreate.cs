@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Norse.Identity.Migrations.SqlServer.Migrations;
 
 /// <inheritdoc />
-public partial class _20260805035454_InitialCreate : Migration
+public partial class _20260805231556_InitialCreate : Migration
 {
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder)
@@ -16,6 +16,10 @@ public partial class _20260805035454_InitialCreate : Migration
             columns: table => new
             {
                 Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                SystemPeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    .Annotation("SqlServer:TemporalIsPeriodEndColumn", true),
+                SystemPeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    .Annotation("SqlServer:TemporalIsPeriodStartColumn", true),
                 ApplicationType = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
                 ClientId = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                 ClientSecret = table.Column<string>(type: "nvarchar(max)", maxLength: -1, nullable: true),
@@ -35,13 +39,22 @@ public partial class _20260805035454_InitialCreate : Migration
             constraints: table =>
             {
                 table.PrimaryKey("PK_Applications", x => x.Id);
-            });
+            })
+            .Annotation("SqlServer:IsTemporal", true)
+            .Annotation("SqlServer:TemporalHistoryTableName", "ApplicationsHistory")
+            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
+            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
 
         migrationBuilder.CreateTable(
             name: "Roles",
             columns: table => new
             {
                 Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                SystemPeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    .Annotation("SqlServer:TemporalIsPeriodEndColumn", true),
+                SystemPeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    .Annotation("SqlServer:TemporalIsPeriodStartColumn", true),
                 Name = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
                 NormalizedName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
                 ConcurrencyStamp = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
@@ -49,13 +62,22 @@ public partial class _20260805035454_InitialCreate : Migration
             constraints: table =>
             {
                 table.PrimaryKey("PK_Roles", x => x.Id);
-            });
+            })
+            .Annotation("SqlServer:IsTemporal", true)
+            .Annotation("SqlServer:TemporalHistoryTableName", "RolesHistory")
+            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
+            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
 
         migrationBuilder.CreateTable(
             name: "Scopes",
             columns: table => new
             {
                 Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                SystemPeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    .Annotation("SqlServer:TemporalIsPeriodEndColumn", true),
+                SystemPeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    .Annotation("SqlServer:TemporalIsPeriodStartColumn", true),
                 ConcurrencyToken = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
                 Description = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
                 Descriptions = table.Column<string>(type: "nvarchar(max)", maxLength: -1, nullable: true),
@@ -68,7 +90,12 @@ public partial class _20260805035454_InitialCreate : Migration
             constraints: table =>
             {
                 table.PrimaryKey("PK_Scopes", x => x.Id);
-            });
+            })
+            .Annotation("SqlServer:IsTemporal", true)
+            .Annotation("SqlServer:TemporalHistoryTableName", "ScopesHistory")
+            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
+            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
 
         migrationBuilder.CreateTable(
             name: "SubjectKeys",
@@ -90,6 +117,10 @@ public partial class _20260805035454_InitialCreate : Migration
             {
                 Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                 SecurityStamp = table.Column<string>(type: "nchar(32)", fixedLength: true, maxLength: 32, nullable: false),
+                SystemPeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    .Annotation("SqlServer:TemporalIsPeriodEndColumn", true),
+                SystemPeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    .Annotation("SqlServer:TemporalIsPeriodStartColumn", true),
                 UserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
                 NormalizedUserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                 Email = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
@@ -107,7 +138,12 @@ public partial class _20260805035454_InitialCreate : Migration
             constraints: table =>
             {
                 table.PrimaryKey("PK_Users", x => x.Id);
-            });
+            })
+            .Annotation("SqlServer:IsTemporal", true)
+            .Annotation("SqlServer:TemporalHistoryTableName", "UsersHistory")
+            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
+            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
 
         migrationBuilder.CreateTable(
             name: "Authorizations",
@@ -139,6 +175,10 @@ public partial class _20260805035454_InitialCreate : Migration
             {
                 Id = table.Column<int>(type: "int", nullable: false)
                     .Annotation("SqlServer:Identity", "1, 1"),
+                SystemPeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    .Annotation("SqlServer:TemporalIsPeriodEndColumn", true),
+                SystemPeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    .Annotation("SqlServer:TemporalIsPeriodStartColumn", true),
                 RoleId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                 ClaimType = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
                 ClaimValue = table.Column<string>(type: "nvarchar(max)", maxLength: -1, nullable: false)
@@ -152,7 +192,12 @@ public partial class _20260805035454_InitialCreate : Migration
                     principalTable: "Roles",
                     principalColumn: "Id",
                     onDelete: ReferentialAction.Cascade);
-            });
+            })
+            .Annotation("SqlServer:IsTemporal", true)
+            .Annotation("SqlServer:TemporalHistoryTableName", "RoleClaimsHistory")
+            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
+            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
 
         migrationBuilder.CreateTable(
             name: "UserClaims",
@@ -160,6 +205,10 @@ public partial class _20260805035454_InitialCreate : Migration
             {
                 Id = table.Column<int>(type: "int", nullable: false)
                     .Annotation("SqlServer:Identity", "1, 1"),
+                SystemPeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    .Annotation("SqlServer:TemporalIsPeriodEndColumn", true),
+                SystemPeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    .Annotation("SqlServer:TemporalIsPeriodStartColumn", true),
                 UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                 ClaimType = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
                 ClaimValue = table.Column<string>(type: "nvarchar(max)", maxLength: -1, nullable: false)
@@ -173,7 +222,12 @@ public partial class _20260805035454_InitialCreate : Migration
                     principalTable: "Users",
                     principalColumn: "Id",
                     onDelete: ReferentialAction.Cascade);
-            });
+            })
+            .Annotation("SqlServer:IsTemporal", true)
+            .Annotation("SqlServer:TemporalHistoryTableName", "UserClaimsHistory")
+            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
+            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
 
         migrationBuilder.CreateTable(
             name: "UserLogins",
@@ -181,6 +235,10 @@ public partial class _20260805035454_InitialCreate : Migration
             {
                 LoginProvider = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
                 ProviderKey = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
+                SystemPeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    .Annotation("SqlServer:TemporalIsPeriodEndColumn", true),
+                SystemPeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    .Annotation("SqlServer:TemporalIsPeriodStartColumn", true),
                 ProviderDisplayName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                 UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
             },
@@ -193,7 +251,12 @@ public partial class _20260805035454_InitialCreate : Migration
                     principalTable: "Users",
                     principalColumn: "Id",
                     onDelete: ReferentialAction.Cascade);
-            });
+            })
+            .Annotation("SqlServer:IsTemporal", true)
+            .Annotation("SqlServer:TemporalHistoryTableName", "UserLoginsHistory")
+            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
+            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
 
         migrationBuilder.CreateTable(
             name: "UserPasskeys",
@@ -219,7 +282,11 @@ public partial class _20260805035454_InitialCreate : Migration
             columns: table => new
             {
                 UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                RoleId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
+                RoleId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                SystemPeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    .Annotation("SqlServer:TemporalIsPeriodEndColumn", true),
+                SystemPeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    .Annotation("SqlServer:TemporalIsPeriodStartColumn", true)
             },
             constraints: table =>
             {
@@ -236,7 +303,12 @@ public partial class _20260805035454_InitialCreate : Migration
                     principalTable: "Users",
                     principalColumn: "Id",
                     onDelete: ReferentialAction.Cascade);
-            });
+            })
+            .Annotation("SqlServer:IsTemporal", true)
+            .Annotation("SqlServer:TemporalHistoryTableName", "UserRolesHistory")
+            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
+            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
 
         migrationBuilder.CreateTable(
             name: "UserTokens",
@@ -375,10 +447,20 @@ public partial class _20260805035454_InitialCreate : Migration
     protected override void Down(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.DropTable(
-            name: "RoleClaims");
+            name: "RoleClaims")
+            .Annotation("SqlServer:IsTemporal", true)
+            .Annotation("SqlServer:TemporalHistoryTableName", "RoleClaimsHistory")
+            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
+            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
 
         migrationBuilder.DropTable(
-            name: "Scopes");
+            name: "Scopes")
+            .Annotation("SqlServer:IsTemporal", true)
+            .Annotation("SqlServer:TemporalHistoryTableName", "ScopesHistory")
+            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
+            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
 
         migrationBuilder.DropTable(
             name: "SubjectKeys");
@@ -387,16 +469,31 @@ public partial class _20260805035454_InitialCreate : Migration
             name: "Tokens");
 
         migrationBuilder.DropTable(
-            name: "UserClaims");
+            name: "UserClaims")
+            .Annotation("SqlServer:IsTemporal", true)
+            .Annotation("SqlServer:TemporalHistoryTableName", "UserClaimsHistory")
+            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
+            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
 
         migrationBuilder.DropTable(
-            name: "UserLogins");
+            name: "UserLogins")
+            .Annotation("SqlServer:IsTemporal", true)
+            .Annotation("SqlServer:TemporalHistoryTableName", "UserLoginsHistory")
+            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
+            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
 
         migrationBuilder.DropTable(
             name: "UserPasskeys");
 
         migrationBuilder.DropTable(
-            name: "UserRoles");
+            name: "UserRoles")
+            .Annotation("SqlServer:IsTemporal", true)
+            .Annotation("SqlServer:TemporalHistoryTableName", "UserRolesHistory")
+            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
+            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
 
         migrationBuilder.DropTable(
             name: "UserTokens");
@@ -405,12 +502,27 @@ public partial class _20260805035454_InitialCreate : Migration
             name: "Authorizations");
 
         migrationBuilder.DropTable(
-            name: "Roles");
+            name: "Roles")
+            .Annotation("SqlServer:IsTemporal", true)
+            .Annotation("SqlServer:TemporalHistoryTableName", "RolesHistory")
+            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
+            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
 
         migrationBuilder.DropTable(
-            name: "Users");
+            name: "Users")
+            .Annotation("SqlServer:IsTemporal", true)
+            .Annotation("SqlServer:TemporalHistoryTableName", "UsersHistory")
+            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
+            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
 
         migrationBuilder.DropTable(
-            name: "Applications");
+            name: "Applications")
+            .Annotation("SqlServer:IsTemporal", true)
+            .Annotation("SqlServer:TemporalHistoryTableName", "ApplicationsHistory")
+            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
+            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
     }
 }

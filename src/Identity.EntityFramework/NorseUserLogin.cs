@@ -7,8 +7,10 @@ namespace Norse.Identity.EntityFramework;
 
 /// <summary>
 /// Norse platform ASP.NET Core Identity external-login entity, keyed by <see cref="Guid"/>.
+/// System-versioned deliberately: a third-party link that existed and was later disconnected is
+/// identity record worth keeping (Himinbjörg#47 open question 4, ruled 2026-08-05).
 /// </summary>
-public sealed class NorseUserLogin : IdentityUserLogin<Guid>, INorseEntity<NorseUserLogin>
+public sealed class NorseUserLogin : IdentityUserLogin<Guid>, INorseEntity<NorseUserLogin>, ITemporalEntity
 {
 	/// <summary>
 	/// The user this external login belongs to.

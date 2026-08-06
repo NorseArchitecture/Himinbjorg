@@ -9,7 +9,7 @@ namespace Norse.Identity.EntityFramework;
 /// Norse wrapper over OpenIddict's EF Core scope entity, keyed by <see cref="Guid"/>.
 /// </summary>
 public sealed class NorseOpenIddictScope
-	: OpenIddictEntityFrameworkCoreScope<Guid>, INorseEntity<NorseOpenIddictScope>
+	: OpenIddictEntityFrameworkCoreScope<Guid>, INorseEntity<NorseOpenIddictScope>, ITemporalEntity
 {
 	/// <inheritdoc />
 	public static void Configure(EntityTypeBuilder<NorseOpenIddictScope> builder)
