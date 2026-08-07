@@ -8,7 +8,7 @@ namespace Norse.Identity.EntityFramework;
 /// <summary>
 /// Norse platform ASP.NET Core Identity user entity, keyed by <see cref="Guid"/>.
 /// </summary>
-public sealed class NorseUser : IdentityUser<Guid>, INorseEntity<NorseUser>
+public sealed class NorseUser : IdentityUser<Guid>, INorseEntity<NorseUser>, ITemporalEntity
 {
 	/// <summary>
 	/// The user's claims.
@@ -82,6 +82,10 @@ public sealed class NorseUser : IdentityUser<Guid>, INorseEntity<NorseUser>
 			lockout.Property(u => u.LockoutEnd);
 			lockout.Property(u => u.AccessFailedCount);
 		});
+		// Temporal + table-splitting is unsupported on SQL Server (dotnet/efcore#26457,
+		// migration generation fails per #30366) -- acknowledge the park per Urðarbrunnr's chassis
+		// guard until Himinbjörg#47's .NET 11 preview 7 spike confirms the fix and this comes out.
+		builder.TemporalParkedOnSqlServer();
 
 		builder.HasMany(u => u.Claims).WithOne(c => c.User).HasForeignKey(c => c.UserId).IsRequired();
 		builder.HasMany(u => u.Logins).WithOne(l => l.User).HasForeignKey(l => l.UserId).IsRequired();

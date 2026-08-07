@@ -42,4 +42,9 @@ public sealed class AuthenticationService(ISender sender) : IAuthenticationServi
 	[Authorize(Policy = AuthNPolicies.Public)]
 	public Task<Outcome<LogoutResult>> Logout(CancellationToken cancellationToken = default) =>
 		sender.Send(new LogoutCommand(Unit.Value), cancellationToken).AsTask();
+
+	/// <inheritdoc />
+	[Authorize(Policy = AuthNPolicies.Public)]
+	public Task<Outcome<BoolResponse>> EmailExists(EmailExistsRequest request, CancellationToken cancellationToken = default) =>
+		sender.Send(new EmailExistsCommand(request), cancellationToken).AsTask();
 }

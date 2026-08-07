@@ -17,7 +17,7 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20260805160004_InitialCreate";
+    public override string LastMigrationId => "20260805231543_InitialCreate";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -119,6 +119,8 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .HasDatabaseName("ix_applications_client_id");
 
                 b.ToTable("applications");
+
+                b.HasAnnotation("Norse:Temporal", true);
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseOpenIddictAuthorization", b =>
@@ -232,6 +234,8 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .HasDatabaseName("ix_scopes_name");
 
                 b.ToTable("scopes");
+
+                b.HasAnnotation("Norse:Temporal", true);
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseOpenIddictToken", b =>
@@ -345,6 +349,8 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .HasDatabaseName("role_name_index");
 
                 b.ToTable("roles");
+
+                b.HasAnnotation("Norse:Temporal", true);
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseRoleClaim", b =>
@@ -379,6 +385,8 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .HasDatabaseName("ix_role_claims_role_id");
 
                 b.ToTable("role_claims");
+
+                b.HasAnnotation("Norse:Temporal", true);
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUser", b =>
@@ -454,7 +462,8 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .HasColumnType("character varying(256)")
                     .HasColumnName("user_name");
 
-                b.HasKey("Id");
+                b.HasKey("Id")
+                    .HasName("pk_users");
 
                 b.HasIndex("NormalizedEmail")
                     .HasDatabaseName("email_index");
@@ -465,12 +474,7 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
 
                 b.ToTable("users");
 
-                b.SplitToTable("user_lockout", null, t =>
-                    {
-                        t.Property("AccessFailedCount");
-
-                        t.Property("LockoutEnd");
-                    });
+                b.HasAnnotation("Norse:Temporal", true);
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserClaim", b =>
@@ -505,6 +509,8 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .HasDatabaseName("ix_user_claims_user_id");
 
                 b.ToTable("user_claims");
+
+                b.HasAnnotation("Norse:Temporal", true);
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserLogin", b =>
@@ -535,6 +541,8 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .HasDatabaseName("ix_user_logins_user_id");
 
                 b.ToTable("user_logins");
+
+                b.HasAnnotation("Norse:Temporal", true);
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserPasskey", b =>
@@ -608,6 +616,8 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .HasDatabaseName("ix_user_roles_role_id");
 
                 b.ToTable("user_roles");
+
+                b.HasAnnotation("Norse:Temporal", true);
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserToken", b =>
@@ -703,15 +713,6 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .HasConstraintName("fk_role_claims_roles_role_id");
 
                 b.Navigation("Role");
-            });
-
-        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUser", b =>
-            {
-                b.HasOne("Norse.Identity.EntityFramework.NorseUser", null)
-                    .WithOne()
-                    .HasForeignKey("Norse.Identity.EntityFramework.NorseUser", "Id")
-                    .OnDelete(DeleteBehavior.Cascade)
-                    .IsRequired();
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserClaim", b =>

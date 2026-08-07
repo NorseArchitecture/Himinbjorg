@@ -12,7 +12,7 @@ namespace Norse.Identity.EntityFramework;
 /// </summary>
 public sealed class NorseOpenIddictApplication
 	: OpenIddictEntityFrameworkCoreApplication<Guid, NorseOpenIddictAuthorization, NorseOpenIddictToken>,
-	  INorseEntity<NorseOpenIddictApplication>
+	  INorseEntity<NorseOpenIddictApplication>, ITemporalEntity
 {
 	/// <inheritdoc />
 	public static void Configure(EntityTypeBuilder<NorseOpenIddictApplication> builder)

@@ -11,7 +11,7 @@ namespace Norse.Identity.EntityFramework;
 /// against the join row, which EF Core's implicit skip-navigation many-to-many cannot do without
 /// dropping into raw SQL.
 /// </summary>
-public sealed class NorseUserRole : IdentityUserRole<Guid>, INorseEntity<NorseUserRole>
+public sealed class NorseUserRole : IdentityUserRole<Guid>, INorseEntity<NorseUserRole>, ITemporalEntity
 {
 	/// <summary>
 	/// The user.

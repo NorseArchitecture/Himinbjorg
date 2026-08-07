@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 // Microsoft.NET.Sdk, not Sdk.Web: DI's implicit using doesn't come for free here.
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.EntityFrameworkCore.Metadata;
 using Norse.Persistence.EntityFramework;
 using Norse.Primitives.Identifiers;
 
@@ -14,9 +14,9 @@ namespace Norse.Identity.EntityFramework;
 /// combining ASP.NET Core Identity and OpenIddict entity sets. Naming conventions are applied by
 /// whichever provider registration extension registers this context (see
 /// <c>Norse.Persistence.EntityFramework.PostgreSQL.NorsePostgresContextExtensions</c> and its SQL Server
-/// counterpart) — this class replicates <see cref="NorseDbContext"/>'s fixed-length and
-/// <see cref="SequentialGuid"/> byte-order provider checks independently since it inherits
-/// <c>IdentityDbContext</c>, not <see cref="NorseDbContext"/>.
+/// counterpart) — this class replicates <see cref="NorseDbContext"/>'s fixed-length,
+/// <see cref="SequentialGuid"/> byte-order, and temporal-realization plumbing independently since it
+/// inherits <c>IdentityDbContext</c>, not <see cref="NorseDbContext"/>.
 /// </summary>
 /// <param name="options">The options for this context.</param>
 public sealed class NorseIdentityDbContext(DbContextOptions<NorseIdentityDbContext> options)
@@ -25,9 +25,8 @@ public sealed class NorseIdentityDbContext(DbContextOptions<NorseIdentityDbConte
 		NorseUserClaim, NorseUserRole, NorseUserLogin,
 		NorseRoleClaim, NorseUserToken, NorseUserPasskey>(options), INorseDbContext
 {
-	// Field initializer, not a captured primary-ctor parameter (CS9107): mirrors NorseDbContext's own
-	// field -- this context can't inherit that base (it inherits IdentityDbContext), so it replicates
-	// the read independently, same as the fixed-length/SequentialGuid checks below.
+	// Field initializer, not a captured primary-ctor parameter (CS9107), mirroring NorseDbContext: the
+	// options are read once at construction, and the hook is the only fact this context needs from them.
 	readonly Action<IConventionEntityType>? _temporalRealizationHook = options.GetTemporalRealizationHook();
 
 	/// <summary>
@@ -93,11 +92,15 @@ public sealed class NorseIdentityDbContext(DbContextOptions<NorseIdentityDbConte
 		// nullable now (payload columns darken on erasure, they don't null -- but the lookup hash
 		// legitimately can be absent pre-hash or post-erasure); Postgres's NULLS DISTINCT default
 		// already treats multiple NULLs as non-colliding, so no filter is needed there.
-		// Temporal system-versioning (spec §4.3) is deferred to a future effort -- IsTemporal() composed
-		// with SplitToTable() on the same entity built a valid model but crashed SQL Server's migrations
-		// SQL generator (NullReferenceException escaping the split table's inherited, incorrectly-null
-		// period-column identifiers) at DDL-generation time. Recorded with a fold-in trigger in
-		// ../Glitnir/docs/Platform/plans/2026-08-03-pii-primitives-identity-erasure-seam.md.
+		// Temporal system-versioning is on, un-split: the eight entities carrying the durable identity
+		// and authorization record declare ITemporalEntity, and Urðarbrunnr's chassis realizes it --
+		// PostgreSQL in migration SQL generation, SQL Server through the realization hook read off this
+		// context's options above. Nothing composes IsTemporal() with SplitToTable() here yet, so the
+		// dotnet/efcore#30366 NullReferenceException that parked this effort is out of reach on this
+		// branch. The AccessFailedCount/LockoutEnd split (Himinbjörg#47) is the shape that reaches it,
+		// and it composes at .NET 11 preview 7 behind TemporalParkedOnSqlServer() -- until then, lockout
+		// churn mints history rows on users, accepted on the record for the local proving ground. Full
+		// design: ../Glitnir/docs/Platform/specs/2026-08-04-temporal-tables-persistence-chassis-design.md.
 		var isSqlServer = Database.ProviderName == NorseDbContextOptionsExtensions.SqlServerProviderName;
 		builder.Entity<NorseUser>(entity =>
 		{

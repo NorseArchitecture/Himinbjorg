@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Norse.Identity.Migrations.SqlServer.Migrations;
 
 /// <inheritdoc />
-public partial class _20260805160011_InitialCreate : Migration
+public partial class _20260805231556_InitialCreate : Migration
 {
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder)
@@ -16,6 +16,10 @@ public partial class _20260805160011_InitialCreate : Migration
             columns: table => new
             {
                 Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                SystemPeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    .Annotation("SqlServer:TemporalIsPeriodEndColumn", true),
+                SystemPeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    .Annotation("SqlServer:TemporalIsPeriodStartColumn", true),
                 ApplicationType = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
                 ClientId = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                 ClientSecret = table.Column<string>(type: "nvarchar(max)", maxLength: -1, nullable: true),
@@ -35,13 +39,22 @@ public partial class _20260805160011_InitialCreate : Migration
             constraints: table =>
             {
                 table.PrimaryKey("PK_Applications", x => x.Id);
-            });
+            })
+            .Annotation("SqlServer:IsTemporal", true)
+            .Annotation("SqlServer:TemporalHistoryTableName", "ApplicationsHistory")
+            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
+            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
 
         migrationBuilder.CreateTable(
             name: "Roles",
             columns: table => new
             {
                 Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                SystemPeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    .Annotation("SqlServer:TemporalIsPeriodEndColumn", true),
+                SystemPeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    .Annotation("SqlServer:TemporalIsPeriodStartColumn", true),
                 Name = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
                 NormalizedName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
                 ConcurrencyStamp = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
@@ -49,13 +62,22 @@ public partial class _20260805160011_InitialCreate : Migration
             constraints: table =>
             {
                 table.PrimaryKey("PK_Roles", x => x.Id);
-            });
+            })
+            .Annotation("SqlServer:IsTemporal", true)
+            .Annotation("SqlServer:TemporalHistoryTableName", "RolesHistory")
+            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
+            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
 
         migrationBuilder.CreateTable(
             name: "Scopes",
             columns: table => new
             {
                 Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                SystemPeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    .Annotation("SqlServer:TemporalIsPeriodEndColumn", true),
+                SystemPeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    .Annotation("SqlServer:TemporalIsPeriodStartColumn", true),
                 ConcurrencyToken = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
                 Description = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
                 Descriptions = table.Column<string>(type: "nvarchar(max)", maxLength: -1, nullable: true),
@@ -68,7 +90,12 @@ public partial class _20260805160011_InitialCreate : Migration
             constraints: table =>
             {
                 table.PrimaryKey("PK_Scopes", x => x.Id);
-            });
+            })
+            .Annotation("SqlServer:IsTemporal", true)
+            .Annotation("SqlServer:TemporalHistoryTableName", "ScopesHistory")
+            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
+            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
 
         migrationBuilder.CreateTable(
             name: "SubjectKeys",
@@ -90,6 +117,10 @@ public partial class _20260805160011_InitialCreate : Migration
             {
                 Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                 SecurityStamp = table.Column<string>(type: "nchar(32)", fixedLength: true, maxLength: 32, nullable: false),
+                SystemPeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    .Annotation("SqlServer:TemporalIsPeriodEndColumn", true),
+                SystemPeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    .Annotation("SqlServer:TemporalIsPeriodStartColumn", true),
                 UserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
                 NormalizedUserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                 Email = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
@@ -100,12 +131,19 @@ public partial class _20260805160011_InitialCreate : Migration
                 PhoneNumber = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                 PhoneNumberConfirmed = table.Column<bool>(type: "bit", nullable: false),
                 TwoFactorEnabled = table.Column<bool>(type: "bit", nullable: false),
-                LockoutEnabled = table.Column<bool>(type: "bit", nullable: false)
+                LockoutEnd = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true),
+                LockoutEnabled = table.Column<bool>(type: "bit", nullable: false),
+                AccessFailedCount = table.Column<int>(type: "int", nullable: false)
             },
             constraints: table =>
             {
                 table.PrimaryKey("PK_Users", x => x.Id);
-            });
+            })
+            .Annotation("SqlServer:IsTemporal", true)
+            .Annotation("SqlServer:TemporalHistoryTableName", "UsersHistory")
+            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
+            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
 
         migrationBuilder.CreateTable(
             name: "Authorizations",
@@ -137,6 +175,10 @@ public partial class _20260805160011_InitialCreate : Migration
             {
                 Id = table.Column<int>(type: "int", nullable: false)
                     .Annotation("SqlServer:Identity", "1, 1"),
+                SystemPeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    .Annotation("SqlServer:TemporalIsPeriodEndColumn", true),
+                SystemPeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    .Annotation("SqlServer:TemporalIsPeriodStartColumn", true),
                 RoleId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                 ClaimType = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
                 ClaimValue = table.Column<string>(type: "nvarchar(max)", maxLength: -1, nullable: false)
@@ -150,22 +192,139 @@ public partial class _20260805160011_InitialCreate : Migration
                     principalTable: "Roles",
                     principalColumn: "Id",
                     onDelete: ReferentialAction.Cascade);
-            });
+            })
+            .Annotation("SqlServer:IsTemporal", true)
+            .Annotation("SqlServer:TemporalHistoryTableName", "RoleClaimsHistory")
+            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
+            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
 
         migrationBuilder.CreateTable(
-            name: "UserLockout",
+            name: "UserClaims",
             columns: table => new
             {
-                Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                LockoutEnd = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true),
-                AccessFailedCount = table.Column<int>(type: "int", nullable: false)
+                Id = table.Column<int>(type: "int", nullable: false)
+                    .Annotation("SqlServer:Identity", "1, 1"),
+                SystemPeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    .Annotation("SqlServer:TemporalIsPeriodEndColumn", true),
+                SystemPeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    .Annotation("SqlServer:TemporalIsPeriodStartColumn", true),
+                UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                ClaimType = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
+                ClaimValue = table.Column<string>(type: "nvarchar(max)", maxLength: -1, nullable: false)
             },
             constraints: table =>
             {
-                table.PrimaryKey("PK_UserLockout", x => x.Id);
+                table.PrimaryKey("PK_UserClaims", x => x.Id);
                 table.ForeignKey(
-                    name: "FK_UserLockout_Users_Id",
-                    column: x => x.Id,
+                    name: "FK_UserClaims_Users_UserId",
+                    column: x => x.UserId,
+                    principalTable: "Users",
+                    principalColumn: "Id",
+                    onDelete: ReferentialAction.Cascade);
+            })
+            .Annotation("SqlServer:IsTemporal", true)
+            .Annotation("SqlServer:TemporalHistoryTableName", "UserClaimsHistory")
+            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
+            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
+
+        migrationBuilder.CreateTable(
+            name: "UserLogins",
+            columns: table => new
+            {
+                LoginProvider = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
+                ProviderKey = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
+                SystemPeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    .Annotation("SqlServer:TemporalIsPeriodEndColumn", true),
+                SystemPeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    .Annotation("SqlServer:TemporalIsPeriodStartColumn", true),
+                ProviderDisplayName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
+                UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("PK_UserLogins", x => new { x.LoginProvider, x.ProviderKey });
+                table.ForeignKey(
+                    name: "FK_UserLogins_Users_UserId",
+                    column: x => x.UserId,
+                    principalTable: "Users",
+                    principalColumn: "Id",
+                    onDelete: ReferentialAction.Cascade);
+            })
+            .Annotation("SqlServer:IsTemporal", true)
+            .Annotation("SqlServer:TemporalHistoryTableName", "UserLoginsHistory")
+            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
+            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
+
+        migrationBuilder.CreateTable(
+            name: "UserPasskeys",
+            columns: table => new
+            {
+                CredentialId = table.Column<byte[]>(type: "varbinary(1024)", maxLength: 1024, nullable: false),
+                UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                Data = table.Column<string>(type: "json", nullable: false)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("PK_UserPasskeys", x => x.CredentialId);
+                table.ForeignKey(
+                    name: "FK_UserPasskeys_Users_UserId",
+                    column: x => x.UserId,
+                    principalTable: "Users",
+                    principalColumn: "Id",
+                    onDelete: ReferentialAction.Cascade);
+            });
+
+        migrationBuilder.CreateTable(
+            name: "UserRoles",
+            columns: table => new
+            {
+                UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                RoleId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                SystemPeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    .Annotation("SqlServer:TemporalIsPeriodEndColumn", true),
+                SystemPeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    .Annotation("SqlServer:TemporalIsPeriodStartColumn", true)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("PK_UserRoles", x => new { x.UserId, x.RoleId });
+                table.ForeignKey(
+                    name: "FK_UserRoles_Roles_RoleId",
+                    column: x => x.RoleId,
+                    principalTable: "Roles",
+                    principalColumn: "Id",
+                    onDelete: ReferentialAction.Cascade);
+                table.ForeignKey(
+                    name: "FK_UserRoles_Users_UserId",
+                    column: x => x.UserId,
+                    principalTable: "Users",
+                    principalColumn: "Id",
+                    onDelete: ReferentialAction.Cascade);
+            })
+            .Annotation("SqlServer:IsTemporal", true)
+            .Annotation("SqlServer:TemporalHistoryTableName", "UserRolesHistory")
+            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
+            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
+
+        migrationBuilder.CreateTable(
+            name: "UserTokens",
+            columns: table => new
+            {
+                UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                LoginProvider = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
+                Name = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
+                Value = table.Column<string>(type: "nvarchar(max)", maxLength: -1, nullable: true)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("PK_UserTokens", x => new { x.UserId, x.LoginProvider, x.Name });
+                table.ForeignKey(
+                    name: "FK_UserTokens_Users_UserId",
+                    column: x => x.UserId,
                     principalTable: "Users",
                     principalColumn: "Id",
                     onDelete: ReferentialAction.Cascade);
@@ -202,110 +361,6 @@ public partial class _20260805160011_InitialCreate : Migration
                     column: x => x.AuthorizationId,
                     principalTable: "Authorizations",
                     principalColumn: "Id");
-            });
-
-        migrationBuilder.CreateTable(
-            name: "UserClaims",
-            columns: table => new
-            {
-                Id = table.Column<int>(type: "int", nullable: false)
-                    .Annotation("SqlServer:Identity", "1, 1"),
-                UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                ClaimType = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
-                ClaimValue = table.Column<string>(type: "nvarchar(max)", maxLength: -1, nullable: false)
-            },
-            constraints: table =>
-            {
-                table.PrimaryKey("PK_UserClaims", x => x.Id);
-                table.ForeignKey(
-                    name: "FK_UserClaims_UserLockout_UserId",
-                    column: x => x.UserId,
-                    principalTable: "UserLockout",
-                    principalColumn: "Id",
-                    onDelete: ReferentialAction.Cascade);
-            });
-
-        migrationBuilder.CreateTable(
-            name: "UserLogins",
-            columns: table => new
-            {
-                LoginProvider = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
-                ProviderKey = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
-                ProviderDisplayName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
-                UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
-            },
-            constraints: table =>
-            {
-                table.PrimaryKey("PK_UserLogins", x => new { x.LoginProvider, x.ProviderKey });
-                table.ForeignKey(
-                    name: "FK_UserLogins_UserLockout_UserId",
-                    column: x => x.UserId,
-                    principalTable: "UserLockout",
-                    principalColumn: "Id",
-                    onDelete: ReferentialAction.Cascade);
-            });
-
-        migrationBuilder.CreateTable(
-            name: "UserPasskeys",
-            columns: table => new
-            {
-                CredentialId = table.Column<byte[]>(type: "varbinary(1024)", maxLength: 1024, nullable: false),
-                UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                Data = table.Column<string>(type: "json", nullable: false)
-            },
-            constraints: table =>
-            {
-                table.PrimaryKey("PK_UserPasskeys", x => x.CredentialId);
-                table.ForeignKey(
-                    name: "FK_UserPasskeys_UserLockout_UserId",
-                    column: x => x.UserId,
-                    principalTable: "UserLockout",
-                    principalColumn: "Id",
-                    onDelete: ReferentialAction.Cascade);
-            });
-
-        migrationBuilder.CreateTable(
-            name: "UserRoles",
-            columns: table => new
-            {
-                UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                RoleId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
-            },
-            constraints: table =>
-            {
-                table.PrimaryKey("PK_UserRoles", x => new { x.UserId, x.RoleId });
-                table.ForeignKey(
-                    name: "FK_UserRoles_Roles_RoleId",
-                    column: x => x.RoleId,
-                    principalTable: "Roles",
-                    principalColumn: "Id",
-                    onDelete: ReferentialAction.Cascade);
-                table.ForeignKey(
-                    name: "FK_UserRoles_UserLockout_UserId",
-                    column: x => x.UserId,
-                    principalTable: "UserLockout",
-                    principalColumn: "Id",
-                    onDelete: ReferentialAction.Cascade);
-            });
-
-        migrationBuilder.CreateTable(
-            name: "UserTokens",
-            columns: table => new
-            {
-                UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                LoginProvider = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
-                Name = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
-                Value = table.Column<string>(type: "nvarchar(max)", maxLength: -1, nullable: true)
-            },
-            constraints: table =>
-            {
-                table.PrimaryKey("PK_UserTokens", x => new { x.UserId, x.LoginProvider, x.Name });
-                table.ForeignKey(
-                    name: "FK_UserTokens_UserLockout_UserId",
-                    column: x => x.UserId,
-                    principalTable: "UserLockout",
-                    principalColumn: "Id",
-                    onDelete: ReferentialAction.Cascade);
             });
 
         migrationBuilder.CreateIndex(
@@ -392,10 +447,20 @@ public partial class _20260805160011_InitialCreate : Migration
     protected override void Down(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.DropTable(
-            name: "RoleClaims");
+            name: "RoleClaims")
+            .Annotation("SqlServer:IsTemporal", true)
+            .Annotation("SqlServer:TemporalHistoryTableName", "RoleClaimsHistory")
+            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
+            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
 
         migrationBuilder.DropTable(
-            name: "Scopes");
+            name: "Scopes")
+            .Annotation("SqlServer:IsTemporal", true)
+            .Annotation("SqlServer:TemporalHistoryTableName", "ScopesHistory")
+            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
+            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
 
         migrationBuilder.DropTable(
             name: "SubjectKeys");
@@ -404,16 +469,31 @@ public partial class _20260805160011_InitialCreate : Migration
             name: "Tokens");
 
         migrationBuilder.DropTable(
-            name: "UserClaims");
+            name: "UserClaims")
+            .Annotation("SqlServer:IsTemporal", true)
+            .Annotation("SqlServer:TemporalHistoryTableName", "UserClaimsHistory")
+            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
+            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
 
         migrationBuilder.DropTable(
-            name: "UserLogins");
+            name: "UserLogins")
+            .Annotation("SqlServer:IsTemporal", true)
+            .Annotation("SqlServer:TemporalHistoryTableName", "UserLoginsHistory")
+            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
+            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
 
         migrationBuilder.DropTable(
             name: "UserPasskeys");
 
         migrationBuilder.DropTable(
-            name: "UserRoles");
+            name: "UserRoles")
+            .Annotation("SqlServer:IsTemporal", true)
+            .Annotation("SqlServer:TemporalHistoryTableName", "UserRolesHistory")
+            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
+            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
 
         migrationBuilder.DropTable(
             name: "UserTokens");
@@ -422,15 +502,27 @@ public partial class _20260805160011_InitialCreate : Migration
             name: "Authorizations");
 
         migrationBuilder.DropTable(
-            name: "Roles");
+            name: "Roles")
+            .Annotation("SqlServer:IsTemporal", true)
+            .Annotation("SqlServer:TemporalHistoryTableName", "RolesHistory")
+            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
+            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
 
         migrationBuilder.DropTable(
-            name: "UserLockout");
+            name: "Users")
+            .Annotation("SqlServer:IsTemporal", true)
+            .Annotation("SqlServer:TemporalHistoryTableName", "UsersHistory")
+            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
+            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
 
         migrationBuilder.DropTable(
-            name: "Applications");
-
-        migrationBuilder.DropTable(
-            name: "Users");
+            name: "Applications")
+            .Annotation("SqlServer:IsTemporal", true)
+            .Annotation("SqlServer:TemporalHistoryTableName", "ApplicationsHistory")
+            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
+            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
     }
 }

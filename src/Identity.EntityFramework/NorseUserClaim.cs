@@ -8,7 +8,7 @@ namespace Norse.Identity.EntityFramework;
 /// <summary>
 /// Norse platform ASP.NET Core Identity user-claim entity, keyed by <see cref="Guid"/>.
 /// </summary>
-public sealed class NorseUserClaim : IdentityUserClaim<Guid>, INorseEntity<NorseUserClaim>
+public sealed class NorseUserClaim : IdentityUserClaim<Guid>, INorseEntity<NorseUserClaim>, ITemporalEntity
 {
 	/// <summary>
 	/// The user this claim belongs to.
