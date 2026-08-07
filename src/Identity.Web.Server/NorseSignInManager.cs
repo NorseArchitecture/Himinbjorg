@@ -22,12 +22,20 @@ namespace Norse.Identity.Web.Server;
 /// (<see cref="HttpContext"/>, <see cref="AuthenticationProperties"/>, <see cref="IDeferredSignIn"/>) is an
 /// ASP.NET-Core-web-hosting concern migration tooling has no business depending on.
 /// </summary>
+// CS9107 disabled deliberately, narrowly, right here: `schemes` has to be both forwarded to the base
+// constructor (it wants its own copy, kept in a private field this class can't reach) AND retained by
+// SignInOrTwoFactorAsync below, which needs its own IAuthenticationSchemeProvider.GetSchemeAsync check
+// -- the exact one the base class's own 2FA branch makes, unreachable across the inheritance boundary.
+// Safe: IAuthenticationSchemeProvider is a read-only query object with no disposal/ownership semantics,
+// so two references to the same instance carry no risk the warning is generally guarding against.
+#pragma warning disable CS9107
 public sealed class NorseSignInManager(
 	UserManager<NorseUser> userManager, IHttpContextAccessor contextAccessor,
 	IUserClaimsPrincipalFactory<NorseUser> claimsFactory, IOptions<IdentityOptions> optionsAccessor,
 	ILogger<SignInManager<NorseUser>> logger, IAuthenticationSchemeProvider schemes,
 	IUserConfirmation<NorseUser> confirmation, IDeferredSignIn deferredSignIn)
 	: SignInManager<NorseUser>(userManager, contextAccessor, claimsFactory, optionsAccessor, logger, schemes, confirmation)
+#pragma warning restore CS9107
 {
 	/// <summary>The <c>HttpContext.Items</c> key under which a deferred completion key is stashed, when one is needed.</summary>
 	public const string DeferredSignInKeyItemName = "Norse.DeferredSignInKey";
@@ -66,6 +74,58 @@ public sealed class NorseSignInManager(
 
 		var key = deferredSignIn.StashSignOut(AuthenticationScheme);
 		Context.Items[DeferredSignInKeyItemName] = key;
+	}
+
+	// The base class's own 2FA-required branch does NOT funnel through SignInWithClaimsAsync (or any
+	// other overridable seam) at all -- verified against the real installed Microsoft.AspNetCore.Identity
+	// assembly (ilspycmd decompile of SignInManager<TUser>.SignInOrTwoFactorAsync, .NET 11 preview 6):
+	// when a second factor is required it writes the partial two-factor cookie via a raw
+	// `Context.SignInAsync(IdentityConstants.TwoFactorUserIdScheme, StoreTwoFactorInfo(userId,
+	// loginProvider))` call, bypassing SignInWithClaimsAsync entirely. On an established circuit that
+	// throws before SignInResult.TwoFactorRequired is ever returned to the caller -- the two overrides
+	// above do not cover this path, so it needs its own. `StoreTwoFactorInfo` itself is `internal` on
+	// the base class (inaccessible across the assembly boundary), so its exact claims shape is
+	// reproduced here rather than called -- verify that claim yourself too if in doubt.
+	/// <summary>
+	/// Delegates to the base class unless a second factor is genuinely required AND the response has
+	/// already started (an established Blazor Server circuit) -- in that one case, defers the partial
+	/// two-factor sign-in via <see cref="IDeferredSignIn"/> instead of letting the base class's raw
+	/// cookie write throw, reusing <see cref="DeferredSignInKeyItemName"/> so callers (e.g.
+	/// <c>LoginHandler</c>) find it the same way they already do for a completed sign-in.
+	/// </summary>
+	protected override async Task<SignInResult> SignInOrTwoFactorAsync(NorseUser user, bool isPersistent, string? loginProvider = null, bool bypassTwoFactor = false)
+	{
+		var requiresTwoFactor = !bypassTwoFactor
+			&& await IsTwoFactorEnabledAsync(user).ConfigureAwait(false)
+			&& !await IsTwoFactorClientRememberedAsync(user).ConfigureAwait(false);
+
+		if (!requiresTwoFactor || !Context.Response.HasStarted)
+			return await base.SignInOrTwoFactorAsync(user, isPersistent, loginProvider, bypassTwoFactor).ConfigureAwait(false);
+
+		if (await schemes.GetSchemeAsync(IdentityConstants.TwoFactorUserIdScheme).ConfigureAwait(false) is not null)
+		{
+			var userId = await UserManager.GetUserIdAsync(user).ConfigureAwait(false);
+			var principal = StoreTwoFactorInfo(userId, loginProvider);
+			var key = deferredSignIn.StashSignIn(IdentityConstants.TwoFactorUserIdScheme, principal, new AuthenticationProperties());
+			Context.Items[DeferredSignInKeyItemName] = key;
+		}
+
+		return SignInResult.TwoFactorRequired;
+	}
+
+	// Mirrors the base class's own internal `StoreTwoFactorInfo` claims shape exactly (same scheme as
+	// the ClaimsIdentity's authentication type, same two claim types) -- that method is `internal` on
+	// Microsoft.AspNetCore.Identity's assembly, not reachable from here, so this reproduces it rather
+	// than calling it. Getting this shape wrong would make LoginWith2fa's later
+	// SignInManager.GetTwoFactorAuthenticationUserAsync() (RetrieveTwoFactorInfoAsync's cookie-read
+	// fallback) fail to find the name claim it looks for.
+	static ClaimsPrincipal StoreTwoFactorInfo(string userId, string? loginProvider)
+	{
+		ClaimsIdentity identity = new(IdentityConstants.TwoFactorUserIdScheme);
+		identity.AddClaim(new Claim(ClaimTypes.Name, userId));
+		if (loginProvider is not null)
+			identity.AddClaim(new Claim(ClaimTypes.AuthenticationMethod, loginProvider));
+		return new ClaimsPrincipal(identity);
 	}
 
 	/// <summary>

@@ -49,12 +49,16 @@ sealed class LoginHandler(SignInManager<NorseUser> signInManager, IDeferredSignI
 		// password indistinguishable from a wrong one to a 2FA-enabled user). It rides the success
 		// side of the Outcome instead, distinguished from a completed login by NextUrl pointing at the
 		// 2FA challenge -- RememberMe included, so the client never has to reconstruct it from its own
-		// request state -- rather than a bare flag.
+		// request state -- rather than a bare flag. On an established circuit, NorseSignInManager
+		// already deferred the partial two-factor cookie the same way it defers a full sign-in
+		// (SignInOrTwoFactorAsync override) -- TryGetDeferredCompletionUrl finds that same stash and
+		// routes through the real completion request instead of the challenge page directly, exactly
+		// like the completed-sign-in branch below does.
 		if (result.RequiresTwoFactor)
-			return Outcome<LoginResult>.Ok(new LoginResult
-			{
-				NextUrl = $"{TwoFactorChallengeRoute}?RememberMe={(wire.RememberMe ? "true" : "false")}"
-			});
+		{
+			var challengeUrl = $"{TwoFactorChallengeRoute}?RememberMe={(wire.RememberMe ? "true" : "false")}";
+			return Outcome<LoginResult>.Ok(new LoginResult { NextUrl = TryGetDeferredCompletionUrl(challengeUrl) ?? challengeUrl });
+		}
 
 		// PasswordSignInAsync already collapses "no such user" and "wrong password" into the single
 		// SignInResult.Failed case — anti-enumeration, spec §9.3 — so there is exactly one
@@ -65,12 +69,14 @@ sealed class LoginHandler(SignInManager<NorseUser> signInManager, IDeferredSignI
 
 		// "/" is the concrete default for a completed sign-in whose cookie was written directly --
 		// resolved here, not left for the client to supply, so NextUrl is never null.
-		return Outcome<LoginResult>.Ok(new LoginResult { NextUrl = TryGetDeferredCompletionUrl() ?? "/" });
+		return Outcome<LoginResult>.Ok(new LoginResult { NextUrl = TryGetDeferredCompletionUrl("/") ?? "/" });
 	}
 
-	// Duplicated verbatim in LogoutHandler — Buvy's explicit call: no shared helper class for four
-	// lines shared by exactly two handlers.
-	string? TryGetDeferredCompletionUrl()
+	// NOT verbatim-duplicated in LogoutHandler anymore -- Logout only ever lands back on "/", so its
+	// copy keeps a bare, parameterless shape; this one needs a returnUrl parameter because Login has
+	// two distinct destinations (a completed sign-in vs. the 2FA challenge) that can each need the
+	// deferred-completion detour.
+	string? TryGetDeferredCompletionUrl(string returnUrl)
 	{
 		// Only ever set on the Blazor-Server in-process path (a circuit that couldn't Set-Cookie
 		// because the response had already started) — a real gRPC/WASM call never stashes this, so
@@ -78,6 +84,6 @@ sealed class LoginHandler(SignInManager<NorseUser> signInManager, IDeferredSignI
 		if (httpContextAccessor.HttpContext!.Items[NorseSignInManager.DeferredSignInKeyItemName] is not string key)
 			return null;
 
-		return deferredSignIn.BuildCompletionUrl(key, "/");
+		return deferredSignIn.BuildCompletionUrl(key, returnUrl);
 	}
 }
