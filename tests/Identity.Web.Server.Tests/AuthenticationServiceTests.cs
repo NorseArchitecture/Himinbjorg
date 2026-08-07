@@ -18,7 +18,7 @@ public sealed class AuthenticationServiceTests
 		LoginCommand? captured = null;
 		var sender = Substitute.For<ISender>();
 		sender.Send(Arg.Do<LoginCommand>(c => captured = c), Arg.Any<CancellationToken>())
-			.Returns(_ => ValueTask.FromResult(Outcome<LoginResult>.Ok(new LoginResult { Succeeded = true })));
+			.Returns(_ => ValueTask.FromResult(Outcome<LoginResult>.Ok(new LoginResult())));
 		AuthenticationService service = new(sender);
 		LoginRequest request = new() { Email = "a@b.com", Password = "x", RememberMe = true };
 
@@ -32,7 +32,7 @@ public sealed class AuthenticationServiceTests
 	async Task Login_returns_the_senders_outcome_unchanged()
 	{
 		var sender = Substitute.For<ISender>();
-		var expected = Outcome<LoginResult>.Ok(new LoginResult { Succeeded = true, DeferredCompletionUrl = "/x" });
+		var expected = Outcome<LoginResult>.Ok(new LoginResult { DeferredCompletionUrl = "/x" });
 		sender.Send(Arg.Any<LoginCommand>(), Arg.Any<CancellationToken>()).Returns(_ => ValueTask.FromResult(expected));
 		AuthenticationService service = new(sender);
 

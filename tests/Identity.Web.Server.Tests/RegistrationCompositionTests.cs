@@ -20,17 +20,20 @@ public sealed class RegistrationCompositionTests
 		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<LoginCommand, LoginResult>));
 		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<RegisterCommand, RegisterResult>));
 		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<LogoutCommand, LogoutResult>));
+		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<EmailExistsCommand, Norse.Abstractions.Contracts.BoolResponse>));
 		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<GetMyPersonalDataCommand, PersonalDataResponse>));
 		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<MaskedPersonalDataCommand, MaskedPersonalDataResponse>));
-		services.Count(d => d.ServiceType == typeof(ISenderDispatch)).ShouldBe(5);
+		services.Count(d => d.ServiceType == typeof(ISenderDispatch)).ShouldBe(6);
 
 		// The generated CommandRequestValidator<TCommand,TWire,TResponse> adapters — emitted
-		// uniformly for every wrapper command, LogoutCommand/GetMyPersonalDataCommand included even
-		// though no IValidator<Unit>/IValidator<GetMyPersonalDataRequest> exists anywhere (an empty
-		// child collection validates clean; absence is a pass).
+		// uniformly for every wrapper command, LogoutCommand/GetMyPersonalDataCommand/
+		// EmailExistsCommand included even though no IValidator<Unit>/
+		// IValidator<GetMyPersonalDataRequest>/IValidator<EmailExistsRequest> exists anywhere (an
+		// empty child collection validates clean; absence is a pass).
 		services.ShouldContain(d => d.ServiceType == typeof(IValidator<LoginCommand>));
 		services.ShouldContain(d => d.ServiceType == typeof(IValidator<RegisterCommand>));
 		services.ShouldContain(d => d.ServiceType == typeof(IValidator<LogoutCommand>));
+		services.ShouldContain(d => d.ServiceType == typeof(IValidator<EmailExistsCommand>));
 		services.ShouldContain(d => d.ServiceType == typeof(IValidator<GetMyPersonalDataCommand>));
 		services.ShouldContain(d => d.ServiceType == typeof(IValidator<MaskedPersonalDataCommand>));
 

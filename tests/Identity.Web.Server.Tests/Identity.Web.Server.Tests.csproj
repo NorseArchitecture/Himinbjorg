@@ -13,6 +13,12 @@
 		<NorseRef Include="Infrastructure.Backend">
 			<Repo>Midgard</Repo>
 		</NorseRef>
+		<!-- Direct, not transitive: production code never composes the mediator pipeline itself (that's
+		     Yggdrasil's composition root) — NestedSendIntegrationTests needs AddNorsePipeline() to
+		     stand up a real ISender in-process, backed by stubbed identity services. -->
+		<NorseRef Include="Infrastructure.Web.Server">
+			<Repo>Midgard</Repo>
+		</NorseRef>
 		<PackageReference Include="Microsoft.AspNetCore.TestHost" Version="11.*-*" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="11.*-*" />
 		<PackageReference Include="OpenTelemetry.Exporter.InMemory" Version="1.*" />
