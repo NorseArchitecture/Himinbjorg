@@ -9,13 +9,21 @@ using Norse.Identity.EntityFramework;
 namespace Norse.Identity.Web.Server;
 
 /// <summary>
-/// Overrides every seam ASP.NET Core Identity's sign-in/sign-out paths funnel through to detect when the
-/// caller is an already-established Blazor Server interactive circuit (<c>Context.Response.HasStarted</c>)
-/// — cookie writes are impossible there, not merely inconvenient. When detected, defers via
-/// <see cref="IDeferredSignIn"/> instead of writing the cookie directly and stashes the completion key on
-/// <c>HttpContext.Items</c> for the caller to read back. Every other call path (WASM/MAUI over gRPC-Web,
-/// any static-SSR request) is a real, distinct HTTP request with <c>Response.HasStarted == false</c> and
-/// behaves exactly as the unmodified base class would — zero behavior change for those paths.
+/// Overrides <see cref="SignInWithClaimsAsync(NorseUser, bool, IEnumerable{Claim})"/>,
+/// <see cref="SignInWithClaimsAsync(NorseUser, AuthenticationProperties?, IEnumerable{Claim})"/>,
+/// <see cref="SignOutAsync"/>, and <see cref="SignInOrTwoFactorAsync"/> — every seam ASP.NET Core
+/// Identity's sign-in/sign-out/two-factor-challenge paths are actually known to route a raw cookie write
+/// through, confirmed one at a time by decompiling the real installed assembly rather than assumed —
+/// to detect when the caller is an already-established Blazor Server interactive circuit
+/// (<c>Context.Response.HasStarted</c>) — cookie writes are impossible there, not merely inconvenient.
+/// When detected, defers via <see cref="IDeferredSignIn"/> instead of writing the cookie directly and
+/// stashes the completion key on <c>HttpContext.Items</c> for the caller to read back. Every other call
+/// path (WASM/MAUI over gRPC-Web, any static-SSR request) is a real, distinct HTTP request with
+/// <c>Response.HasStarted == false</c> and behaves exactly as the unmodified base class would — zero
+/// behavior change for those paths. This list has grown once already by exactly this kind of gap —
+/// <see cref="SignInOrTwoFactorAsync"/> shipped uncovered at first, writing its own raw cookie via a
+/// path neither of the other two overrides touched — so treat "every seam" as a standing claim to
+/// re-verify, not a settled fact, the next time a new ASP.NET Core Identity entry point is wired here.
 ///
 /// Lives in <c>Identity.Web.Server</c>, not the base <c>Identity</c> project — <c>Identity</c> is shared
 /// with <c>Identity.Migrations</c> (a console tool), and everything this type touches

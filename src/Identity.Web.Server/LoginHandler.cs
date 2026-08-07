@@ -21,7 +21,18 @@ sealed class LoginHandler(SignInManager<NorseUser> signInManager, IDeferredSignI
 	// scaffold at Components/Pages/LoginWith2fa.razor, @page "/Account/LoginWith2fa"), so it's also the
 	// layer that resolves LoginResult.NextUrl down to a concrete value in every case -- every client
 	// (Blazor Server, WASM, MAUI) just navigates to it, with no route knowledge or default of its own.
-	const string TwoFactorChallengeRoute = "Account/LoginWith2fa";
+	//
+	// Leading slash is load-bearing, not cosmetic: this value also feeds TryGetDeferredCompletionUrl as
+	// a returnUrl, which Midgard's completion endpoint (DeferredSignInEndpointRouteBuilderExtensions,
+	// served from /_auth/complete) emits into a meta-refresh with no <base> tag and no path-base
+	// normalization. A path-relative "Account/LoginWith2fa" resolves under RFC 3986 relative-reference
+	// rules against /_auth/complete by stripping its last segment, landing at the nonexistent
+	// /_auth/Account/LoginWith2fa -- a 404 on exactly the deferred-completion path this fix exists to
+	// serve. Root-relative "/Account/LoginWith2fa" resolves identically under Login.razor's own
+	// NavigateTo (which resolves against <base href="/">) and correctly under the meta-refresh case.
+	// Hardcodes root hosting -- if PathBase is ever in play, the durable fix belongs in Midgard's
+	// completion endpoint, not here.
+	const string TwoFactorChallengeRoute = "/Account/LoginWith2fa";
 
 	public async ValueTask<Outcome<LoginResult>> Handle(LoginCommand request, CancellationToken cancellationToken = default)
 	{

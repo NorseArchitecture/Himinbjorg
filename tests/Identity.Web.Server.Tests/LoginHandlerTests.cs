@@ -144,7 +144,7 @@ public sealed class LoginHandlerTests
 		// navigation target itself -- the client gets a concrete URL, never a flag to branch on or a
 		// route to build.
 		outcome.TryGetValue(out Success<LoginResult> success).ShouldBeTrue();
-		success.Value.NextUrl.ShouldBe("Account/LoginWith2fa?RememberMe=false");
+		success.Value.NextUrl.ShouldBe("/Account/LoginWith2fa?RememberMe=false");
 	}
 
 	[Fact]
@@ -159,7 +159,40 @@ public sealed class LoginHandlerTests
 		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
 
 		outcome.TryGetValue(out Success<LoginResult> success).ShouldBeTrue();
-		success.Value.NextUrl.ShouldBe("Account/LoginWith2fa?RememberMe=true");
+		success.Value.NextUrl.ShouldBe("/Account/LoginWith2fa?RememberMe=true");
+	}
+
+	// The exact scenario the leading-slash bug lived in: 2FA required AND the cookie had to be
+	// deferred (an established circuit). This drives through the real TryGetDeferredCompletionUrl
+	// detour instead of the `?? challengeUrl` fallback the two tests above exercise -- asserting the
+	// resulting URL's returnUrl segment is root-relative, since Midgard's completion endpoint emits it
+	// into a meta-refresh with no <base> tag: a path-relative value there 404s (RFC 3986 relative
+	// resolution against /_auth/complete strips the last path segment), a root-relative one doesn't.
+	[Fact]
+	async Task Two_factor_challenge_routes_through_deferred_completion_with_a_root_relative_return_url_when_stashed()
+	{
+		var signInManager = MockSignInManager.Create();
+		signInManager.PasswordSignInAsync("user@example.com", "correct-horse", false, true)
+			.Returns(Microsoft.AspNetCore.Identity.SignInResult.TwoFactorRequired);
+		var deferredSignIn = Substitute.For<IDeferredSignIn>();
+		deferredSignIn.BuildCompletionUrl(Arg.Any<string>(), Arg.Any<string>())
+			.Returns(call => $"/_auth/complete?key={call.ArgAt<string>(0)}&returnUrl={Uri.EscapeDataString(call.ArgAt<string>(1))}");
+		DefaultHttpContext httpContext = new();
+		httpContext.Items[NorseSignInManager.DeferredSignInKeyItemName] = "stashed-key";
+		var handler = CreateHandler(signInManager, deferredSignIn, httpContext);
+		LoginCommand command = new(new LoginRequest { Email = "user@example.com", Password = "correct-horse" });
+
+		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
+
+		outcome.TryGetValue(out Success<LoginResult> success).ShouldBeTrue();
+		success.Value.NextUrl.ShouldContain("stashed-key");
+		success.Value.NextUrl.ShouldContain(Uri.EscapeDataString("/Account/LoginWith2fa?RememberMe=false"));
+		// The actual regression this guards: a path-relative returnUrl here would resolve, under RFC
+		// 3986, against /_auth/complete by stripping its last segment -- landing at the nonexistent
+		// /_auth/Account/LoginWith2fa instead of /Account/LoginWith2fa. Assert the escaped returnUrl
+		// segment itself starts with a slash, not just that the route name is present somewhere.
+		var returnUrlValue = success.Value.NextUrl![(success.Value.NextUrl.IndexOf("returnUrl=", StringComparison.Ordinal) + "returnUrl=".Length)..];
+		Uri.UnescapeDataString(returnUrlValue).ShouldStartWith("/");
 	}
 
 	[Fact]

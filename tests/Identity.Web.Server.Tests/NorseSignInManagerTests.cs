@@ -117,10 +117,18 @@ public sealed class NorseSignInManagerTests
 
 		probe.Exception.ShouldBeNull();
 		probe.Result.ShouldBe(SignInResult.TwoFactorRequired);
-		probe.DeferredSignIn.Received(1).StashSignIn(
-			IdentityConstants.TwoFactorUserIdScheme, Arg.Any<ClaimsPrincipal>(), Arg.Any<AuthenticationProperties>());
 		probe.ItemsKey.ShouldBe(StashedTwoFactorKey);
 		probe.SetCookieHeaderPresent.ShouldBeFalse();
+
+		// This is the one place a silent framework drift in StoreTwoFactorInfo's hand-reproduced claims
+		// shape (it's `internal` on Microsoft.AspNetCore.Identity, unreachable, so NorseSignInManager
+		// rebuilds it) would break LoginWith2fa's later GetTwoFactorAuthenticationUserAsync() call --
+		// captured and pinned structurally, not just "some principal was passed."
+		var call = probe.DeferredSignIn.ReceivedCalls().Single(c => c.GetMethodInfo().Name == nameof(IDeferredSignIn.StashSignIn));
+		call.GetArguments()[0].ShouldBe(IdentityConstants.TwoFactorUserIdScheme);
+		var principal = (ClaimsPrincipal)call.GetArguments()[1]!;
+		principal.Identity!.AuthenticationType.ShouldBe(IdentityConstants.TwoFactorUserIdScheme);
+		principal.FindFirstValue(ClaimTypes.Name).ShouldBe(probe.UserId);
 	}
 
 	[Fact]
@@ -218,6 +226,7 @@ public sealed class NorseSignInManagerTests
 		string? itemsKey = null;
 		var setCookiePresent = false;
 		SignInResult? result = null;
+		string? userId = null;
 
 		using var host = await new HostBuilder()
 			.ConfigureWebHost(webHost => webHost
@@ -232,6 +241,7 @@ public sealed class NorseSignInManagerTests
 						await context.Response.WriteAsync(" ");
 
 					NorseUser user = new() { UserName = "user@example.com", Email = "user@example.com" };
+					userId = user.Id.ToString();
 					var claimsFactory = Substitute.For<IUserClaimsPrincipalFactory<NorseUser>>();
 					claimsFactory.CreateAsync(Arg.Any<NorseUser>()).Returns(new ClaimsPrincipal(new ClaimsIdentity(_scheme)));
 
@@ -255,9 +265,13 @@ public sealed class NorseSignInManagerTests
 
 					HttpContextAccessor accessor = new() { HttpContext = context };
 					var schemes = Substitute.For<IAuthenticationSchemeProvider>();
-					// IsTwoFactorClientRememberedAsync short-circuits to false when this scheme isn't
-					// registered on the manager's own copy -- unstubbed (null) is exactly "not
-					// remembered", forcing the genuinely-requires-2FA branch every time.
+					// Two distinct schemes, two distinct roles, deliberately stubbed differently:
+					// IsTwoFactorClientRememberedAsync checks TwoFactorRememberMeScheme, left unstubbed
+					// (null) on purpose -- NSubstitute's default is exactly "not remembered", forcing
+					// the genuinely-requires-2FA branch every time. TwoFactorUserIdScheme is the one
+					// SignInOrTwoFactorAsync itself checks before writing/stashing the partial cookie
+					// (`schemes.GetSchemeAsync(TwoFactorUserIdScheme) is not null`) -- stubbed non-null
+					// here so that write/stash path is actually exercised rather than skipped.
 					schemes.GetSchemeAsync(IdentityConstants.TwoFactorUserIdScheme)
 						.Returns(new AuthenticationScheme(IdentityConstants.TwoFactorUserIdScheme, null, typeof(CookieAuthenticationHandler)));
 					var confirmation = Substitute.For<IUserConfirmation<NorseUser>>();
@@ -290,11 +304,12 @@ public sealed class NorseSignInManagerTests
 		using var client = host.GetTestServer().CreateClient();
 		await client.GetAsync(new Uri("/", UriKind.Relative));
 
-		return new TwoFactorProbe(caught, deferredSignIn, itemsKey, setCookiePresent, result);
+		return new TwoFactorProbe(caught, deferredSignIn, itemsKey, setCookiePresent, result, userId!);
 	}
 
 	sealed record Probe(Exception? Exception, IDeferredSignIn DeferredSignIn, string? ItemsKey, bool SetCookieHeaderPresent);
 
 	sealed record TwoFactorProbe(
-		Exception? Exception, IDeferredSignIn DeferredSignIn, string? ItemsKey, bool SetCookieHeaderPresent, SignInResult? Result);
+		Exception? Exception, IDeferredSignIn DeferredSignIn, string? ItemsKey, bool SetCookieHeaderPresent,
+		SignInResult? Result, string UserId);
 }
