@@ -211,6 +211,45 @@ public sealed class LoginHandlerTests
 		success.Value.NextUrl.ShouldBe("/");
 	}
 
+	// A leading-slash NextUrl is only origin-absolute-correct when the origin's root really is the
+	// app root -- under a non-root PathBase, a bare "/" or "/Account/LoginWith2fa" would escape the
+	// app entirely once a client actually navigates there. NextUrl must carry the live request's
+	// PathBase, the same way IdentityComponentsEndpointRouteBuilderExtensions already does for its
+	// own redirects (UriHelper.BuildRelative), not hardcode root hosting.
+	[Fact]
+	async Task NextUrl_carries_the_request_s_PathBase_for_a_completed_sign_in()
+	{
+		var signInManager = MockSignInManager.Create();
+		signInManager.PasswordSignInAsync("user@example.com", "correct-horse", false, true)
+			.Returns(Microsoft.AspNetCore.Identity.SignInResult.Success);
+		DefaultHttpContext httpContext = new();
+		httpContext.Request.PathBase = "/example";
+		var handler = CreateHandler(signInManager, httpContext: httpContext);
+		LoginCommand command = new(new LoginRequest { Email = "user@example.com", Password = "correct-horse" });
+
+		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
+
+		outcome.TryGetValue(out Success<LoginResult> success).ShouldBeTrue();
+		success.Value.NextUrl.ShouldBe("/example/");
+	}
+
+	[Fact]
+	async Task NextUrl_carries_the_request_s_PathBase_for_the_two_factor_challenge()
+	{
+		var signInManager = MockSignInManager.Create();
+		signInManager.PasswordSignInAsync("user@example.com", "correct-horse", false, true)
+			.Returns(Microsoft.AspNetCore.Identity.SignInResult.TwoFactorRequired);
+		DefaultHttpContext httpContext = new();
+		httpContext.Request.PathBase = "/example";
+		var handler = CreateHandler(signInManager, httpContext: httpContext);
+		LoginCommand command = new(new LoginRequest { Email = "user@example.com", Password = "correct-horse" });
+
+		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
+
+		outcome.TryGetValue(out Success<LoginResult> success).ShouldBeTrue();
+		success.Value.NextUrl.ShouldBe("/example/Account/LoginWith2fa?RememberMe=false");
+	}
+
 	[Fact]
 	async Task NextUrl_is_the_deferred_completion_url_when_one_is_stashed_on_HttpContext()
 	{

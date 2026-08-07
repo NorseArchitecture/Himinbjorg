@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Norse.Abstractions.Contracts;
 using Norse.Abstractions.Web.Server.DeferredSignIn;
@@ -22,16 +23,18 @@ sealed class LoginHandler(SignInManager<NorseUser> signInManager, IDeferredSignI
 	// layer that resolves LoginResult.NextUrl down to a concrete value in every case -- every client
 	// (Blazor Server, WASM, MAUI) just navigates to it, with no route knowledge or default of its own.
 	//
-	// Leading slash is load-bearing, not cosmetic: this value also feeds TryGetDeferredCompletionUrl as
-	// a returnUrl, which Midgard's completion endpoint (DeferredSignInEndpointRouteBuilderExtensions,
-	// served from /_auth/complete) emits into a meta-refresh with no <base> tag and no path-base
-	// normalization. A path-relative "Account/LoginWith2fa" resolves under RFC 3986 relative-reference
-	// rules against /_auth/complete by stripping its last segment, landing at the nonexistent
-	// /_auth/Account/LoginWith2fa -- a 404 on exactly the deferred-completion path this fix exists to
-	// serve. Root-relative "/Account/LoginWith2fa" resolves identically under Login.razor's own
-	// NavigateTo (which resolves against <base href="/">) and correctly under the meta-refresh case.
-	// Hardcodes root hosting -- if PathBase is ever in play, the durable fix belongs in Midgard's
-	// completion endpoint, not here.
+	// Root-relative, not path-relative -- load-bearing, not cosmetic: this value also feeds
+	// TryGetDeferredCompletionUrl as a returnUrl, which Midgard's completion endpoint
+	// (DeferredSignInEndpointRouteBuilderExtensions, served from /_auth/complete) emits into a
+	// meta-refresh with no <base> tag. A path-relative "Account/LoginWith2fa" resolves under RFC 3986
+	// relative-reference rules against /_auth/complete by stripping its last segment, landing at the
+	// nonexistent /_auth/Account/LoginWith2fa -- a 404 on exactly the deferred-completion path this
+	// fix exists to serve. This constant is combined with the live request's PathBase via
+	// UriHelper.BuildRelative at each use site (matching IdentityComponentsEndpointRouteBuilderExtensions'
+	// own PathBase-preserving pattern), so the resulting value is a genuine origin-absolute URL that
+	// resolves identically under Login.razor's own NavigateTo and under the meta-refresh case, correct
+	// under a non-root PathBase too -- BuildRelative is a no-op prefix when PathBase is empty, so this
+	// carries zero behavior change for today's root-hosted deployment.
 	const string TwoFactorChallengeRoute = "/Account/LoginWith2fa";
 
 	public async ValueTask<Outcome<LoginResult>> Handle(LoginCommand request, CancellationToken cancellationToken = default)
@@ -67,7 +70,9 @@ sealed class LoginHandler(SignInManager<NorseUser> signInManager, IDeferredSignI
 		// like the completed-sign-in branch below does.
 		if (result.RequiresTwoFactor)
 		{
-			var challengeUrl = $"{TwoFactorChallengeRoute}?RememberMe={(wire.RememberMe ? "true" : "false")}";
+			var challengeUrl = UriHelper.BuildRelative(
+				PathBase, TwoFactorChallengeRoute,
+				QueryString.Create("RememberMe", wire.RememberMe ? "true" : "false"));
 			return Outcome<LoginResult>.Ok(new LoginResult { NextUrl = TryGetDeferredCompletionUrl(challengeUrl) ?? challengeUrl });
 		}
 
@@ -78,10 +83,19 @@ sealed class LoginHandler(SignInManager<NorseUser> signInManager, IDeferredSignI
 		if (!result.Succeeded)
 			return new Outcome<LoginResult>(_invalidCredentials);
 
-		// "/" is the concrete default for a completed sign-in whose cookie was written directly --
-		// resolved here, not left for the client to supply, so NextUrl is never null.
-		return Outcome<LoginResult>.Ok(new LoginResult { NextUrl = TryGetDeferredCompletionUrl("/") ?? "/" });
+		// The app root, PathBase-qualified, is the concrete default for a completed sign-in whose
+		// cookie was written directly -- resolved here, not left for the client to supply, so NextUrl
+		// is never null.
+		var appRoot = UriHelper.BuildRelative(PathBase, "/");
+		return Outcome<LoginResult>.Ok(new LoginResult { NextUrl = TryGetDeferredCompletionUrl(appRoot) ?? appRoot });
 	}
+
+	// Read once per Handle call -- HttpContext.Request.PathBase reflects the live request the sender
+	// is dispatching for, empty ("") for today's root-hosted deployment, and BuildRelative treats an
+	// empty PathBase as a no-op prefix, so every NextUrl value stays byte-identical to before this
+	// property existed until a non-root PathBase is actually in play.
+	PathString PathBase =>
+		httpContextAccessor.HttpContext!.Request.PathBase;
 
 	// NOT verbatim-duplicated in LogoutHandler anymore -- Logout only ever lands back on "/", so its
 	// copy keeps a bare, parameterless shape; this one needs a returnUrl parameter because Login has
