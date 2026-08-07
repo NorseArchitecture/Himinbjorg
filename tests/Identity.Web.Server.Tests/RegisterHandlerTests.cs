@@ -69,6 +69,11 @@ public sealed class RegisterHandlerTests
 
 		outcome.TryGetValue(out Failed failed).ShouldBeTrue();
 		failed.Problem.Category.ShouldBe(ErrorCategory.Conflict);
+		// Reproduced live 2026-08-07: the client's ServerErrorCoordinator builds a FieldIdentifier
+		// straight from these dictionary keys, so a raw IdentityError.Code like "DuplicateUserName"
+		// renders nowhere — no bound field has that name, and the model-level summary only fires when
+		// Errors is empty. The key here must be the wire field name the email input is bound to.
+		failed.Problem.Errors.Keys.ShouldBe([nameof(RegisterRequest.Email)]);
 	}
 
 	[Fact]
@@ -87,5 +92,25 @@ public sealed class RegisterHandlerTests
 
 		outcome.TryGetValue(out Failed failed).ShouldBeTrue();
 		failed.Problem.Category.ShouldBe(ErrorCategory.Validation);
+	}
+
+	[Fact]
+	async Task Groups_every_password_policy_violation_under_the_Password_field_not_the_raw_Identity_error_code()
+	{
+		await using var context = CreateContext();
+		using NorseUserStore store = new(context, new IdentityErrorDescriber());
+		using var userManager = CreateUserManager(store);
+		RegisterHandler handler = new(userManager);
+		// "aaaaaaaa" fails four separate default Identity rules at once (digit, upper, non-alphanumeric,
+		// unique-chars is fine here but the other three aren't) -- each mints its own IdentityError with
+		// a distinct .Code ("PasswordRequiresDigit", "PasswordRequiresUpper", ...). Reproduced live: all
+		// of them must collapse onto the single "Password" key, never survive as separate raw codes.
+		RegisterCommand command = new(new RegisterRequest { Email = "user3@example.com", Password = "aaaaaaaa" });
+
+		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
+
+		outcome.TryGetValue(out Failed failed).ShouldBeTrue();
+		failed.Problem.Errors.Keys.ShouldBe([nameof(RegisterRequest.Password)]);
+		failed.Problem.Errors[nameof(RegisterRequest.Password)].Length.ShouldBeGreaterThan(1);
 	}
 }
