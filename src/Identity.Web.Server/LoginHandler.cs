@@ -17,6 +17,12 @@ sealed class LoginHandler(SignInManager<NorseUser> signInManager, IDeferredSignI
 	static readonly Failed _invalidCredentials =
 		new(Problem.ModelError(ErrorCategory.InvalidCredentials, "Invalid email or password."));
 
+	// Himinbjörg is the layer that owns and serves the 2FA challenge page (still the pre-migration
+	// scaffold at Components/Pages/LoginWith2fa.razor, @page "/Account/LoginWith2fa"), so it's also the
+	// layer that resolves LoginResult.NextUrl down to a concrete value in every case -- every client
+	// (Blazor Server, WASM, MAUI) just navigates to it, with no route knowledge or default of its own.
+	const string TwoFactorChallengeRoute = "Account/LoginWith2fa";
+
 	public async ValueTask<Outcome<LoginResult>> Handle(LoginCommand request, CancellationToken cancellationToken = default)
 	{
 		var wire = request.Request;
@@ -38,6 +44,18 @@ sealed class LoginHandler(SignInManager<NorseUser> signInManager, IDeferredSignI
 			return Outcome<LoginResult>.Err(ErrorCategory.NotAllowed,
 				new Dictionary<string, string[]> { [""] = ["Sign-in is not allowed for this account."] });
 
+		// The user proved they know the correct password -- this is NOT a credential failure, so it
+		// must never fall into the shared _invalidCredentials branch below (that would make a correct
+		// password indistinguishable from a wrong one to a 2FA-enabled user). It rides the success
+		// side of the Outcome instead, distinguished from a completed login by NextUrl pointing at the
+		// 2FA challenge -- RememberMe included, so the client never has to reconstruct it from its own
+		// request state -- rather than a bare flag.
+		if (result.RequiresTwoFactor)
+			return Outcome<LoginResult>.Ok(new LoginResult
+			{
+				NextUrl = $"{TwoFactorChallengeRoute}?RememberMe={(wire.RememberMe ? "true" : "false")}"
+			});
+
 		// PasswordSignInAsync already collapses "no such user" and "wrong password" into the single
 		// SignInResult.Failed case — anti-enumeration, spec §9.3 — so there is exactly one
 		// credential-failure branch here, and it always returns the shared _invalidCredentials
@@ -45,7 +63,9 @@ sealed class LoginHandler(SignInManager<NorseUser> signInManager, IDeferredSignI
 		if (!result.Succeeded)
 			return new Outcome<LoginResult>(_invalidCredentials);
 
-		return Outcome<LoginResult>.Ok(new LoginResult { DeferredCompletionUrl = TryGetDeferredCompletionUrl() });
+		// "/" is the concrete default for a completed sign-in whose cookie was written directly --
+		// resolved here, not left for the client to supply, so NextUrl is never null.
+		return Outcome<LoginResult>.Ok(new LoginResult { NextUrl = TryGetDeferredCompletionUrl() ?? "/" });
 	}
 
 	// Duplicated verbatim in LogoutHandler — Buvy's explicit call: no shared helper class for four

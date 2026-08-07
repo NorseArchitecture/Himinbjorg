@@ -128,7 +128,42 @@ public sealed class LoginHandlerTests
 	}
 
 	[Fact]
-	async Task DeferredCompletionUrl_is_null_when_nothing_is_stashed_on_HttpContext()
+	async Task Returns_the_two_factor_challenge_url_on_the_success_side_when_the_password_is_correct_but_2fa_is_pending()
+	{
+		var signInManager = MockSignInManager.Create();
+		signInManager.PasswordSignInAsync("user@example.com", "correct-horse", false, true)
+			.Returns(Microsoft.AspNetCore.Identity.SignInResult.TwoFactorRequired);
+		var handler = CreateHandler(signInManager);
+		LoginCommand command = new(new LoginRequest { Email = "user@example.com", Password = "correct-horse" });
+
+		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
+
+		// The correct password must never route into the same branch a wrong password does -- that
+		// would make a 2FA-enabled user's genuinely correct password indistinguishable from a failed
+		// one, defeating the entire point of a second factor. The server resolves NextUrl to the full
+		// navigation target itself -- the client gets a concrete URL, never a flag to branch on or a
+		// route to build.
+		outcome.TryGetValue(out Success<LoginResult> success).ShouldBeTrue();
+		success.Value.NextUrl.ShouldBe("Account/LoginWith2fa?RememberMe=false");
+	}
+
+	[Fact]
+	async Task The_two_factor_challenge_url_carries_the_caller_s_RememberMe_choice()
+	{
+		var signInManager = MockSignInManager.Create();
+		signInManager.PasswordSignInAsync("user@example.com", "correct-horse", true, true)
+			.Returns(Microsoft.AspNetCore.Identity.SignInResult.TwoFactorRequired);
+		var handler = CreateHandler(signInManager);
+		LoginCommand command = new(new LoginRequest { Email = "user@example.com", Password = "correct-horse", RememberMe = true });
+
+		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
+
+		outcome.TryGetValue(out Success<LoginResult> success).ShouldBeTrue();
+		success.Value.NextUrl.ShouldBe("Account/LoginWith2fa?RememberMe=true");
+	}
+
+	[Fact]
+	async Task NextUrl_defaults_to_root_when_nothing_is_stashed_on_HttpContext()
 	{
 		var signInManager = MockSignInManager.Create();
 		signInManager.PasswordSignInAsync("user@example.com", "correct-horse", false, true)
@@ -138,12 +173,13 @@ public sealed class LoginHandlerTests
 
 		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
 
+		// "/" is resolved here, server-side -- not left for the client to supply as its own default.
 		outcome.TryGetValue(out Success<LoginResult> success).ShouldBeTrue();
-		success.Value.DeferredCompletionUrl.ShouldBeNull();
+		success.Value.NextUrl.ShouldBe("/");
 	}
 
 	[Fact]
-	async Task DeferredCompletionUrl_is_populated_when_stashed_on_HttpContext()
+	async Task NextUrl_is_the_deferred_completion_url_when_one_is_stashed_on_HttpContext()
 	{
 		var signInManager = MockSignInManager.Create();
 		signInManager.PasswordSignInAsync("user@example.com", "correct-horse", false, true)
@@ -159,7 +195,6 @@ public sealed class LoginHandlerTests
 		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
 
 		outcome.TryGetValue(out Success<LoginResult> success).ShouldBeTrue();
-		success.Value.DeferredCompletionUrl.ShouldNotBeNull();
-		success.Value.DeferredCompletionUrl.ShouldContain("stashed-key");
+		success.Value.NextUrl.ShouldContain("stashed-key");
 	}
 }
