@@ -22,9 +22,27 @@ sealed class RegisterHandler(UserManager<NorseUser> userManager)
 		// Everything else (password-policy codes) is Validation — a rejected password isn't a conflict.
 		var isDuplicate = result.Errors.Any(e => e.Code is "DuplicateUserName" or "DuplicateEmail");
 		var category = isDuplicate ? ErrorCategory.Conflict : ErrorCategory.Validation;
+		// Grouped by the WIRE FIELD the error belongs on, never by IdentityError.Code directly — the
+		// client's ServerErrorCoordinator builds a FieldIdentifier from this dictionary's keys, and a
+		// key like "PasswordRequiresNonAlphanumeric" matches no bound field, so the message renders
+		// nowhere (neither inline, since no field has that name, nor in the model-level summary, since
+		// that only fires when Errors is empty) -- silently dropped, reproduced live 2026-08-07.
 		var errors = result.Errors
-			.GroupBy(e => e.Code)
+			.GroupBy(e => FieldFor(e.Code))
 			.ToDictionary(g => g.Key, g => g.Select(e => e.Description).ToArray());
 		return Outcome<RegisterResult>.Err(category, errors);
 	}
+
+	// UserName is always set to Email in this handler, so every user-name-shaped code belongs on the
+	// Email field too. Every code this describer actually emits from a role-free CreateAsync call is
+	// named here explicitly rather than pattern-matched, so a future IdentityErrorDescriber code this
+	// platform has never seen fails safe to the model-level summary (empty key) instead of silently
+	// mapping to the wrong field.
+	static string FieldFor(string identityErrorCode) => identityErrorCode switch
+	{
+		"DuplicateUserName" or "DuplicateEmail" or "InvalidUserName" or "InvalidEmail" => nameof(RegisterRequest.Email),
+		"PasswordTooShort" or "PasswordRequiresUniqueChars" or "PasswordRequiresNonAlphanumeric" or
+			"PasswordRequiresDigit" or "PasswordRequiresLower" or "PasswordRequiresUpper" => nameof(RegisterRequest.Password),
+		_ => "",
+	};
 }
