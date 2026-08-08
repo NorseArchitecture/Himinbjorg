@@ -30,17 +30,17 @@ public sealed class AuthenticationService(ISender sender) : IAuthenticationServi
 {
 	/// <inheritdoc />
 	[Authorize(Policy = AuthNPolicies.Public)]
-	public Task<Outcome<LoginResult>> Login(LoginRequest request, CancellationToken cancellationToken = default) =>
+	public Task<Outcome<NavigationResult>> Login(LoginRequest request, CancellationToken cancellationToken = default) =>
 		sender.Send(new LoginCommand(request), cancellationToken).AsTask();
 
 	/// <inheritdoc />
 	[Authorize(Policy = AuthNPolicies.Public)]
-	public Task<Outcome<RegisterResult>> Register(RegisterRequest request, CancellationToken cancellationToken = default) =>
+	public Task<Outcome<NavigationResult>> Register(RegisterRequest request, CancellationToken cancellationToken = default) =>
 		sender.Send(new RegisterCommand(request), cancellationToken).AsTask();
 
 	/// <inheritdoc />
 	[Authorize(Policy = AuthNPolicies.Public)]
-	public Task<Outcome<LogoutResult>> Logout(CancellationToken cancellationToken = default) =>
+	public Task<Outcome<NavigationResult>> Logout(CancellationToken cancellationToken = default) =>
 		sender.Send(new LogoutCommand(Unit.Value), cancellationToken).AsTask();
 
 	/// <inheritdoc />

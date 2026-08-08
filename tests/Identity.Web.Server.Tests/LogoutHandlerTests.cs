@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Norse.Abstractions.Contracts;
 using Norse.Abstractions.Web.Server.DeferredSignIn;
-using Norse.AuthN.Services;
 using Norse.Identity.EntityFramework;
 using Norse.Primitives;
 
@@ -27,7 +26,7 @@ public sealed class LogoutHandlerTests
 
 		var outcome = await handler.Handle(new LogoutCommand(Unit.Value), TestContext.Current.CancellationToken);
 
-		outcome.TryGetValue(out Success<LogoutResult> _).ShouldBeTrue();
+		outcome.TryGetValue(out Success<NavigationResult> _).ShouldBeTrue();
 		await signInManager.Received(1).SignOutAsync();
 	}
 
@@ -39,8 +38,8 @@ public sealed class LogoutHandlerTests
 
 		var outcome = await handler.Handle(new LogoutCommand(Unit.Value), TestContext.Current.CancellationToken);
 
-		outcome.TryGetValue(out Success<LogoutResult> success).ShouldBeTrue();
-		success.Value.DeferredCompletionUrl.ShouldBeNull();
+		outcome.TryGetValue(out Success<NavigationResult> success).ShouldBeTrue();
+		success.Value.NextUrl.ShouldBe("/");
 	}
 
 	[Fact]
@@ -56,8 +55,8 @@ public sealed class LogoutHandlerTests
 
 		var outcome = await handler.Handle(new LogoutCommand(Unit.Value), TestContext.Current.CancellationToken);
 
-		outcome.TryGetValue(out Success<LogoutResult> success).ShouldBeTrue();
-		success.Value.DeferredCompletionUrl.ShouldNotBeNull();
-		success.Value.DeferredCompletionUrl.ShouldContain("stashed-key");
+		outcome.TryGetValue(out Success<NavigationResult> success).ShouldBeTrue();
+		success.Value.NextUrl.ShouldNotBe("/");
+		success.Value.NextUrl.ShouldContain("stashed-key");
 	}
 }

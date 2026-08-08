@@ -2,18 +2,19 @@ using Microsoft.AspNetCore.Identity;
 using Norse.Abstractions.Contracts;
 using Norse.Abstractions.Web.Server.DeferredSignIn;
 using Norse.Abstractions.Web.Server.Mediator;
-using Norse.AuthN.Services;
 using Norse.Identity.EntityFramework;
 
 namespace Norse.Identity.Web.Server;
 
 sealed class LogoutHandler(SignInManager<NorseUser> signInManager, IDeferredSignIn deferredSignIn, IHttpContextAccessor httpContextAccessor)
-	: IRequestHandler<LogoutCommand, LogoutResult>
+	: IRequestHandler<LogoutCommand, NavigationResult>
 {
-	public async ValueTask<Outcome<LogoutResult>> Handle(LogoutCommand request, CancellationToken cancellationToken = default)
+	public async ValueTask<Outcome<NavigationResult>> Handle(LogoutCommand request, CancellationToken cancellationToken = default)
 	{
 		await signInManager.SignOutAsync().ConfigureAwait(false);
-		return Outcome<LogoutResult>.Ok(new LogoutResult { DeferredCompletionUrl = TryGetDeferredCompletionUrl() });
+		// The deferred-completion detour (circuit path) or the app root — either way one concrete,
+		// server-resolved hop; the client's null-branch is gone with the old wire shape.
+		return Outcome<NavigationResult>.Ok(new NavigationResult { NextUrl = TryGetDeferredCompletionUrl() ?? "/" });
 	}
 
 	// Was duplicated verbatim in LoginHandler; no longer is — LoginHandler's copy grew a returnUrl

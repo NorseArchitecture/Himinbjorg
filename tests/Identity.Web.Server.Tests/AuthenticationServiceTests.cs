@@ -18,9 +18,9 @@ public sealed class AuthenticationServiceTests
 		LoginCommand? captured = null;
 		var sender = Substitute.For<ISender>();
 		sender.Send(Arg.Do<LoginCommand>(c => captured = c), Arg.Any<CancellationToken>())
-			.Returns(_ => ValueTask.FromResult(Outcome<LoginResult>.Ok(new LoginResult { NextUrl = "/" })));
+			.Returns(_ => ValueTask.FromResult(Outcome<NavigationResult>.Ok(new NavigationResult { NextUrl = "/" })));
 		AuthenticationService service = new(sender);
-		LoginRequest request = new() { Email = "a@b.com", Password = "x", RememberMe = true };
+		LoginRequest request = new() { EmailInput = "a@b.com", Password = "x", RememberMe = true };
 
 		await service.Login(request, TestContext.Current.CancellationToken);
 
@@ -32,11 +32,11 @@ public sealed class AuthenticationServiceTests
 	async Task Login_returns_the_senders_outcome_unchanged()
 	{
 		var sender = Substitute.For<ISender>();
-		var expected = Outcome<LoginResult>.Ok(new LoginResult { NextUrl = "/x" });
+		var expected = Outcome<NavigationResult>.Ok(new NavigationResult { NextUrl = "/x" });
 		sender.Send(Arg.Any<LoginCommand>(), Arg.Any<CancellationToken>()).Returns(_ => ValueTask.FromResult(expected));
 		AuthenticationService service = new(sender);
 
-		var outcome = await service.Login(new LoginRequest { Email = "a@b.com", Password = "x" }, TestContext.Current.CancellationToken);
+		var outcome = await service.Login(new LoginRequest { EmailInput = "a@b.com", Password = "x" }, TestContext.Current.CancellationToken);
 
 		outcome.ShouldBeSameAs(expected);
 	}
@@ -45,11 +45,11 @@ public sealed class AuthenticationServiceTests
 	async Task Login_passes_through_a_failed_outcome_unchanged()
 	{
 		var sender = Substitute.For<ISender>();
-		var expected = Outcome<LoginResult>.Err(ErrorCategory.LockedOut);
+		var expected = Outcome<NavigationResult>.Err(ErrorCategory.LockedOut);
 		sender.Send(Arg.Any<LoginCommand>(), Arg.Any<CancellationToken>()).Returns(_ => ValueTask.FromResult(expected));
 		AuthenticationService service = new(sender);
 
-		var outcome = await service.Login(new LoginRequest { Email = "a@b.com", Password = "x" }, TestContext.Current.CancellationToken);
+		var outcome = await service.Login(new LoginRequest { EmailInput = "a@b.com", Password = "x" }, TestContext.Current.CancellationToken);
 
 		outcome.ShouldBeSameAs(expected);
 	}
@@ -60,9 +60,9 @@ public sealed class AuthenticationServiceTests
 		RegisterCommand? captured = null;
 		var sender = Substitute.For<ISender>();
 		sender.Send(Arg.Do<RegisterCommand>(c => captured = c), Arg.Any<CancellationToken>())
-			.Returns(_ => ValueTask.FromResult(Outcome<RegisterResult>.Ok(new RegisterResult { Succeeded = true })));
+			.Returns(_ => ValueTask.FromResult(Outcome<NavigationResult>.Ok(new NavigationResult { NextUrl = "/Account/Login" })));
 		AuthenticationService service = new(sender);
-		RegisterRequest request = new() { Email = "a@b.com", Password = "x" };
+		RegisterRequest request = new() { EmailInput = "a@b.com", Password = "x" };
 
 		await service.Register(request, TestContext.Current.CancellationToken);
 
@@ -74,11 +74,11 @@ public sealed class AuthenticationServiceTests
 	async Task Register_returns_the_senders_outcome_unchanged()
 	{
 		var sender = Substitute.For<ISender>();
-		var expected = Outcome<RegisterResult>.Err(ErrorCategory.Conflict);
+		var expected = Outcome<NavigationResult>.Err(ErrorCategory.Conflict);
 		sender.Send(Arg.Any<RegisterCommand>(), Arg.Any<CancellationToken>()).Returns(_ => ValueTask.FromResult(expected));
 		AuthenticationService service = new(sender);
 
-		var outcome = await service.Register(new RegisterRequest { Email = "a@b.com", Password = "x" }, TestContext.Current.CancellationToken);
+		var outcome = await service.Register(new RegisterRequest { EmailInput = "a@b.com", Password = "x" }, TestContext.Current.CancellationToken);
 
 		outcome.ShouldBeSameAs(expected);
 	}
@@ -89,7 +89,7 @@ public sealed class AuthenticationServiceTests
 		LogoutCommand? captured = null;
 		var sender = Substitute.For<ISender>();
 		sender.Send(Arg.Do<LogoutCommand>(c => captured = c), Arg.Any<CancellationToken>())
-			.Returns(_ => ValueTask.FromResult(Outcome<LogoutResult>.Ok(new LogoutResult())));
+			.Returns(_ => ValueTask.FromResult(Outcome<NavigationResult>.Ok(new NavigationResult { NextUrl = "/" })));
 		AuthenticationService service = new(sender);
 
 		await service.Logout(TestContext.Current.CancellationToken);
@@ -102,7 +102,7 @@ public sealed class AuthenticationServiceTests
 	async Task Logout_returns_the_senders_outcome_unchanged()
 	{
 		var sender = Substitute.For<ISender>();
-		var expected = Outcome<LogoutResult>.Ok(new LogoutResult { DeferredCompletionUrl = "/x" });
+		var expected = Outcome<NavigationResult>.Ok(new NavigationResult { NextUrl = "/x" });
 		sender.Send(Arg.Any<LogoutCommand>(), Arg.Any<CancellationToken>()).Returns(_ => ValueTask.FromResult(expected));
 		AuthenticationService service = new(sender);
 
@@ -115,7 +115,7 @@ public sealed class AuthenticationServiceTests
 	async Task Logout_passes_through_a_failed_outcome_unchanged()
 	{
 		var sender = Substitute.For<ISender>();
-		var expected = Outcome<LogoutResult>.Err(ErrorCategory.Fault);
+		var expected = Outcome<NavigationResult>.Err(ErrorCategory.Fault);
 		sender.Send(Arg.Any<LogoutCommand>(), Arg.Any<CancellationToken>()).Returns(_ => ValueTask.FromResult(expected));
 		AuthenticationService service = new(sender);
 

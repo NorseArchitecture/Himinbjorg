@@ -15,4 +15,4 @@ namespace Norse.Identity.Web.Server;
 /// definition, absence is a pass.
 /// </summary>
 [Authorize(Policy = AuthNPolicies.Public)]
-sealed record LogoutCommand(Unit Request) : CommandRequest<Unit, LogoutResult>(Request);
+sealed record LogoutCommand(Unit Request) : CommandRequest<Unit, NavigationResult>(Request);
