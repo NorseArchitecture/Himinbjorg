@@ -46,12 +46,12 @@ public sealed class RegisterHandlerTests
 		using NorseUserStore store = new(context, new IdentityErrorDescriber());
 		using var userManager = CreateUserManager(store);
 		RegisterHandler handler = new(userManager);
-		RegisterCommand command = new(new RegisterRequest { Email = "user@example.com", Password = "correct-horse-battery-1A!" });
+		RegisterCommand command = new(new RegisterRequest { EmailInput = "user@example.com", Password = "correct-horse-battery-1A!" });
 
 		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
 
-		outcome.TryGetValue(out Success<RegisterResult> success).ShouldBeTrue();
-		success.Value.Succeeded.ShouldBeTrue();
+		outcome.TryGetValue(out Success<NavigationResult> success).ShouldBeTrue();
+		success.Value.NextUrl.ShouldBe("/Account/Login");
 		(await context.Users.SingleAsync(TestContext.Current.CancellationToken)).Email.ShouldBe("user@example.com");
 	}
 
@@ -62,7 +62,7 @@ public sealed class RegisterHandlerTests
 		using NorseUserStore store = new(context, new IdentityErrorDescriber());
 		using var userManager = CreateUserManager(store);
 		RegisterHandler handler = new(userManager);
-		RegisterCommand command = new(new RegisterRequest { Email = "user@example.com", Password = "correct-horse-battery-1A!" });
+		RegisterCommand command = new(new RegisterRequest { EmailInput = "user@example.com", Password = "correct-horse-battery-1A!" });
 		await handler.Handle(command, TestContext.Current.CancellationToken);
 
 		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
@@ -86,7 +86,7 @@ public sealed class RegisterHandlerTests
 		// Passes FluentValidation's client-side MinimumLength(8) but fails ASP.NET Identity's default
 		// password-complexity rules (needs a digit, an uppercase letter, a non-alphanumeric char) —
 		// exercises the corrected mapping: this must be Validation, never Conflict.
-		RegisterCommand command = new(new RegisterRequest { Email = "user2@example.com", Password = "aaaaaaaa" });
+		RegisterCommand command = new(new RegisterRequest { EmailInput = "user2@example.com", Password = "aaaaaaaa" });
 
 		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
 
@@ -105,7 +105,7 @@ public sealed class RegisterHandlerTests
 		// unique-chars is fine here but the other three aren't) -- each mints its own IdentityError with
 		// a distinct .Code ("PasswordRequiresDigit", "PasswordRequiresUpper", ...). Reproduced live: all
 		// of them must collapse onto the single "Password" key, never survive as separate raw codes.
-		RegisterCommand command = new(new RegisterRequest { Email = "user3@example.com", Password = "aaaaaaaa" });
+		RegisterCommand command = new(new RegisterRequest { EmailInput = "user3@example.com", Password = "aaaaaaaa" });
 
 		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
 

@@ -1,3 +1,4 @@
+using Norse.Abstractions.Contracts;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -50,12 +51,12 @@ public sealed class NestedSendIntegrationTests
 		using var host = builder.Build();
 		using var scope = host.Services.CreateScope();
 		var sender = scope.ServiceProvider.GetRequiredService<ISender>();
-		RegisterCommand command = new(new RegisterRequest { Email = "nested-send@example.com", Password = "correct-horse-battery-1A!" });
+		RegisterCommand command = new(new RegisterRequest { EmailInput = "nested-send@example.com", Password = "correct-horse-battery-1A!" });
 
 		var outcome = await sender.Send(command, TestContext.Current.CancellationToken);
 
-		outcome.TryGetValue(out Success<RegisterResult> success).ShouldBeTrue();
-		success.Value.Succeeded.ShouldBeTrue();
+		outcome.TryGetValue(out Success<NavigationResult> success).ShouldBeTrue();
+		success.Value.NextUrl.ShouldBe("/Account/Login");
 		await userManager.Received(1).FindByEmailAsync("nested-send@example.com");
 	}
 }

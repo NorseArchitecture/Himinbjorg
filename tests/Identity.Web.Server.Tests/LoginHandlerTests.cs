@@ -52,7 +52,7 @@ public sealed class LoginHandlerTests
 		signInManager.PasswordSignInAsync("user@example.com", "wrong-password", false, true)
 			.Returns(Microsoft.AspNetCore.Identity.SignInResult.LockedOut);
 		var handler = CreateHandler(signInManager);
-		LoginCommand command = new(new LoginRequest { Email = "user@example.com", Password = "wrong-password" });
+		LoginCommand command = new(new LoginRequest { EmailInput = "user@example.com", Password = "wrong-password" });
 
 		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
 
@@ -68,7 +68,7 @@ public sealed class LoginHandlerTests
 		signInManager.PasswordSignInAsync("user@example.com", "wrong-password", false, true)
 			.Returns(Microsoft.AspNetCore.Identity.SignInResult.NotAllowed);
 		var handler = CreateHandler(signInManager);
-		LoginCommand command = new(new LoginRequest { Email = "user@example.com", Password = "wrong-password" });
+		LoginCommand command = new(new LoginRequest { EmailInput = "user@example.com", Password = "wrong-password" });
 
 		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
 
@@ -84,18 +84,18 @@ public sealed class LoginHandlerTests
 		signInManager.PasswordSignInAsync("user@example.com", "correct-horse", false, true)
 			.Returns(Microsoft.AspNetCore.Identity.SignInResult.Success);
 		var handler = CreateHandler(signInManager);
-		LoginCommand command = new(new LoginRequest { Email = "user@example.com", Password = "correct-horse" });
+		LoginCommand command = new(new LoginRequest { EmailInput = "user@example.com", Password = "correct-horse" });
 
 		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
 
-		outcome.TryGetValue(out Success<LoginResult> _).ShouldBeTrue();
+		outcome.TryGetValue(out Success<NavigationResult> _).ShouldBeTrue();
 	}
 
 	[Fact]
 	async Task Wrong_credentials_produce_an_invalid_credentials_model_error()
 	{
 		var handler = NewHandlerWithFailingSignIn();
-		LoginCommand command = new(new LoginRequest { Email = "who@example.com", Password = "nope" });
+		LoginCommand command = new(new LoginRequest { EmailInput = "who@example.com", Password = "nope" });
 
 		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
 
@@ -112,9 +112,9 @@ public sealed class LoginHandlerTests
 		// therefore holds ONE static instance and every credential-failure path returns it, making
 		// anti-enumeration a reference-identity guarantee rather than a structural coincidence.
 		var unknownUserOutcome = await NewHandlerWithUnknownUser().Handle(
-			new(new LoginRequest { Email = "ghost@example.com", Password = "x" }), TestContext.Current.CancellationToken);
+			new(new LoginRequest { EmailInput = "ghost@example.com", Password = "x" }), TestContext.Current.CancellationToken);
 		var wrongPasswordOutcome = await NewHandlerWithFailingSignIn().Handle(
-			new(new LoginRequest { Email = "real@example.com", Password = "x" }), TestContext.Current.CancellationToken);
+			new(new LoginRequest { EmailInput = "real@example.com", Password = "x" }), TestContext.Current.CancellationToken);
 
 		unknownUserOutcome.TryGetValue(out Failed first).ShouldBeTrue();
 		wrongPasswordOutcome.TryGetValue(out Failed second).ShouldBeTrue();
@@ -134,7 +134,7 @@ public sealed class LoginHandlerTests
 		signInManager.PasswordSignInAsync("user@example.com", "correct-horse", false, true)
 			.Returns(Microsoft.AspNetCore.Identity.SignInResult.TwoFactorRequired);
 		var handler = CreateHandler(signInManager);
-		LoginCommand command = new(new LoginRequest { Email = "user@example.com", Password = "correct-horse" });
+		LoginCommand command = new(new LoginRequest { EmailInput = "user@example.com", Password = "correct-horse" });
 
 		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
 
@@ -143,7 +143,7 @@ public sealed class LoginHandlerTests
 		// one, defeating the entire point of a second factor. The server resolves NextUrl to the full
 		// navigation target itself -- the client gets a concrete URL, never a flag to branch on or a
 		// route to build.
-		outcome.TryGetValue(out Success<LoginResult> success).ShouldBeTrue();
+		outcome.TryGetValue(out Success<NavigationResult> success).ShouldBeTrue();
 		success.Value.NextUrl.ShouldBe("/Account/LoginWith2fa?RememberMe=false");
 	}
 
@@ -154,11 +154,11 @@ public sealed class LoginHandlerTests
 		signInManager.PasswordSignInAsync("user@example.com", "correct-horse", true, true)
 			.Returns(Microsoft.AspNetCore.Identity.SignInResult.TwoFactorRequired);
 		var handler = CreateHandler(signInManager);
-		LoginCommand command = new(new LoginRequest { Email = "user@example.com", Password = "correct-horse", RememberMe = true });
+		LoginCommand command = new(new LoginRequest { EmailInput = "user@example.com", Password = "correct-horse", RememberMe = true });
 
 		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
 
-		outcome.TryGetValue(out Success<LoginResult> success).ShouldBeTrue();
+		outcome.TryGetValue(out Success<NavigationResult> success).ShouldBeTrue();
 		success.Value.NextUrl.ShouldBe("/Account/LoginWith2fa?RememberMe=true");
 	}
 
@@ -180,11 +180,11 @@ public sealed class LoginHandlerTests
 		DefaultHttpContext httpContext = new();
 		httpContext.Items[NorseSignInManager.DeferredSignInKeyItemName] = "stashed-key";
 		var handler = CreateHandler(signInManager, deferredSignIn, httpContext);
-		LoginCommand command = new(new LoginRequest { Email = "user@example.com", Password = "correct-horse" });
+		LoginCommand command = new(new LoginRequest { EmailInput = "user@example.com", Password = "correct-horse" });
 
 		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
 
-		outcome.TryGetValue(out Success<LoginResult> success).ShouldBeTrue();
+		outcome.TryGetValue(out Success<NavigationResult> success).ShouldBeTrue();
 		success.Value.NextUrl.ShouldContain("stashed-key");
 		success.Value.NextUrl.ShouldContain(Uri.EscapeDataString("/Account/LoginWith2fa?RememberMe=false"));
 		// The actual regression this guards: a path-relative returnUrl here would resolve, under RFC
@@ -202,12 +202,12 @@ public sealed class LoginHandlerTests
 		signInManager.PasswordSignInAsync("user@example.com", "correct-horse", false, true)
 			.Returns(Microsoft.AspNetCore.Identity.SignInResult.Success);
 		var handler = CreateHandler(signInManager);
-		LoginCommand command = new(new LoginRequest { Email = "user@example.com", Password = "correct-horse" });
+		LoginCommand command = new(new LoginRequest { EmailInput = "user@example.com", Password = "correct-horse" });
 
 		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
 
 		// "/" is resolved here, server-side -- not left for the client to supply as its own default.
-		outcome.TryGetValue(out Success<LoginResult> success).ShouldBeTrue();
+		outcome.TryGetValue(out Success<NavigationResult> success).ShouldBeTrue();
 		success.Value.NextUrl.ShouldBe("/");
 	}
 
@@ -225,11 +225,11 @@ public sealed class LoginHandlerTests
 		DefaultHttpContext httpContext = new();
 		httpContext.Request.PathBase = "/example";
 		var handler = CreateHandler(signInManager, httpContext: httpContext);
-		LoginCommand command = new(new LoginRequest { Email = "user@example.com", Password = "correct-horse" });
+		LoginCommand command = new(new LoginRequest { EmailInput = "user@example.com", Password = "correct-horse" });
 
 		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
 
-		outcome.TryGetValue(out Success<LoginResult> success).ShouldBeTrue();
+		outcome.TryGetValue(out Success<NavigationResult> success).ShouldBeTrue();
 		success.Value.NextUrl.ShouldBe("/example/");
 	}
 
@@ -242,11 +242,11 @@ public sealed class LoginHandlerTests
 		DefaultHttpContext httpContext = new();
 		httpContext.Request.PathBase = "/example";
 		var handler = CreateHandler(signInManager, httpContext: httpContext);
-		LoginCommand command = new(new LoginRequest { Email = "user@example.com", Password = "correct-horse" });
+		LoginCommand command = new(new LoginRequest { EmailInput = "user@example.com", Password = "correct-horse" });
 
 		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
 
-		outcome.TryGetValue(out Success<LoginResult> success).ShouldBeTrue();
+		outcome.TryGetValue(out Success<NavigationResult> success).ShouldBeTrue();
 		success.Value.NextUrl.ShouldBe("/example/Account/LoginWith2fa?RememberMe=false");
 	}
 
@@ -262,11 +262,11 @@ public sealed class LoginHandlerTests
 		DefaultHttpContext httpContext = new();
 		httpContext.Items[NorseSignInManager.DeferredSignInKeyItemName] = "stashed-key";
 		var handler = CreateHandler(signInManager, deferredSignIn, httpContext);
-		LoginCommand command = new(new LoginRequest { Email = "user@example.com", Password = "correct-horse" });
+		LoginCommand command = new(new LoginRequest { EmailInput = "user@example.com", Password = "correct-horse" });
 
 		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
 
-		outcome.TryGetValue(out Success<LoginResult> success).ShouldBeTrue();
+		outcome.TryGetValue(out Success<NavigationResult> success).ShouldBeTrue();
 		success.Value.NextUrl.ShouldContain("stashed-key");
 	}
 }

@@ -1,3 +1,4 @@
+using Norse.Abstractions.Contracts;
 using FluentValidation;
 using Microsoft.Extensions.Hosting;
 using Norse.Abstractions.Web.Server.Mediator;
@@ -17,9 +18,9 @@ public sealed class RegistrationCompositionTests
 		builder.AddNorseAuthenticationService("test");
 		var services = builder.Services;
 
-		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<LoginCommand, LoginResult>));
-		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<RegisterCommand, RegisterResult>));
-		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<LogoutCommand, LogoutResult>));
+		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<LoginCommand, NavigationResult>));
+		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<RegisterCommand, NavigationResult>));
+		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<LogoutCommand, NavigationResult>));
 		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<EmailExistsCommand, Norse.Abstractions.Contracts.BoolResponse>));
 		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<GetMyPersonalDataCommand, PersonalDataResponse>));
 		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<MaskedPersonalDataCommand, MaskedPersonalDataResponse>));
