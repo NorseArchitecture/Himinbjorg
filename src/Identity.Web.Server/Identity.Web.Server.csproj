@@ -4,9 +4,6 @@
 		<IsAotCompatible>false</IsAotCompatible>
 	</PropertyGroup>
 	<ItemGroup>
-		<NorseRef Include="AuthN.Services">
-			<Repo>Heimdall</Repo>
-		</NorseRef>
 		<NorseRef Include="AuthN.Components.FluentUI">
 			<Repo>Heimdall</Repo>
 		</NorseRef>
