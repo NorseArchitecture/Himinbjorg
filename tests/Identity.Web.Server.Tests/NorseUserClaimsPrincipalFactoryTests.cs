@@ -14,7 +14,7 @@ public sealed class NorseUserClaimsPrincipalFactoryTests
 		userManager.GetEmailAsync(user).Returns(user.Email);
 		userManager.SupportsUserEmail.Returns(true);
 		userManager.SupportsUserSecurityStamp.Returns(true);
-		userManager.GetSecurityStampAsync(user).Returns(user.SecurityStamp);
+		userManager.GetSecurityStampAsync(user).Returns(user.SecurityStamp!);
 		userManager.SupportsUserClaim.Returns(true);
 		userManager.GetClaimsAsync(user).Returns(storedClaims);
 		userManager.SupportsUserRole.Returns(true);
