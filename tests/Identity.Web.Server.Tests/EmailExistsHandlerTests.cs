@@ -1,3 +1,4 @@
+using Norse.Primitives.Pii;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using Norse.Abstractions.Contracts;
@@ -23,7 +24,7 @@ public sealed class EmailExistsHandlerTests
 			.Returns(new NorseUser { UserName = "user@example.com", Email = "user@example.com" });
 		await using var container = BuildContainer(userManager);
 		EmailExistsHandler handler = new(container.GetRequiredService<IServiceScopeFactory>());
-		EmailExistsCommand command = new(new EmailExistsRequest { Email = "user@example.com" });
+		EmailExistsCommand command = new(new EmailExistsRequest { Email = EmailAddress.Parse("user@example.com") });
 
 		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
 
@@ -38,7 +39,7 @@ public sealed class EmailExistsHandlerTests
 		userManager.FindByEmailAsync("ghost@example.com").Returns((NorseUser?)null);
 		await using var container = BuildContainer(userManager);
 		EmailExistsHandler handler = new(container.GetRequiredService<IServiceScopeFactory>());
-		EmailExistsCommand command = new(new EmailExistsRequest { Email = "ghost@example.com" });
+		EmailExistsCommand command = new(new EmailExistsRequest { Email = EmailAddress.Parse("ghost@example.com") });
 
 		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
 
@@ -70,8 +71,8 @@ public sealed class EmailExistsHandlerTests
 			return scope;
 		});
 		EmailExistsHandler handler = new(scopeFactory);
-		EmailExistsCommand first = new(new EmailExistsRequest { Email = "a@example.com" });
-		EmailExistsCommand second = new(new EmailExistsRequest { Email = "b@example.com" });
+		EmailExistsCommand first = new(new EmailExistsRequest { Email = EmailAddress.Parse("a@example.com") });
+		EmailExistsCommand second = new(new EmailExistsRequest { Email = EmailAddress.Parse("b@example.com") });
 
 		await Task.WhenAll(
 			handler.Handle(first, TestContext.Current.CancellationToken).AsTask(),

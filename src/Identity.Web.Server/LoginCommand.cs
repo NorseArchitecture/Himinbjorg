@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Norse.Abstractions.Contracts;
 using Norse.Abstractions.Web.Server.Mediator;
 using Norse.AuthN.Services;
 
@@ -14,4 +15,4 @@ namespace Norse.Identity.Web.Server;
 /// <see cref="CommandRequestValidator{TCommand,TRequest,TResponse}"/> adapter.
 /// </summary>
 [Authorize(Policy = AuthNPolicies.Public)]
-sealed record LoginCommand(LoginRequest Request) : CommandRequest<LoginRequest, LoginResult>(Request);
+sealed record LoginCommand(LoginRequest Request) : CommandRequest<LoginRequest, NavigationResult>(Request);

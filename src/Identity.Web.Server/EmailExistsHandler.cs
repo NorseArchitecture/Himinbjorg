@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Identity;
 using Norse.Abstractions.Contracts;
 using Norse.Abstractions.Web.Server.Mediator;
 using Norse.Identity.EntityFramework;
+using Norse.Primitives;
+using Norse.Primitives.Pii;
 
 namespace Norse.Identity.Web.Server;
 
@@ -28,8 +30,14 @@ sealed class EmailExistsHandler(IServiceScopeFactory scopeFactory)
 	{
 		var scope = scopeFactory.CreateAsyncScope();
 		await using var _ = scope.ConfigureAwait(false);
+		// The server-side validator converts an unproven stamp before this handler runs; this guard
+		// is the tripwire, and "not taken" is the safe answer for sugar over an inherently racy
+		// lookup — the register handler's atomic conflict remains the authority.
+		if (!request.Request.Email.TryGetValue(out Success<EmailAddress> email))
+			return Outcome<BoolResponse>.Ok(new BoolResponse { Value = false });
 		var userManager = scope.ServiceProvider.GetRequiredService<UserManager<NorseUser>>();
-		var user = await userManager.FindByEmailAsync(request.Request.Email).ConfigureAwait(false);
+		// WireValue is the deliberate plaintext egress — Identity's store speaks canonical strings.
+		var user = await userManager.FindByEmailAsync(email.Value.WireValue).ConfigureAwait(false);
 		return Outcome<BoolResponse>.Ok(new BoolResponse { Value = user is not null });
 	}
 }

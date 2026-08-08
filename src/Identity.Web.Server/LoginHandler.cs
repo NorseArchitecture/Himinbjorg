@@ -3,13 +3,14 @@ using Microsoft.AspNetCore.Identity;
 using Norse.Abstractions.Contracts;
 using Norse.Abstractions.Web.Server.DeferredSignIn;
 using Norse.Abstractions.Web.Server.Mediator;
-using Norse.AuthN.Services;
 using Norse.Identity.EntityFramework;
+using Norse.Primitives;
+using Norse.Primitives.Pii;
 
 namespace Norse.Identity.Web.Server;
 
 sealed class LoginHandler(SignInManager<NorseUser> signInManager, IDeferredSignIn deferredSignIn, IHttpContextAccessor httpContextAccessor)
-	: IRequestHandler<LoginCommand, LoginResult>
+	: IRequestHandler<LoginCommand, NavigationResult>
 {
 	// Anti-enumeration as a reference-identity guarantee (spec §9.3), not a structural coincidence:
 	// Problem.Errors is a dictionary, so two separately built Problems carrying identical content
@@ -20,7 +21,7 @@ sealed class LoginHandler(SignInManager<NorseUser> signInManager, IDeferredSignI
 
 	// Himinbjörg is the layer that owns and serves the 2FA challenge page (still the pre-migration
 	// scaffold at Components/Pages/LoginWith2fa.razor, @page "/Account/LoginWith2fa"), so it's also the
-	// layer that resolves LoginResult.NextUrl down to a concrete value in every case -- every client
+	// layer that resolves NavigationResult.NextUrl down to a concrete value in every case -- every client
 	// (Blazor Server, WASM, MAUI) just navigates to it, with no route knowledge or default of its own.
 	//
 	// Root-relative, not path-relative -- load-bearing, not cosmetic: this value also feeds
@@ -37,14 +38,21 @@ sealed class LoginHandler(SignInManager<NorseUser> signInManager, IDeferredSignI
 	// carries zero behavior change for today's root-hosted deployment.
 	const string TwoFactorChallengeRoute = "/Account/LoginWith2fa";
 
-	public async ValueTask<Outcome<LoginResult>> Handle(LoginCommand request, CancellationToken cancellationToken = default)
+	public async ValueTask<Outcome<NavigationResult>> Handle(LoginCommand request, CancellationToken cancellationToken = default)
 	{
 		var wire = request.Request;
 
+		// The server-side validator run guarantees a proven stamp before this handler executes; a
+		// stamp that is somehow not a success (hostile caller, validator misregistration) is
+		// indistinguishable from bad credentials on purpose — same anti-enumeration collapse.
+		if (!wire.Email.TryGetValue(out Success<EmailAddress> email))
+			return new Outcome<NavigationResult>(_invalidCredentials);
+
 		// SignInManager mints/clears the cookie itself via its own IHttpContextAccessor dependency —
 		// no manual HttpContext.SignInAsync call needed here (must register AddHttpContextAccessor()).
+		// WireValue is the deliberate plaintext egress — Identity's store speaks canonical strings.
 		var result = await signInManager.PasswordSignInAsync(
-			wire.Email, wire.Password, wire.RememberMe, lockoutOnFailure: true).ConfigureAwait(false);
+			email.Value.WireValue, wire.Password, wire.RememberMe, lockoutOnFailure: true).ConfigureAwait(false);
 
 		// A distinguishable category alone isn't enough — the UI (Task 8) reads only Errors, never
 		// ErrorCategory (that's server-only), so the actual human-readable text has to be populated
@@ -52,10 +60,10 @@ sealed class LoginHandler(SignInManager<NorseUser> signInManager, IDeferredSignI
 		// credential-check failure below, defeating the reason they stayed distinguishable at all
 		// (spec §9.3: "so they don't try 10000 times").
 		if (result.IsLockedOut)
-			return Outcome<LoginResult>.Err(ErrorCategory.LockedOut,
+			return Outcome<NavigationResult>.Err(ErrorCategory.LockedOut,
 				new Dictionary<string, string[]> { [""] = ["This account is locked out. Try again later or reset your password."] });
 		if (result.IsNotAllowed)
-			return Outcome<LoginResult>.Err(ErrorCategory.NotAllowed,
+			return Outcome<NavigationResult>.Err(ErrorCategory.NotAllowed,
 				new Dictionary<string, string[]> { [""] = ["Sign-in is not allowed for this account."] });
 
 		// The user proved they know the correct password -- this is NOT a credential failure, so it
@@ -73,7 +81,7 @@ sealed class LoginHandler(SignInManager<NorseUser> signInManager, IDeferredSignI
 			var challengeUrl = UriHelper.BuildRelative(
 				PathBase, TwoFactorChallengeRoute,
 				QueryString.Create("RememberMe", wire.RememberMe ? "true" : "false"));
-			return Outcome<LoginResult>.Ok(new LoginResult { NextUrl = TryGetDeferredCompletionUrl(challengeUrl) ?? challengeUrl });
+			return Outcome<NavigationResult>.Ok(new NavigationResult { NextUrl = TryGetDeferredCompletionUrl(challengeUrl) ?? challengeUrl });
 		}
 
 		// PasswordSignInAsync already collapses "no such user" and "wrong password" into the single
@@ -81,13 +89,13 @@ sealed class LoginHandler(SignInManager<NorseUser> signInManager, IDeferredSignI
 		// credential-failure branch here, and it always returns the shared _invalidCredentials
 		// instance rather than minting a fresh Problem per call.
 		if (!result.Succeeded)
-			return new Outcome<LoginResult>(_invalidCredentials);
+			return new Outcome<NavigationResult>(_invalidCredentials);
 
 		// The app root, PathBase-qualified, is the concrete default for a completed sign-in whose
 		// cookie was written directly -- resolved here, not left for the client to supply, so NextUrl
 		// is never null.
 		var appRoot = UriHelper.BuildRelative(PathBase, "/");
-		return Outcome<LoginResult>.Ok(new LoginResult { NextUrl = TryGetDeferredCompletionUrl(appRoot) ?? appRoot });
+		return Outcome<NavigationResult>.Ok(new NavigationResult { NextUrl = TryGetDeferredCompletionUrl(appRoot) ?? appRoot });
 	}
 
 	// Read once per Handle call -- HttpContext.Request.PathBase reflects the live request the sender
