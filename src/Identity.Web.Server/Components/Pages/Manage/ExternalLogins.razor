@@ -8,35 +8,35 @@
 
 <PageTitle>Manage your external logins</PageTitle>
 
-<StatusMessage />
+<StatusMessage/>
 @if (_currentLogins?.Count > 0)
 {
     <h3>Registered Logins</h3>
     <table class="table">
         <tbody>
-            @foreach (var login in _currentLogins)
-            {
-                <tr>
-                    <td>@login.ProviderDisplayName</td>
-                    <td>
-                        @if (_showRemoveButton)
-                        {
-                            <form @formname="@($"remove-login-{login.LoginProvider}")" @onsubmit="OnSubmitAsync" method="post">
-                                <AntiforgeryToken />
-                                <div>
-                                    <input type="hidden" name="@nameof(LoginProvider)" value="@login.LoginProvider" />
-                                    <input type="hidden" name="@nameof(ProviderKey)" value="@login.ProviderKey" />
-                                    <FluentButton Type="ButtonType.Submit" Appearance="ButtonAppearance.Primary" Title="@($"Remove this {login.ProviderDisplayName} login from your account")">Remove</FluentButton>
-                                </div>
-                            </form>
-                        }
-                        else
-                        {
-                            @: &nbsp;
-                        }
-                    </td>
-                </tr>
-            }
+        @foreach (var login in _currentLogins)
+        {
+            <tr>
+                <td>@login.ProviderDisplayName</td>
+                <td>
+                    @if (_showRemoveButton)
+                    {
+                        <form @formname="@($"remove-login-{login.LoginProvider}")" @onsubmit="OnSubmitAsync" method="post">
+                            <AntiforgeryToken/>
+                            <div>
+                                <input type="hidden" name="@nameof(LoginProvider)" value="@login.LoginProvider"/>
+                                <input type="hidden" name="@nameof(ProviderKey)" value="@login.ProviderKey"/>
+                                <FluentButton Type="ButtonType.Submit" Appearance="ButtonAppearance.Primary" Title="@($"Remove this {login.ProviderDisplayName} login from your account")">Remove</FluentButton>
+                            </div>
+                        </form>
+                    }
+                    else
+                    {
+                        @: &nbsp;
+                    }
+                </td>
+            </tr>
+        }
         </tbody>
     </table>
 }
@@ -45,7 +45,7 @@
     <h4>Add another service to log in.</h4>
 
     <form class="form-horizontal" action="Account/Manage/LinkExternalLogin" method="post">
-        <AntiforgeryToken />
+        <AntiforgeryToken/>
         <div>
             <p>
                 @foreach (var provider in _otherLogins)
@@ -67,17 +67,13 @@
     IList<AuthenticationScheme>? _otherLogins;
     bool _showRemoveButton;
 
-    [CascadingParameter]
-    HttpContext HttpContext { get; set; } = null!;
+    [CascadingParameter] HttpContext HttpContext { get; set; } = null!;
 
-    [SupplyParameterFromForm]
-    string? LoginProvider { get; set; }
+    [SupplyParameterFromForm] string? LoginProvider { get; set; }
 
-    [SupplyParameterFromForm]
-    string? ProviderKey { get; set; }
+    [SupplyParameterFromForm] string? ProviderKey { get; set; }
 
-    [SupplyParameterFromQuery]
-    string? Action { get; set; }
+    [SupplyParameterFromQuery] string? Action { get; set; }
 
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
@@ -93,7 +89,7 @@
         _otherLogins =
         [
             .. (await SignInManager.GetExternalAuthenticationSchemesAsync())
-                .Where(auth => _currentLogins.All(ul => auth.Name != ul.LoginProvider)),
+            .Where(auth => _currentLogins.All(ul => auth.Name != ul.LoginProvider))
         ];
 
         string? passwordHash = null;
@@ -159,4 +155,5 @@
             RedirectManager.RedirectToCurrentPageWithStatus("Error: The external login was not added. External logins can only be associated with one account.", HttpContext);
         }
     }
+
 }

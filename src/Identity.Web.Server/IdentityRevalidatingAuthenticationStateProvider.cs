@@ -8,16 +8,16 @@ using Norse.Identity.EntityFramework;
 namespace Norse.Identity.Web.Server;
 
 /// <summary>
-/// A server-side <see cref="AuthenticationStateProvider"/> that revalidates the security stamp for the
-/// connected user every 30 minutes an interactive circuit is connected.
+///     A server-side <see cref="AuthenticationStateProvider" /> that revalidates the security stamp for the
+///     connected user every 30 minutes an interactive circuit is connected.
 /// </summary>
 /// <param name="loggerFactory">The logger factory passed through to the base provider.</param>
-/// <param name="scopeFactory">Used to resolve a scoped <see cref="UserManager{TUser}"/> per revalidation.</param>
+/// <param name="scopeFactory">Used to resolve a scoped <see cref="UserManager{TUser}" /> per revalidation.</param>
 /// <param name="options">The Identity options, used to read the configured security-stamp claim type.</param>
 public sealed class IdentityRevalidatingAuthenticationStateProvider(
-		ILoggerFactory loggerFactory,
-		IServiceScopeFactory scopeFactory,
-		IOptions<IdentityOptions> options) :
+	ILoggerFactory loggerFactory,
+	IServiceScopeFactory scopeFactory,
+	IOptions<IdentityOptions> options) :
 	RevalidatingServerAuthenticationStateProvider(loggerFactory)
 {
 	/// <inheritdoc />
@@ -41,10 +41,12 @@ public sealed class IdentityRevalidatingAuthenticationStateProvider(
 		{
 			return false;
 		}
+
 		if (!userManager.SupportsUserSecurityStamp)
 		{
 			return true;
 		}
+
 		var principalStamp = principal.FindFirstValue(options.Value.ClaimsIdentity.SecurityStampClaimType);
 		var userStamp = await userManager.GetSecurityStampAsync(user).ConfigureAwait(false);
 		return principalStamp == userStamp;

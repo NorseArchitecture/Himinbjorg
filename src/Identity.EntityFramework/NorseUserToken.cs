@@ -6,12 +6,12 @@ using Norse.Persistence.EntityFramework;
 namespace Norse.Identity.EntityFramework;
 
 /// <summary>
-/// Norse platform ASP.NET Core Identity user-token entity, keyed by <see cref="Guid"/>.
+///     Norse platform ASP.NET Core Identity user-token entity, keyed by <see cref="Guid" />.
 /// </summary>
 public sealed class NorseUserToken : IdentityUserToken<Guid>, INorseEntity<NorseUserToken>
 {
 	/// <summary>
-	/// The user this token belongs to.
+	///     The user this token belongs to.
 	/// </summary>
 	public NorseUser User { get; init; } = null!;
 

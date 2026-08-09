@@ -12,14 +12,14 @@
 
 <h1>Resend email confirmation</h1>
 <h2>Enter your email.</h2>
-<StatusMessage Message="@_message" />
+<StatusMessage Message="@_message"/>
 <FluentGrid>
     <FluentGridItem xs="8" sm="4">
         <EditForm Model="Input" FormName="resend-email-confirmation" OnValidSubmit="OnValidSubmitAsync" method="post">
-            <DataAnnotationsValidator />
-            <FluentValidationSummary class="text-danger" role="alert" />
+            <DataAnnotationsValidator/>
+            <FluentValidationSummary class="text-danger" role="alert"/>
             <FluentTextInput Name="Input.Email" @bind-Value="Input.Email" class="form-control" Required="true"
-                             Placeholder="name@example.com" Label="Email" Style="width: 100%;" />
+                             Placeholder="name@example.com" Label="Email" Style="width: 100%;"/>
             @* <FluentValidationMessage For="() => Input.Email" class="text-danger" /> *@
             <FluentButton Type="ButtonType.Submit" Appearance="ButtonAppearance.Primary" Style="width: 100%;">Resend</FluentButton>
         </EditForm>
@@ -29,13 +29,12 @@
 @code {
     string? _message;
 
-    [SupplyParameterFromForm]
-    InputModel Input { get; set; } = null!;
+    [SupplyParameterFromForm] InputModel Input { get; set; } = null!;
 
     /// <inheritdoc />
     protected override void OnInitialized()
     {
-        Input ??= new();
+        Input ??= new InputModel();
     }
 
     async Task OnValidSubmitAsync()
@@ -60,8 +59,7 @@
 
     sealed class InputModel
     {
-        [Required]
-        [EmailAddress]
-        public string Email { get; set; } = "";
+        [Required] [EmailAddress] public string Email { get; set; } = "";
     }
+
 }

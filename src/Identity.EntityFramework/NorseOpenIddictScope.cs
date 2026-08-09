@@ -6,7 +6,7 @@ using OpenIddict.EntityFrameworkCore.Models;
 namespace Norse.Identity.EntityFramework;
 
 /// <summary>
-/// Norse wrapper over OpenIddict's EF Core scope entity, keyed by <see cref="Guid"/>.
+///     Norse wrapper over OpenIddict's EF Core scope entity, keyed by <see cref="Guid" />.
 /// </summary>
 public sealed class NorseOpenIddictScope
 	: OpenIddictEntityFrameworkCoreScope<Guid>, INorseEntity<NorseOpenIddictScope>, ITemporalEntity

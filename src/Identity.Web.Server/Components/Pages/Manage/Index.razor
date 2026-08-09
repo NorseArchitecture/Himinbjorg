@@ -8,15 +8,15 @@
 <PageTitle>Profile</PageTitle>
 
 <h3>Profile</h3>
-<StatusMessage />
+<StatusMessage/>
 
 <FluentGrid>
     <FluentGridItem xs="12" sm="6">
         <EditForm Model="Input" FormName="profile" OnValidSubmit="OnValidSubmitAsync" method="post">
-            <DataAnnotationsValidator />
-            <FluentValidationSummary class="text-danger" role="alert" />
-            <FluentTextInput Value="@_username" Placeholder="Please choose your username." Disabled Label="Username" Appearance="TextInputAppearance.FilledDarker" Style="width: 100%" />
-            <FluentTextInput Name="Input.PhoneNumber" @bind-Value="Input.PhoneNumber" Placeholder="Please enter your phone number." Label="Phone number" Style="width: 100%" />
+            <DataAnnotationsValidator/>
+            <FluentValidationSummary class="text-danger" role="alert"/>
+            <FluentTextInput Value="@_username" Placeholder="Please choose your username." Disabled Label="Username" Appearance="TextInputAppearance.FilledDarker" Style="width: 100%"/>
+            <FluentTextInput Name="Input.PhoneNumber" @bind-Value="Input.PhoneNumber" Placeholder="Please enter your phone number." Label="Phone number" Style="width: 100%"/>
             @* <<FluentValidationMessage For="() => Input.PhoneNumber" class="text-danger" /> *@
             <p style="margin-top: 10px; text-align: end;">
                 <FluentButton Type="ButtonType.Submit" Appearance="ButtonAppearance.Primary">Save</FluentButton>
@@ -30,16 +30,14 @@
     string? _username;
     string? _phoneNumber;
 
-    [CascadingParameter]
-    HttpContext HttpContext { get; set; } = null!;
+    [CascadingParameter] HttpContext HttpContext { get; set; } = null!;
 
-    [SupplyParameterFromForm]
-    InputModel Input { get; set; } = null!;
+    [SupplyParameterFromForm] InputModel Input { get; set; } = null!;
 
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
     {
-        Input ??= new();
+        Input ??= new InputModel();
 
         _user = await UserManager.GetUserAsync(HttpContext.User);
         if (_user is null)
@@ -82,4 +80,5 @@
         [Display(Name = "Phone number")]
         public string? PhoneNumber { get; set; }
     }
+
 }

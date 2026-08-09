@@ -10,13 +10,15 @@ using Norse.Primitives.Identifiers;
 namespace Norse.Identity.EntityFramework;
 
 /// <summary>
-/// Norse platform Identity <see cref="IdentityDbContext{TUser,TRole,TKey,TUserClaim,TUserRole,TUserLogin,TRoleClaim,TUserToken,TUserPasskey}"/>,
-/// combining ASP.NET Core Identity and OpenIddict entity sets. Naming conventions are applied by
-/// whichever provider registration extension registers this context (see
-/// <c>Norse.Persistence.EntityFramework.PostgreSQL.NorsePostgresContextExtensions</c> and its SQL Server
-/// counterpart) — this class replicates <see cref="NorseDbContext"/>'s fixed-length,
-/// <see cref="SequentialGuid"/> byte-order, and temporal-realization plumbing independently since it
-/// inherits <c>IdentityDbContext</c>, not <see cref="NorseDbContext"/>.
+///     Norse platform Identity
+///     <see cref="IdentityDbContext{TUser,TRole,TKey,TUserClaim,TUserRole,TUserLogin,TRoleClaim,TUserToken,TUserPasskey}" />
+///     ,
+///     combining ASP.NET Core Identity and OpenIddict entity sets. Naming conventions are applied by
+///     whichever provider registration extension registers this context (see
+///     <c>Norse.Persistence.EntityFramework.PostgreSQL.NorsePostgresContextExtensions</c> and its SQL Server
+///     counterpart) — this class replicates <see cref="NorseDbContext" />'s fixed-length,
+///     <see cref="SequentialGuid" /> byte-order, and temporal-realization plumbing independently since it
+///     inherits <c>IdentityDbContext</c>, not <see cref="NorseDbContext" />.
 /// </summary>
 /// <param name="options">The options for this context.</param>
 public sealed class NorseIdentityDbContext(DbContextOptions<NorseIdentityDbContext> options)
@@ -25,22 +27,22 @@ public sealed class NorseIdentityDbContext(DbContextOptions<NorseIdentityDbConte
 		NorseUserClaim, NorseUserRole, NorseUserLogin,
 		NorseRoleClaim, NorseUserToken, NorseUserPasskey>(options), INorseDbContext
 {
-	// Field initializer, not a captured primary-ctor parameter (CS9107), mirroring NorseDbContext: the
-	// options are read once at construction, and the hook is the only fact this context needs from them.
-	readonly Action<IConventionEntityType>? _temporalRealizationHook = options.GetTemporalRealizationHook();
-
 	/// <summary>
-	/// Guarantees ASP.NET Core Identity's <c>Version3</c> schema shape (including the passkey table)
-	/// regardless of caller. ASP.NET Core Identity decides schema shape by reading
-	/// <c>IOptions&lt;IdentityOptions&gt;.Value.Stores.SchemaVersion</c> off
-	/// <c>DbContextOptions.ApplicationServiceProvider</c> — a caller that registers this context without
-	/// separately calling <c>Norse.Identity.Web.Server</c>'s <c>AddNorseIdentity()</c> (e.g. the migrations
-	/// service, which only needs the context to migrate, not the full Identity DI surface) would
-	/// otherwise silently get <c>Version1</c> and miss the passkey table entirely.
+	///     Guarantees ASP.NET Core Identity's <c>Version3</c> schema shape (including the passkey table)
+	///     regardless of caller. ASP.NET Core Identity decides schema shape by reading
+	///     <c>IOptions&lt;IdentityOptions&gt;.Value.Stores.SchemaVersion</c> off
+	///     <c>DbContextOptions.ApplicationServiceProvider</c> — a caller that registers this context without
+	///     separately calling <c>Norse.Identity.Web.Server</c>'s <c>AddNorseIdentity()</c> (e.g. the migrations
+	///     service, which only needs the context to migrate, not the full Identity DI surface) would
+	///     otherwise silently get <c>Version1</c> and miss the passkey table entirely.
 	/// </summary>
 	static readonly IServiceProvider _fallbackIdentityServices = new ServiceCollection()
 		.Configure<IdentityOptions>(o => o.Stores.SchemaVersion = IdentitySchemaVersions.Version3)
 		.BuildServiceProvider();
+
+	// Field initializer, not a captured primary-ctor parameter (CS9107), mirroring NorseDbContext: the
+	// options are read once at construction, and the hook is the only fact this context needs from them.
+	readonly Action<IConventionEntityType>? _temporalRealizationHook = options.GetTemporalRealizationHook();
 
 	/// <inheritdoc />
 	protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -66,7 +68,9 @@ public sealed class NorseIdentityDbContext(DbContextOptions<NorseIdentityDbConte
 		var isSqlServer = Database.ProviderName == NorseDbContextOptionsExtensions.SqlServerProviderName;
 		NorseModelConventions.Apply(configurationBuilder,
 			applyFixedLength: isSqlServer,
-			sequentialGuidOrder: isSqlServer ? GuidByteOrder.SqlServer : GuidByteOrder.Rfc9562,
+			sequentialGuidOrder: isSqlServer ?
+				GuidByteOrder.SqlServer :
+				GuidByteOrder.Rfc9562,
 			temporalRealizationHook: _temporalRealizationHook);
 	}
 
@@ -106,7 +110,9 @@ public sealed class NorseIdentityDbContext(DbContextOptions<NorseIdentityDbConte
 		{
 			entity.HasIndex(u => u.NormalizedUserName)
 				.IsUnique()
-				.HasFilter(isSqlServer ? "[NormalizedUserName] IS NOT NULL" : null);
+				.HasFilter(isSqlServer ?
+					"[NormalizedUserName] IS NOT NULL" :
+					null);
 		});
 	}
 }

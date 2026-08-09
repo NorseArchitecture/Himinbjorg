@@ -8,7 +8,7 @@
 
 <PageTitle>Delete Personal Data</PageTitle>
 
-<StatusMessage Message="@_message" />
+<StatusMessage Message="@_message"/>
 
 <h3>Delete Personal Data</h3>
 
@@ -18,37 +18,38 @@
             Deleting this data will permanently remove your account, and this cannot be recovered.
         </FluentMessageBar>
         <EditForm Model="Input" FormName="delete-user" OnValidSubmit="OnValidSubmitAsync" method="post">
-            <DataAnnotationsValidator />
-            <FluentValidationSummary class="text-danger" role="alert" />
+            <DataAnnotationsValidator/>
+            <FluentValidationSummary class="text-danger" role="alert"/>
             @if (_requirePassword)
             {
                 <FluentTextInput type="password" Name="Input.Password" @bind-Value="Input.Password"
                                  AutoComplete="new-password" Required="true" Placeholder="Please enter your password." Label="Password"
-                                 Style="width: 100%" />
+                                 Style="width: 100%"/>
                 @* <FluentValidationMessage For="() => Input.Password" class="text-danger" /> *@
             }
             <p style="margin-top: 10px; text-align: end;">
-                <FluentButton Type="ButtonType.Submit" Appearance="ButtonAppearance.Primary">Delete data and close my
-                    account</FluentButton>
+                <FluentButton Type="ButtonType.Submit" Appearance="ButtonAppearance.Primary">
+                    Delete data and close my
+                    account
+                </FluentButton>
             </p>
         </EditForm>
     </FluentGridItem>
 </FluentGrid>
+
 @code {
     string? _message;
     NorseUser? _user;
     bool _requirePassword;
 
-    [CascadingParameter]
-    HttpContext HttpContext { get; set; } = null!;
+    [CascadingParameter] HttpContext HttpContext { get; set; } = null!;
 
-    [SupplyParameterFromForm]
-    InputModel Input { get; set; } = null!;
+    [SupplyParameterFromForm] InputModel Input { get; set; } = null!;
 
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
     {
-        Input ??= new();
+        Input ??= new InputModel();
 
         _user = await UserManager.GetUserAsync(HttpContext.User);
         if (_user is null)
@@ -56,6 +57,7 @@
             RedirectManager.RedirectToInvalidUser(UserManager, HttpContext);
             return;
         }
+
         _requirePassword = await UserManager.HasPasswordAsync(_user);
     }
 
@@ -89,7 +91,7 @@
 
     sealed class InputModel
     {
-        [DataType(DataType.Password)]
-        public string Password { get; set; } = "";
+        [DataType(DataType.Password)] public string Password { get; set; } = "";
     }
+
 }

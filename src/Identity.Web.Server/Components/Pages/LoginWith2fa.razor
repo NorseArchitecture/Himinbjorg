@@ -9,19 +9,19 @@
 <PageTitle>Two-factor authentication</PageTitle>
 
 <h1>Two-factor authentication</h1>
-<StatusMessage Message="@_message" />
+<StatusMessage Message="@_message"/>
 <p>Your login is protected with an authenticator app. Enter your authenticator code below.</p>
 <FluentGrid>
     <FluentGridItem xs="8" sm="4">
         <EditForm Model="Input" FormName="login-with-2fa" OnValidSubmit="OnValidSubmitAsync" method="post">
-            <input type="hidden" name="ReturnUrl" value="@ReturnUrl" />
-            <input type="hidden" name="RememberMe" value="@RememberMe" />
-            <DataAnnotationsValidator />
-            <FluentValidationSummary class="text-danger" role="alert" />
+            <input type="hidden" name="ReturnUrl" value="@ReturnUrl"/>
+            <input type="hidden" name="RememberMe" value="@RememberMe"/>
+            <DataAnnotationsValidator/>
+            <FluentValidationSummary class="text-danger" role="alert"/>
             <FluentTextInput Name="Input.TwoFactorCode" @bind-Value="Input.TwoFactorCode" class="form-control"
-                             AutoComplete="off" Label="Authenticator code" Style="width: 100%;" />
+                             AutoComplete="off" Label="Authenticator code" Style="width: 100%;"/>
             @* <FluentValidationMessage For="() => Input.TwoFactorCode" class="text-danger" /> *@
-            <FluentCheckbox Name="Input.RememberMachine" @bind-Value="Input.RememberMachine" Label="Remember this machine" Style="width: 100%;" />
+            <FluentCheckbox Name="Input.RememberMachine" @bind-Value="Input.RememberMachine" Label="Remember this machine" Style="width: 100%;"/>
             <FluentButton Type="ButtonType.Submit" Appearance="ButtonAppearance.Primary" Style="width: 100%;">Log in</FluentButton>
         </EditForm>
     </FluentGridItem>
@@ -35,23 +35,20 @@
     string? _message;
     NorseUser _user = null!;
 
-    [SupplyParameterFromForm]
-    InputModel Input { get; set; } = null!;
+    [SupplyParameterFromForm] InputModel Input { get; set; } = null!;
 
-    [SupplyParameterFromQuery]
-    string? ReturnUrl { get; set; }
+    [SupplyParameterFromQuery] string? ReturnUrl { get; set; }
 
-    [SupplyParameterFromQuery]
-    bool RememberMe { get; set; }
+    [SupplyParameterFromQuery] bool RememberMe { get; set; }
 
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
     {
-        Input ??= new();
+        Input ??= new InputModel();
 
         // Ensure the user has gone through the username & password screen first
         _user = await SignInManager.GetTwoFactorAuthenticationUserAsync() ??
-            throw new InvalidOperationException("Unable to load two-factor authentication user.");
+                throw new InvalidOperationException("Unable to load two-factor authentication user.");
     }
 
     async Task OnValidSubmitAsync()
@@ -88,4 +85,5 @@
         [Display(Name = "Remember this machine")]
         public bool RememberMachine { get; set; }
     }
+
 }

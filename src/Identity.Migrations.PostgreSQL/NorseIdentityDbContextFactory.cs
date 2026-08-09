@@ -9,16 +9,16 @@ using Norse.Persistence.EntityFramework.PostgreSQL;
 namespace Norse.Identity.Migrations.PostgreSQL;
 
 /// <summary>
-/// Design-time factory for <see cref="NorseIdentityDbContext"/>, used only by <c>dotnet ef</c> tooling
-/// (e.g. <c>dotnet ef migrations add</c>) to construct a context instance outside of DI at design time.
+///     Design-time factory for <see cref="NorseIdentityDbContext" />, used only by <c>dotnet ef</c> tooling
+///     (e.g. <c>dotnet ef migrations add</c>) to construct a context instance outside of DI at design time.
 /// </summary>
 /// <remarks>
-/// ASP.NET Core Identity's base <c>OnModelCreating</c> reads
-/// <c>IOptions&lt;IdentityOptions&gt;.Value.Stores.SchemaVersion</c> off the context's
-/// <c>ApplicationServiceProvider</c> — not the (dead, never-consulted) protected <c>SchemaVersion</c>
-/// property — to decide which passkey/OpenIddict schema shape to emit. Without an application service
-/// provider supplying <see cref="IdentitySchemaVersions.Version3"/>, ASP.NET Core Identity silently
-/// falls back to <see cref="IdentitySchemaVersions.Version1"/> and omits the passkey table entirely.
+///     ASP.NET Core Identity's base <c>OnModelCreating</c> reads
+///     <c>IOptions&lt;IdentityOptions&gt;.Value.Stores.SchemaVersion</c> off the context's
+///     <c>ApplicationServiceProvider</c> — not the (dead, never-consulted) protected <c>SchemaVersion</c>
+///     property — to decide which passkey/OpenIddict schema shape to emit. Without an application service
+///     provider supplying <see cref="IdentitySchemaVersions.Version3" />, ASP.NET Core Identity silently
+///     falls back to <see cref="IdentitySchemaVersions.Version1" /> and omits the passkey table entirely.
 /// </remarks>
 public sealed class NorseIdentityDbContextFactory : NorseDesignTimeDbContextFactory<NorseIdentityDbContext>
 {
@@ -58,9 +58,9 @@ public sealed class NorseIdentityDbContextFactory : NorseDesignTimeDbContextFact
 }
 
 /// <summary>
-/// Design-time-only <see cref="IPersonalDataProtector"/>: model build needs the service to exist so
-/// ASP.NET Core Identity's <c>OnModelCreatingVersion3</c> can resolve it, but migrations never touch
-/// plaintext, so both members throw if ever actually invoked.
+///     Design-time-only <see cref="IPersonalDataProtector" />: model build needs the service to exist so
+///     ASP.NET Core Identity's <c>OnModelCreatingVersion3</c> can resolve it, but migrations never touch
+///     plaintext, so both members throw if ever actually invoked.
 /// </summary>
 file sealed class DesignTimePersonalDataProtector : IPersonalDataProtector
 {
@@ -71,7 +71,7 @@ file sealed class DesignTimePersonalDataProtector : IPersonalDataProtector
 		throw new NotSupportedException("Design time never touches plaintext.");
 }
 
-/// <summary>Design-time-only <see cref="ILookupProtector"/> -- see <see cref="DesignTimePersonalDataProtector"/>.</summary>
+/// <summary>Design-time-only <see cref="ILookupProtector" /> -- see <see cref="DesignTimePersonalDataProtector" />.</summary>
 file sealed class DesignTimeLookupProtector : ILookupProtector
 {
 	public string? Protect(string keyId, string? data) =>
@@ -81,7 +81,7 @@ file sealed class DesignTimeLookupProtector : ILookupProtector
 		throw new NotSupportedException("Design time never touches plaintext.");
 }
 
-/// <summary>Design-time-only <see cref="ILookupProtectorKeyRing"/> -- see <see cref="DesignTimePersonalDataProtector"/>.</summary>
+/// <summary>Design-time-only <see cref="ILookupProtectorKeyRing" /> -- see <see cref="DesignTimePersonalDataProtector" />.</summary>
 file sealed class DesignTimeLookupProtectorKeyRing : ILookupProtectorKeyRing
 {
 	public string CurrentKeyId =>
