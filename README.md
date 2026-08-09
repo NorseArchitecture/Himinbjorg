@@ -19,10 +19,9 @@ The server-only identity store of the Norse Architecture, and — since PR #27 s
 Arrows point at the thing depended on. The gate and the hall depend on each other by design — Heimdall declares the contracts and pages, Himinbjörg implements and hosts them — which is why `Identity.Web.Server` sits above Heimdall's skin here while Heimdall's own chart shows this realm riding topmost.
 
 ```mermaid
-flowchart TB
+flowchart BT
 	subgraph Himinbjorg["Himinbjörg — Norse.Identity"]
 		MigrationsPg["Identity.Migrations.PostgreSQL"]
-		MigrationsSql["Identity.Migrations.SqlServer"]
 		Migrations["Identity.Migrations"]
 		WebServer["Identity.Web.Server"]
 		EntityFramework["Identity.EntityFramework"]
@@ -35,7 +34,6 @@ flowchart TB
 	end
 	subgraph Urdarbrunnr["Urðarbrunnr — Norse.Persistence"]
 		EFPg["EntityFramework.PostgreSQL"]
-		EFSql["EntityFramework.SqlServer"]
 		EFMigrations["EntityFramework.Migrations"]
 		EF["EntityFramework"]
 	end
@@ -48,11 +46,9 @@ flowchart TB
 	Migrations --> EFMigrations
 	MigrationsPg --> Migrations
 	MigrationsPg --> EFPg
-	MigrationsSql --> Migrations
-	MigrationsSql --> EFSql
 ```
 
-Dependencies are transitive-first by house law — Heimdall's `AuthN.Services` contract reaches `Identity.Web.Server` through `AuthN.Components.FluentUI`, and Urðarbrunnr's base `EntityFramework` reaches it through `Identity.EntityFramework`, so no direct edges exist for either. Two of the NorseRefs also mount source generators (`Generator="true"`): Urðarbrunnr's `Persistence.EntityFramework` brings the entity-configuration generator into `Identity.EntityFramework`, and Asgard's `Abstractions.Web.Server` brings the registration generator that emits `AddNorseIdentityWebServerHandlers()`. `Identity.Web.Server` pins the PostgreSQL provider as its runtime provider; the migrations family stays deliberately two-provider.
+Dependencies are transitive-first by house law — Heimdall's `AuthN.Services` contract reaches `Identity.Web.Server` through `AuthN.Components.FluentUI`, and Urðarbrunnr's base `EntityFramework` reaches it through `Identity.EntityFramework`, so no direct edges exist for either. Two of the NorseRefs also mount source generators (`Generator="true"`): Urðarbrunnr's `Persistence.EntityFramework` brings the entity-configuration generator into `Identity.EntityFramework`, and Asgard's `Abstractions.Web.Server` brings the registration generator that emits `AddNorseIdentityWebServerHandlers()`. `Identity.Web.Server` pins the PostgreSQL provider as its runtime provider; the migrations family stays deliberately two-provider — `Identity.Migrations.SqlServer` mirrors the PostgreSQL leg edge for edge (`Identity.Migrations` + Urðarbrunnr's `EntityFramework.SqlServer`) and is left off the chart for legibility.
 
 ## Status
 
