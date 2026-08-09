@@ -9,12 +9,12 @@ public static class ServiceCollectionExtensions
 	extension(IServiceCollection services)
 	{
 		/// <summary>
-		/// Registers OpenIddict's core services against <see cref="NorseIdentityDbContext"/>, with the
-		/// four <c>NorseOpenIddict*</c> entities replacing OpenIddict's defaults. Lives here, not in
-		/// <c>Norse.Identity.Web.Server</c>: the entities and the context it binds them to are this
-		/// project's, and nothing about the binding needs an HTTP host.
+		///     Registers OpenIddict's core services against <see cref="NorseIdentityDbContext" />, with the
+		///     four <c>NorseOpenIddict*</c> entities replacing OpenIddict's defaults. Lives here, not in
+		///     <c>Norse.Identity.Web.Server</c>: the entities and the context it binds them to are this
+		///     project's, and nothing about the binding needs an HTTP host.
 		/// </summary>
-		/// <returns>The <see cref="OpenIddictBuilder"/> for further chaining.</returns>
+		/// <returns>The <see cref="OpenIddictBuilder" /> for further chaining.</returns>
 		public OpenIddictBuilder AddNorseOpenIddictCore() =>
 			services
 				.AddOpenIddict()

@@ -6,43 +6,6 @@ namespace Norse.Identity.Web.Server.Tests;
 
 public sealed class NorsePersonalDataProtectorTests
 {
-	// In-memory seam fake (three-state).
-	sealed class FakeKeyStore : ISubjectKeyStore
-	{
-		readonly Dictionary<Guid, byte[]> _keys = [];
-		readonly Dictionary<Guid, ErasureReceipt> _destroyed = [];
-
-		public ValueTask<SubjectKeyResult> GetAsync(Guid subjectId, CancellationToken cancellationToken = default) =>
-			ValueTask.FromResult(
-				_keys.TryGetValue(subjectId, out var key) ? SubjectKeyResult.Available(key) :
-				_destroyed.TryGetValue(subjectId, out var receipt) ? SubjectKeyResult.Destroyed(receipt) :
-				SubjectKeyResult.Missing);
-
-		public ValueTask<byte[]> GetOrCreateAsync(Guid subjectId, CancellationToken cancellationToken = default)
-		{
-			if (_destroyed.TryGetValue(subjectId, out var receipt))
-				throw new KeyDestroyedException(receipt);
-			if (!_keys.TryGetValue(subjectId, out var key))
-			{
-				key = new byte[32];
-				RandomNumberGenerator.Fill(key);
-				_keys[subjectId] = key;
-			}
-			return ValueTask.FromResult(key);
-		}
-
-		public ValueTask<ErasureReceipt> DestroyAsync(Guid subjectId, CancellationToken cancellationToken = default)
-		{
-			_keys.Remove(subjectId);
-			if (!_destroyed.TryGetValue(subjectId, out var receipt))
-			{
-				receipt = new(Guid.NewGuid(), DateTimeOffset.UtcNow);
-				_destroyed[subjectId] = receipt;
-			}
-			return ValueTask.FromResult(receipt);
-		}
-	}
-
 	[Fact]
 	void Protect_then_unprotect_round_trips_under_the_ambient_subject()
 	{
@@ -97,5 +60,44 @@ public sealed class NorsePersonalDataProtectorTests
 			protectedValue = protector.Protect("buvy@example.com");
 		var tampered = $"{protectedValue![..^4]}AAAA";
 		Should.Throw<CryptographicException>(() => protector.Unprotect(tampered));
+	}
+
+	// In-memory seam fake (three-state).
+	sealed class FakeKeyStore : ISubjectKeyStore
+	{
+		readonly Dictionary<Guid, ErasureReceipt> _destroyed = [];
+		readonly Dictionary<Guid, byte[]> _keys = [];
+
+		public ValueTask<SubjectKeyResult> GetAsync(Guid subjectId, CancellationToken cancellationToken = default) =>
+			ValueTask.FromResult(
+				_keys.TryGetValue(subjectId, out var key) ? SubjectKeyResult.Available(key) :
+				_destroyed.TryGetValue(subjectId, out var receipt) ? SubjectKeyResult.Destroyed(receipt) :
+				SubjectKeyResult.Missing);
+
+		public ValueTask<byte[]> GetOrCreateAsync(Guid subjectId, CancellationToken cancellationToken = default)
+		{
+			if (_destroyed.TryGetValue(subjectId, out var receipt))
+				throw new KeyDestroyedException(receipt);
+			if (!_keys.TryGetValue(subjectId, out var key))
+			{
+				key = new byte[32];
+				RandomNumberGenerator.Fill(key);
+				_keys[subjectId] = key;
+			}
+
+			return ValueTask.FromResult(key);
+		}
+
+		public ValueTask<ErasureReceipt> DestroyAsync(Guid subjectId, CancellationToken cancellationToken = default)
+		{
+			_keys.Remove(subjectId);
+			if (!_destroyed.TryGetValue(subjectId, out var receipt))
+			{
+				receipt = new(Guid.NewGuid(), DateTimeOffset.UtcNow);
+				_destroyed[subjectId] = receipt;
+			}
+
+			return ValueTask.FromResult(receipt);
+		}
 	}
 }

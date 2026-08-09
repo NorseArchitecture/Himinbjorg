@@ -48,7 +48,8 @@ public sealed class LogoutHandlerTests
 		var signInManager = MockSignInManager.Create();
 		var deferredSignIn = Substitute.For<IDeferredSignIn>();
 		deferredSignIn.BuildCompletionUrl(Arg.Any<string>(), Arg.Any<string>())
-			.Returns(call => $"/_auth/complete?key={call.ArgAt<string>(0)}&returnUrl={Uri.EscapeDataString(call.ArgAt<string>(1))}");
+			.Returns(call =>
+				$"/_auth/complete?key={call.ArgAt<string>(0)}&returnUrl={Uri.EscapeDataString(call.ArgAt<string>(1))}");
 		DefaultHttpContext httpContext = new();
 		httpContext.Items[NorseSignInManager.DeferredSignInKeyItemName] = "stashed-key";
 		var handler = CreateHandler(signInManager, deferredSignIn, httpContext);

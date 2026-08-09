@@ -6,18 +6,18 @@ using OpenIddict.EntityFrameworkCore.Models;
 namespace Norse.Identity.EntityFramework;
 
 /// <summary>
-/// Norse wrapper over OpenIddict's EF Core authorization entity, keyed by <see cref="Guid"/>. Adds an
-/// explicit <see cref="ApplicationId"/> FK scalar — OpenIddict's own base class declares only the
-/// <see cref="OpenIddictEntityFrameworkCoreAuthorization{TKey,TApplication,TToken}.Application"/>
-/// navigation, leaving EF to fall back to a shadow FK, which the platform's navigation/FK law forbids
-/// outside audit columns.
+///     Norse wrapper over OpenIddict's EF Core authorization entity, keyed by <see cref="Guid" />. Adds an
+///     explicit <see cref="ApplicationId" /> FK scalar — OpenIddict's own base class declares only the
+///     <see cref="OpenIddictEntityFrameworkCoreAuthorization{TKey,TApplication,TToken}.Application" />
+///     navigation, leaving EF to fall back to a shadow FK, which the platform's navigation/FK law forbids
+///     outside audit columns.
 /// </summary>
 public sealed class NorseOpenIddictAuthorization
 	: OpenIddictEntityFrameworkCoreAuthorization<Guid, NorseOpenIddictApplication, NorseOpenIddictToken>,
-	  INorseEntity<NorseOpenIddictAuthorization>
+		INorseEntity<NorseOpenIddictAuthorization>
 {
 	/// <summary>
-	/// Gets or sets the ID of the application this authorization belongs to.
+	///     Gets or sets the ID of the application this authorization belongs to.
 	/// </summary>
 	public Guid? ApplicationId { get; init; }
 

@@ -13,18 +13,18 @@ public static class ServiceCollectionExtensions
 	extension(IHostApplicationBuilder builder)
 	{
 		/// <summary>
-		/// Registers <see cref="NorseIdentityDbContext"/> (via
-		/// <see cref="Norse.Persistence.EntityFramework.NorseContextExtensions.AddNorseContext{TContext}"/>),
-		/// ASP.NET Core Identity (with the <see cref="NorseSignInManager"/> override), the generated
-		/// mediator handler/dispatch/validator registration (<c>AddNorseIdentityWebServerHandlers()</c>,
-		/// emitted by Asgard's registration generator), and the code-first gRPC host with
-		/// <see cref="IAuthenticationService"/> and <see cref="IIdentityService"/> (the disclosure
-		/// surface -- self full, second-party masked, erased honest). Also subscribes the
-		/// <c>Microsoft.AspNetCore.Identity</c> meter — ASP.NET Core Identity ships its own metrics,
-		/// and Layer 0's <c>Norse.*</c> wildcard does not reach them.
+		///     Registers <see cref="NorseIdentityDbContext" /> (via
+		///     <see cref="Norse.Persistence.EntityFramework.NorseContextExtensions.AddNorseContext{TContext}" />),
+		///     ASP.NET Core Identity (with the <see cref="NorseSignInManager" /> override), the generated
+		///     mediator handler/dispatch/validator registration (<c>AddNorseIdentityWebServerHandlers()</c>,
+		///     emitted by Asgard's registration generator), and the code-first gRPC host with
+		///     <see cref="IAuthenticationService" /> and <see cref="IIdentityService" /> (the disclosure
+		///     surface -- self full, second-party masked, erased honest). Also subscribes the
+		///     <c>Microsoft.AspNetCore.Identity</c> meter — ASP.NET Core Identity ships its own metrics,
+		///     and Layer 0's <c>Norse.*</c> wildcard does not reach them.
 		/// </summary>
 		/// <param name="connectionStringName">The configuration key under <c>ConnectionStrings</c>.</param>
-		/// <returns>The same <paramref name="builder"/> for chaining.</returns>
+		/// <returns>The same <paramref name="builder" /> for chaining.</returns>
 		public IHostApplicationBuilder AddNorseAuthenticationService(string connectionStringName)
 		{
 			// Registered here, not by the host: IEmailSender<NorseUser> is closed over an entity the
@@ -46,7 +46,8 @@ public static class ServiceCollectionExtensions
 				.AddOpenTelemetry()
 				.WithMetrics(static metrics => metrics.AddMeter("Microsoft.AspNetCore.Identity"));
 
-			return builder.AddNorseContext<NorseIdentityDbContext>(NorsePostgresEfProvider.Instance, connectionStringName);
+			return builder.AddNorseContext<NorseIdentityDbContext>(NorsePostgresEfProvider.Instance,
+				connectionStringName);
 		}
 	}
 }

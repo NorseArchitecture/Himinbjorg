@@ -6,12 +6,12 @@ using Norse.Abstractions.Backend.Keys;
 namespace Norse.Identity.Web.Server;
 
 /// <summary>
-/// ASP.NET Core Identity's <see cref="IPersonalDataProtector"/> over the platform's per-subject key
-/// seam: AES-256-GCM envelope encryption keyed by whichever subject <see cref="SubjectCryptoScope"/>
-/// has ambient at the moment of the write. Envelope format:
-/// <c>v1:{subjectId:D}:{base64(nonce(12) ∥ ciphertext ∥ tag(16))}</c> — self-describing, so
-/// <see cref="Unprotect"/> never needs the ambient subject; only <see cref="Protect"/>, which writes,
-/// does.
+///     ASP.NET Core Identity's <see cref="IPersonalDataProtector" /> over the platform's per-subject key
+///     seam: AES-256-GCM envelope encryption keyed by whichever subject <see cref="SubjectCryptoScope" />
+///     has ambient at the moment of the write. Envelope format:
+///     <c>v1:{subjectId:D}:{base64(nonce(12) ∥ ciphertext ∥ tag(16))}</c> — self-describing, so
+///     <see cref="Unprotect" /> never needs the ambient subject; only <see cref="Protect" />, which writes,
+///     does.
 /// </summary>
 /// <param name="keyStore">The subject key seam's custody store.</param>
 public sealed class NorsePersonalDataProtector(ISubjectKeyStore keyStore) : IPersonalDataProtector
@@ -22,9 +22,9 @@ public sealed class NorsePersonalDataProtector(ISubjectKeyStore keyStore) : IPer
 
 	/// <inheritdoc />
 	/// <exception cref="InvalidOperationException">
-	/// No ambient <see cref="SubjectCryptoScope"/> is established. Encrypting to nobody would silently
-	/// corrupt custody — every write path must establish the scope (see <see cref="NorseUserManager"/>)
-	/// before a protected property is ever assigned.
+	///     No ambient <see cref="SubjectCryptoScope" /> is established. Encrypting to nobody would silently
+	///     corrupt custody — every write path must establish the scope (see <see cref="NorseUserManager" />)
+	///     before a protected property is ever assigned.
 	/// </exception>
 	public string? Protect(string? data)
 	{

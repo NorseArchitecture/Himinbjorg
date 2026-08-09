@@ -9,14 +9,14 @@ using Norse.Persistence.EntityFramework.SqlServer;
 namespace Norse.Identity.Migrations.SqlServer;
 
 /// <summary>
-/// Design-time factory for <see cref="NorseIdentityDbContext"/>, used only by <c>dotnet ef</c> tooling
-/// (e.g. <c>dotnet ef migrations add</c>) to construct a context instance outside of DI at design time.
+///     Design-time factory for <see cref="NorseIdentityDbContext" />, used only by <c>dotnet ef</c> tooling
+///     (e.g. <c>dotnet ef migrations add</c>) to construct a context instance outside of DI at design time.
 /// </summary>
 /// <remarks>
-/// Same ASP.NET Core Identity <c>SchemaVersion</c> gotcha as the PostgreSQL factory — see that type's
-/// doc comment for the full explanation. Provider-independent: the fallback to
-/// <see cref="IdentitySchemaVersions.Version1"/> happens in Identity's own model-building code, not
-/// anything provider-specific.
+///     Same ASP.NET Core Identity <c>SchemaVersion</c> gotcha as the PostgreSQL factory — see that type's
+///     doc comment for the full explanation. Provider-independent: the fallback to
+///     <see cref="IdentitySchemaVersions.Version1" /> happens in Identity's own model-building code, not
+///     anything provider-specific.
 /// </remarks>
 public sealed class NorseIdentityDbContextFactory : NorseDesignTimeDbContextFactory<NorseIdentityDbContext>
 {
@@ -56,9 +56,9 @@ public sealed class NorseIdentityDbContextFactory : NorseDesignTimeDbContextFact
 }
 
 /// <summary>
-/// Design-time-only <see cref="IPersonalDataProtector"/>: model build needs the service to exist so
-/// ASP.NET Core Identity's <c>OnModelCreatingVersion3</c> can resolve it, but migrations never touch
-/// plaintext, so both members throw if ever actually invoked.
+///     Design-time-only <see cref="IPersonalDataProtector" />: model build needs the service to exist so
+///     ASP.NET Core Identity's <c>OnModelCreatingVersion3</c> can resolve it, but migrations never touch
+///     plaintext, so both members throw if ever actually invoked.
 /// </summary>
 file sealed class DesignTimePersonalDataProtector : IPersonalDataProtector
 {
@@ -69,7 +69,7 @@ file sealed class DesignTimePersonalDataProtector : IPersonalDataProtector
 		throw new NotSupportedException("Design time never touches plaintext.");
 }
 
-/// <summary>Design-time-only <see cref="ILookupProtector"/> -- see <see cref="DesignTimePersonalDataProtector"/>.</summary>
+/// <summary>Design-time-only <see cref="ILookupProtector" /> -- see <see cref="DesignTimePersonalDataProtector" />.</summary>
 file sealed class DesignTimeLookupProtector : ILookupProtector
 {
 	public string? Protect(string keyId, string? data) =>
@@ -79,7 +79,7 @@ file sealed class DesignTimeLookupProtector : ILookupProtector
 		throw new NotSupportedException("Design time never touches plaintext.");
 }
 
-/// <summary>Design-time-only <see cref="ILookupProtectorKeyRing"/> -- see <see cref="DesignTimePersonalDataProtector"/>.</summary>
+/// <summary>Design-time-only <see cref="ILookupProtectorKeyRing" /> -- see <see cref="DesignTimePersonalDataProtector" />.</summary>
 file sealed class DesignTimeLookupProtectorKeyRing : ILookupProtectorKeyRing
 {
 	public string CurrentKeyId =>

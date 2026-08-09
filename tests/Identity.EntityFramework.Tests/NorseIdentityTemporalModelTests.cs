@@ -7,15 +7,29 @@ using Norse.Persistence.EntityFramework.SqlServer;
 namespace Norse.Identity.EntityFramework.Tests;
 
 /// <summary>
-/// Which identity tables are system-versioned, pinned from both sides. Himinbjörg#47 open question 4,
-/// ruled 2026-08-05: temporal marks the durable identity and authorization record; secret stores,
-/// counters, and prunable runtime state stay non-temporal, and secret material never archives to
-/// history (rotation and destruction must destroy). The scope is a ruling, not an implementation
-/// detail — adding or dropping a marker without amending that ruling breaks these facts by design.
+///     Which identity tables are system-versioned, pinned from both sides. Himinbjörg#47 open question 4,
+///     ruled 2026-08-05: temporal marks the durable identity and authorization record; secret stores,
+///     counters, and prunable runtime state stay non-temporal, and secret material never archives to
+///     history (rotation and destruction must destroy). The scope is a ruling, not an implementation
+///     detail — adding or dropping a marker without amending that ruling breaks these facts by design.
 /// </summary>
 public sealed class NorseIdentityTemporalModelTests
 {
 	const string DatabaseName = "norse_identity_temporal_model_test";
+
+	static readonly Lazy<IModel> _sqlServerModel = new(() => BuildModel(NorseSqlServerEfProvider.Instance));
+	static readonly Lazy<IModel> _postgresModel = new(() => BuildModel(NorsePostgresEfProvider.Instance));
+
+	/// <summary>The eight ruled temporal entities, in the order the ruling lists them.</summary>
+	static readonly Type[] _temporalEntities =
+	[
+		typeof(NorseUser), typeof(NorseRole), typeof(NorseUserClaim), typeof(NorseRoleClaim),
+		typeof(NorseUserRole), typeof(NorseUserLogin), typeof(NorseOpenIddictApplication),
+		typeof(NorseOpenIddictScope)
+	];
+
+	static IModel SqlServerModel => _sqlServerModel.Value;
+	static IModel PostgresModel => _postgresModel.Value;
 
 	// Same shape as NorseIdentityModelTests: build the model per provider the way the design-time
 	// factories do, so the SQL Server binding's temporal realization hook is actually in play.
@@ -26,20 +40,6 @@ public sealed class NorseIdentityTemporalModelTests
 		using NorseIdentityDbContext context = new(builder.Options);
 		return context.Model;
 	}
-
-	static readonly Lazy<IModel> _sqlServerModel = new(() => BuildModel(NorseSqlServerEfProvider.Instance));
-	static readonly Lazy<IModel> _postgresModel = new(() => BuildModel(NorsePostgresEfProvider.Instance));
-
-	static IModel SqlServerModel => _sqlServerModel.Value;
-	static IModel PostgresModel => _postgresModel.Value;
-
-	/// <summary>The eight ruled temporal entities, in the order the ruling lists them.</summary>
-	static readonly Type[] _temporalEntities =
-	[
-		typeof(NorseUser), typeof(NorseRole), typeof(NorseUserClaim), typeof(NorseRoleClaim),
-		typeof(NorseUserRole), typeof(NorseUserLogin), typeof(NorseOpenIddictApplication),
-		typeof(NorseOpenIddictScope)
-	];
 
 	[Theory]
 	[InlineData(typeof(NorseUser), "users")]

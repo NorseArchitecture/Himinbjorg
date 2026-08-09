@@ -11,7 +11,8 @@ namespace Norse.Identity.Web.Server;
 sealed class RegisterHandler(UserManager<NorseUser> userManager)
 	: IRequestHandler<RegisterCommand, NavigationResult>
 {
-	public async ValueTask<Outcome<NavigationResult>> Handle(RegisterCommand request, CancellationToken cancellationToken = default)
+	public async ValueTask<Outcome<NavigationResult>> Handle(RegisterCommand request,
+		CancellationToken cancellationToken = default)
 	{
 		var wire = request.Request;
 
@@ -20,7 +21,10 @@ sealed class RegisterHandler(UserManager<NorseUser> userManager)
 		// same wire field the client renders.
 		if (!wire.Email.TryGetValue(out Success<EmailAddress> email))
 			return Outcome<NavigationResult>.Err(ErrorCategory.Validation,
-				new Dictionary<string, string[]> { [nameof(RegisterRequest.Email)] = ["Enter a valid email address (local@domain.tld)."] });
+				new Dictionary<string, string[]>
+				{
+					[nameof(RegisterRequest.Email)] = ["Enter a valid email address (local@domain.tld)."]
+				});
 
 		// WireValue is the deliberate plaintext egress — Identity's store speaks canonical strings.
 		NorseUser user = new() { UserName = email.Value.WireValue, Email = email.Value.WireValue };
@@ -34,7 +38,9 @@ sealed class RegisterHandler(UserManager<NorseUser> userManager)
 		// "that email's taken" and doesn't retry a doomed registration 10,000 times (spec §9.3).
 		// Everything else (password-policy codes) is Validation — a rejected password isn't a conflict.
 		var isDuplicate = result.Errors.Any(e => e.Code is "DuplicateUserName" or "DuplicateEmail");
-		var category = isDuplicate ? ErrorCategory.Conflict : ErrorCategory.Validation;
+		var category = isDuplicate ?
+			ErrorCategory.Conflict :
+			ErrorCategory.Validation;
 		// Grouped by the WIRE FIELD the error belongs on, never by IdentityError.Code directly — the
 		// client's ServerErrorCoordinator builds a FieldIdentifier from this dictionary's keys, and a
 		// key like "PasswordRequiresNonAlphanumeric" matches no bound field, so the message renders
@@ -55,7 +61,8 @@ sealed class RegisterHandler(UserManager<NorseUser> userManager)
 	{
 		"DuplicateUserName" or "DuplicateEmail" or "InvalidUserName" or "InvalidEmail" => nameof(RegisterRequest.Email),
 		"PasswordTooShort" or "PasswordRequiresUniqueChars" or "PasswordRequiresNonAlphanumeric" or
-			"PasswordRequiresDigit" or "PasswordRequiresLower" or "PasswordRequiresUpper" => nameof(RegisterRequest.Password),
-		_ => "",
+			"PasswordRequiresDigit" or "PasswordRequiresLower"
+			or "PasswordRequiresUpper" => nameof(RegisterRequest.Password),
+		_ => ""
 	};
 }

@@ -10,15 +10,16 @@ using Norse.Primitives.Pii;
 namespace Norse.Identity.Web.Server.Disclosure;
 
 /// <summary>
-/// The masked-disclosure query handler (2026-08-03 PII spec §6): a second party's personal data,
-/// masked at the source through the PII structs' own <see cref="IMaskedValue.Masked"/> law -- the
-/// endpoint never authors a mask by hand.
+///     The masked-disclosure query handler (2026-08-03 PII spec §6): a second party's personal data,
+///     masked at the source through the PII structs' own <see cref="IMaskedValue.Masked" /> law -- the
+///     endpoint never authors a mask by hand.
 /// </summary>
 sealed class GetMaskedPersonalDataHandler(NorseIdentityDbContext context) :
 	IRequestHandler<MaskedPersonalDataCommand, MaskedPersonalDataResponse>
 {
 	/// <inheritdoc />
-	public async ValueTask<Outcome<MaskedPersonalDataResponse>> Handle(MaskedPersonalDataCommand request, CancellationToken cancellationToken = default)
+	public async ValueTask<Outcome<MaskedPersonalDataResponse>> Handle(MaskedPersonalDataCommand request,
+		CancellationToken cancellationToken = default)
 	{
 		// The repository fold (spec §3.1): KeyDestroyedException answers Erased with the receipt;
 		// KeyMissingException is deliberately left to escape to ExceptionTranslationBehavior -- an
@@ -34,8 +35,12 @@ sealed class GetMaskedPersonalDataHandler(NorseIdentityDbContext context) :
 				return Outcome<MaskedPersonalDataResponse>.Err(ErrorCategory.NotFound);
 			return Outcome<MaskedPersonalDataResponse>.Ok(new()
 			{
-				Email = row.Email is { Length: > 0 } email ? Mask<EmailAddress>(email) : "",
-				PhoneNumber = row.PhoneNumber is { Length: > 0 } phone ? Mask<PhoneNumber>(phone) : ""
+				Email = row.Email is { Length: > 0 } email ?
+					Mask<EmailAddress>(email) :
+					"",
+				PhoneNumber = row.PhoneNumber is { Length: > 0 } phone ?
+					Mask<PhoneNumber>(phone) :
+					""
 			});
 		}
 		catch (KeyDestroyedException e)
@@ -49,5 +54,6 @@ sealed class GetMaskedPersonalDataHandler(NorseIdentityDbContext context) :
 	static string Mask<TPii>(string? wire) where TPii : struct, IPiiScalar<TPii> =>
 		TPii.Parse(wire).TryGetValue(out Success<TPii> success) ?
 			success.Value.Masked :
-			throw new InvalidOperationException($"Decrypted {typeof(TPii).Name} no longer parses -- storage corruption.");
+			throw new InvalidOperationException(
+				$"Decrypted {typeof(TPii).Name} no longer parses -- storage corruption.");
 }

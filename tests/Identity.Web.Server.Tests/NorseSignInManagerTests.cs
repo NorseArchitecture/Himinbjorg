@@ -16,24 +16,26 @@ using Norse.Identity.EntityFramework;
 namespace Norse.Identity.Web.Server.Tests;
 
 /// <summary>
-/// Proves <see cref="NorseSignInManager"/> actually intercepts sign-in/sign-out once
-/// <c>HttpContext.Response.HasStarted</c> is genuinely true (an already-established Blazor Server
-/// interactive circuit), and behaves exactly like the unmodified base class otherwise.
-///
-/// "Genuinely true" is not simulated via reflection or a hand-rolled fake -- these tests host a real,
-/// minimal ASP.NET Core pipeline via <see cref="TestServer"/> with a real cookie authentication handler
-/// wired in. Writing to the response body before sign-in flips <c>HasStarted</c> for real, the same way
-/// Kestrel does, and the unmodified <see cref="SignInManager{TUser}"/> genuinely throws
-/// <see cref="InvalidOperationException"/> trying to write the Set-Cookie header afterward.
+///     Proves <see cref="NorseSignInManager" /> actually intercepts sign-in/sign-out once
+///     <c>HttpContext.Response.HasStarted</c> is genuinely true (an already-established Blazor Server
+///     interactive circuit), and behaves exactly like the unmodified base class otherwise.
+///     "Genuinely true" is not simulated via reflection or a hand-rolled fake -- these tests host a real,
+///     minimal ASP.NET Core pipeline via <see cref="TestServer" /> with a real cookie authentication handler
+///     wired in. Writing to the response body before sign-in flips <c>HasStarted</c> for real, the same way
+///     Kestrel does, and the unmodified <see cref="SignInManager{TUser}" /> genuinely throws
+///     <see cref="InvalidOperationException" /> trying to write the Set-Cookie header afterward.
 /// </summary>
 public sealed class NorseSignInManagerTests
 {
+	const string StashedSignInKey = "stashed-sign-in-key";
+	const string StashedSignOutKey = "stashed-sign-out-key";
+	const string StashedTwoFactorKey = "stashed-two-factor-key";
 	static readonly string _scheme = IdentityConstants.ApplicationScheme;
 
 	[Fact]
 	async Task Unmodified_SignInManager_throws_once_the_response_has_already_started()
 	{
-		var probe = await RunAsync(useNorseSignInManager: false, responseAlreadyStarted: true, signOut: false);
+		var probe = await RunAsync(false, true, false);
 
 		probe.Exception.ShouldNotBeNull();
 		probe.Exception.ShouldBeOfType<InvalidOperationException>();
@@ -42,7 +44,7 @@ public sealed class NorseSignInManagerTests
 	[Fact]
 	async Task Unmodified_SignInManager_signs_out_directly_and_throws_once_the_response_has_already_started()
 	{
-		var probe = await RunAsync(useNorseSignInManager: false, responseAlreadyStarted: true, signOut: true);
+		var probe = await RunAsync(false, true, true);
 
 		probe.Exception.ShouldNotBeNull();
 		probe.Exception.ShouldBeOfType<InvalidOperationException>();
@@ -51,10 +53,11 @@ public sealed class NorseSignInManagerTests
 	[Fact]
 	async Task NorseSignInManager_defers_sign_in_once_the_response_has_already_started()
 	{
-		var probe = await RunAsync(useNorseSignInManager: true, responseAlreadyStarted: true, signOut: false);
+		var probe = await RunAsync(true, true, false);
 
 		probe.Exception.ShouldBeNull();
-		probe.DeferredSignIn.Received(1).StashSignIn(_scheme, Arg.Any<ClaimsPrincipal>(), Arg.Any<AuthenticationProperties>());
+		probe.DeferredSignIn.Received(1)
+			.StashSignIn(_scheme, Arg.Any<ClaimsPrincipal>(), Arg.Any<AuthenticationProperties>());
 		probe.DeferredSignIn.DidNotReceiveWithAnyArgs().StashSignOut(default!);
 		probe.ItemsKey.ShouldBe(StashedSignInKey);
 	}
@@ -62,7 +65,7 @@ public sealed class NorseSignInManagerTests
 	[Fact]
 	async Task NorseSignInManager_defers_sign_out_once_the_response_has_already_started()
 	{
-		var probe = await RunAsync(useNorseSignInManager: true, responseAlreadyStarted: true, signOut: true);
+		var probe = await RunAsync(true, true, true);
 
 		probe.Exception.ShouldBeNull();
 		probe.DeferredSignIn.Received(1).StashSignOut(_scheme);
@@ -73,7 +76,7 @@ public sealed class NorseSignInManagerTests
 	[Fact]
 	async Task NorseSignInManager_signs_in_directly_when_the_response_has_not_started()
 	{
-		var probe = await RunAsync(useNorseSignInManager: true, responseAlreadyStarted: false, signOut: false);
+		var probe = await RunAsync(true, false, false);
 
 		probe.Exception.ShouldBeNull();
 		probe.DeferredSignIn.DidNotReceiveWithAnyArgs().StashSignIn(default!, default!, default!);
@@ -85,7 +88,7 @@ public sealed class NorseSignInManagerTests
 	[Fact]
 	async Task NorseSignInManager_signs_out_directly_when_the_response_has_not_started()
 	{
-		var probe = await RunAsync(useNorseSignInManager: true, responseAlreadyStarted: false, signOut: true);
+		var probe = await RunAsync(true, false, true);
 
 		probe.Exception.ShouldBeNull();
 		probe.DeferredSignIn.DidNotReceiveWithAnyArgs().StashSignIn(default!, default!, default!);
@@ -104,7 +107,7 @@ public sealed class NorseSignInManagerTests
 	[Fact]
 	async Task Unmodified_SignInManager_throws_writing_the_two_factor_cookie_once_the_response_has_already_started()
 	{
-		var probe = await RunTwoFactorAsync(useNorseSignInManager: false, responseAlreadyStarted: true);
+		var probe = await RunTwoFactorAsync(false, true);
 
 		probe.Exception.ShouldNotBeNull();
 		probe.Exception.ShouldBeOfType<InvalidOperationException>();
@@ -113,7 +116,7 @@ public sealed class NorseSignInManagerTests
 	[Fact]
 	async Task NorseSignInManager_defers_the_two_factor_cookie_once_the_response_has_already_started()
 	{
-		var probe = await RunTwoFactorAsync(useNorseSignInManager: true, responseAlreadyStarted: true);
+		var probe = await RunTwoFactorAsync(true, true);
 
 		probe.Exception.ShouldBeNull();
 		probe.Result.ShouldBe(SignInResult.TwoFactorRequired);
@@ -124,7 +127,8 @@ public sealed class NorseSignInManagerTests
 		// shape (it's `internal` on Microsoft.AspNetCore.Identity, unreachable, so NorseSignInManager
 		// rebuilds it) would break LoginWith2fa's later GetTwoFactorAuthenticationUserAsync() call --
 		// captured and pinned structurally, not just "some principal was passed."
-		var call = probe.DeferredSignIn.ReceivedCalls().Single(c => c.GetMethodInfo().Name == nameof(IDeferredSignIn.StashSignIn));
+		var call = probe.DeferredSignIn.ReceivedCalls()
+			.Single(c => c.GetMethodInfo().Name == nameof(IDeferredSignIn.StashSignIn));
 		call.GetArguments()[0].ShouldBe(IdentityConstants.TwoFactorUserIdScheme);
 		var principal = (ClaimsPrincipal)call.GetArguments()[1]!;
 		principal.Identity!.AuthenticationType.ShouldBe(IdentityConstants.TwoFactorUserIdScheme);
@@ -134,7 +138,7 @@ public sealed class NorseSignInManagerTests
 	[Fact]
 	async Task NorseSignInManager_writes_the_two_factor_cookie_directly_when_the_response_has_not_started()
 	{
-		var probe = await RunTwoFactorAsync(useNorseSignInManager: true, responseAlreadyStarted: false);
+		var probe = await RunTwoFactorAsync(true, false);
 
 		probe.Exception.ShouldBeNull();
 		probe.Result.ShouldBe(SignInResult.TwoFactorRequired);
@@ -143,14 +147,11 @@ public sealed class NorseSignInManagerTests
 		probe.SetCookieHeaderPresent.ShouldBeTrue();
 	}
 
-	const string StashedSignInKey = "stashed-sign-in-key";
-	const string StashedSignOutKey = "stashed-sign-out-key";
-	const string StashedTwoFactorKey = "stashed-two-factor-key";
-
 	static async Task<Probe> RunAsync(bool useNorseSignInManager, bool responseAlreadyStarted, bool signOut)
 	{
 		var deferredSignIn = Substitute.For<IDeferredSignIn>();
-		deferredSignIn.StashSignIn(Arg.Any<string>(), Arg.Any<ClaimsPrincipal>(), Arg.Any<AuthenticationProperties>()).Returns(StashedSignInKey);
+		deferredSignIn.StashSignIn(Arg.Any<string>(), Arg.Any<ClaimsPrincipal>(), Arg.Any<AuthenticationProperties>())
+			.Returns(StashedSignInKey);
 		deferredSignIn.StashSignOut(Arg.Any<string>()).Returns(StashedSignOutKey);
 
 		Exception? caught = null;
@@ -168,7 +169,8 @@ public sealed class NorseSignInManagerTests
 
 					NorseUser user = new() { UserName = "user@example.com", Email = "user@example.com" };
 					var claimsFactory = Substitute.For<IUserClaimsPrincipalFactory<NorseUser>>();
-					claimsFactory.CreateAsync(Arg.Any<NorseUser>()).Returns(new ClaimsPrincipal(new ClaimsIdentity(_scheme)));
+					claimsFactory.CreateAsync(Arg.Any<NorseUser>())
+						.Returns(new ClaimsPrincipal(new ClaimsIdentity(_scheme)));
 
 					var userManager = Substitute.For<UserManager<NorseUser>>(
 						Substitute.For<IUserStore<NorseUser>>(), null!, new PasswordHasher<NorseUser>(),
@@ -220,7 +222,8 @@ public sealed class NorseSignInManagerTests
 	static async Task<TwoFactorProbe> RunTwoFactorAsync(bool useNorseSignInManager, bool responseAlreadyStarted)
 	{
 		var deferredSignIn = Substitute.For<IDeferredSignIn>();
-		deferredSignIn.StashSignIn(Arg.Any<string>(), Arg.Any<ClaimsPrincipal>(), Arg.Any<AuthenticationProperties>()).Returns(StashedTwoFactorKey);
+		deferredSignIn.StashSignIn(Arg.Any<string>(), Arg.Any<ClaimsPrincipal>(), Arg.Any<AuthenticationProperties>())
+			.Returns(StashedTwoFactorKey);
 
 		Exception? caught = null;
 		string? itemsKey = null;
@@ -243,7 +246,8 @@ public sealed class NorseSignInManagerTests
 					NorseUser user = new() { UserName = "user@example.com", Email = "user@example.com" };
 					userId = user.Id.ToString();
 					var claimsFactory = Substitute.For<IUserClaimsPrincipalFactory<NorseUser>>();
-					claimsFactory.CreateAsync(Arg.Any<NorseUser>()).Returns(new ClaimsPrincipal(new ClaimsIdentity(_scheme)));
+					claimsFactory.CreateAsync(Arg.Any<NorseUser>())
+						.Returns(new ClaimsPrincipal(new ClaimsIdentity(_scheme)));
 
 					// CanSignInAsync/IsLockedOut both pass unstubbed (IdentityOptions defaults to no
 					// confirmation requirements; SupportsUserLockout defaults false on an unstubbed
@@ -273,7 +277,8 @@ public sealed class NorseSignInManagerTests
 					// (`schemes.GetSchemeAsync(TwoFactorUserIdScheme) is not null`) -- stubbed non-null
 					// here so that write/stash path is actually exercised rather than skipped.
 					schemes.GetSchemeAsync(IdentityConstants.TwoFactorUserIdScheme)
-						.Returns(new AuthenticationScheme(IdentityConstants.TwoFactorUserIdScheme, null, typeof(CookieAuthenticationHandler)));
+						.Returns(new AuthenticationScheme(IdentityConstants.TwoFactorUserIdScheme, null,
+							typeof(CookieAuthenticationHandler)));
 					var confirmation = Substitute.For<IUserConfirmation<NorseUser>>();
 
 					SignInManager<NorseUser> signInManager = useNorseSignInManager ?
@@ -307,9 +312,17 @@ public sealed class NorseSignInManagerTests
 		return new TwoFactorProbe(caught, deferredSignIn, itemsKey, setCookiePresent, result, userId!);
 	}
 
-	sealed record Probe(Exception? Exception, IDeferredSignIn DeferredSignIn, string? ItemsKey, bool SetCookieHeaderPresent);
+	sealed record Probe(
+		Exception? Exception,
+		IDeferredSignIn DeferredSignIn,
+		string? ItemsKey,
+		bool SetCookieHeaderPresent);
 
 	sealed record TwoFactorProbe(
-		Exception? Exception, IDeferredSignIn DeferredSignIn, string? ItemsKey, bool SetCookieHeaderPresent,
-		SignInResult? Result, string UserId);
+		Exception? Exception,
+		IDeferredSignIn DeferredSignIn,
+		string? ItemsKey,
+		bool SetCookieHeaderPresent,
+		SignInResult? Result,
+		string UserId);
 }

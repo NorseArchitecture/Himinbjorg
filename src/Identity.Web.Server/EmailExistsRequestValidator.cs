@@ -16,7 +16,7 @@ namespace Norse.Identity.Web.Server;
 /// </summary>
 sealed class EmailExistsRequestValidator : AbstractValidator<EmailExistsRequest>
 {
-	/// <summary>Initializes a new instance of the <see cref="EmailExistsRequestValidator"/> class.</summary>
+	/// <summary>Initializes a new instance of the <see cref="EmailExistsRequestValidator" /> class.</summary>
 	public EmailExistsRequestValidator() =>
 		RuleFor(x => x.Email)
 			.Must(static email => email.TryGetValue(out Success<EmailAddress> _))

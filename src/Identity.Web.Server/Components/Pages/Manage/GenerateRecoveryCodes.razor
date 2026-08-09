@@ -8,7 +8,7 @@
 
 @if (_recoveryCodes is not null)
 {
-    <ShowRecoveryCodes RecoveryCodes="_recoveryCodes.ToArray()" StatusMessage="@_message" />
+    <ShowRecoveryCodes RecoveryCodes="_recoveryCodes.ToArray()" StatusMessage="@_message"/>
 }
 else
 {
@@ -25,7 +25,7 @@ else
             </p>
             <div>
                 <form @formname="generate-recovery-codes" @onsubmit="OnSubmitAsync" method="post">
-                    <AntiforgeryToken />
+                    <AntiforgeryToken/>
                     <p style="margin-top: 10px; text-align: end;">
                         <FluentButton Type="ButtonType.Submit" Appearance="ButtonAppearance.Primary">Generate Recovery Codes</FluentButton>
                     </p>
@@ -40,8 +40,7 @@ else
     NorseUser? _user;
     IEnumerable<string>? _recoveryCodes;
 
-    [CascadingParameter]
-    HttpContext HttpContext { get; set; } = null!;
+    [CascadingParameter] HttpContext HttpContext { get; set; } = null!;
 
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
@@ -74,4 +73,5 @@ else
 
         Logger.LogInformation("User with ID '{UserId}' has generated new 2FA recovery codes.", userId);
     }
+
 }

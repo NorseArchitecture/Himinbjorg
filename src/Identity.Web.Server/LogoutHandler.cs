@@ -6,10 +6,14 @@ using Norse.Identity.EntityFramework;
 
 namespace Norse.Identity.Web.Server;
 
-sealed class LogoutHandler(SignInManager<NorseUser> signInManager, IDeferredSignIn deferredSignIn, IHttpContextAccessor httpContextAccessor)
+sealed class LogoutHandler(
+	SignInManager<NorseUser> signInManager,
+	IDeferredSignIn deferredSignIn,
+	IHttpContextAccessor httpContextAccessor)
 	: IRequestHandler<LogoutCommand, NavigationResult>
 {
-	public async ValueTask<Outcome<NavigationResult>> Handle(LogoutCommand request, CancellationToken cancellationToken = default)
+	public async ValueTask<Outcome<NavigationResult>> Handle(LogoutCommand request,
+		CancellationToken cancellationToken = default)
 	{
 		await signInManager.SignOutAsync().ConfigureAwait(false);
 		// The deferred-completion detour (circuit path) or the app root — either way one concrete,

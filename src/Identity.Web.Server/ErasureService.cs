@@ -6,27 +6,27 @@ using Norse.Identity.EntityFramework;
 namespace Norse.Identity.Web.Server;
 
 /// <summary>
-/// The shred ceremony, three acts in law order (2026-08-03 PII spec §4.2): null the current-row
-/// lookup hashes, rotate the security stamp (arming <c>SecurityStampValidator</c> to kill live
-/// sessions within one revalidation interval), destroy the per-subject wrapping key. Database acts
-/// commit before the destruction. Partial-failure contract: a failure in acts 1-2 aborts with the
-/// key intact and the row untouched-or-not per the single UPDATE's atomicity; a failure in act 3
-/// leaves a <b>half-severed, retryable</b> state -- hashes nulled, stamp rotated, sessions dying,
-/// key intact, no receipt. The re-run matches the row again, re-rotates harmlessly, and completes
-/// the destruction; retry-until-receipt is the caller's obligation (recorded as the future Syn DSAR
-/// machinery's contract). Payload ciphertext stays in place, dark. This is the ceremony, not the
-/// trigger.
+///     The shred ceremony, three acts in law order (2026-08-03 PII spec §4.2): null the current-row
+///     lookup hashes, rotate the security stamp (arming <c>SecurityStampValidator</c> to kill live
+///     sessions within one revalidation interval), destroy the per-subject wrapping key. Database acts
+///     commit before the destruction. Partial-failure contract: a failure in acts 1-2 aborts with the
+///     key intact and the row untouched-or-not per the single UPDATE's atomicity; a failure in act 3
+///     leaves a <b>half-severed, retryable</b> state -- hashes nulled, stamp rotated, sessions dying,
+///     key intact, no receipt. The re-run matches the row again, re-rotates harmlessly, and completes
+///     the destruction; retry-until-receipt is the caller's obligation (recorded as the future Syn DSAR
+///     machinery's contract). Payload ciphertext stays in place, dark. This is the ceremony, not the
+///     trigger.
 /// </summary>
 /// <remarks>
-/// <see cref="ShredAsync"/>'s single act 1-2 write is <c>ExecuteUpdateAsync</c>, which bypasses the
-/// change tracker entirely -- it never reads or updates any tracked <see cref="NorseUser"/> instance
-/// in <paramref name="context"/>'s scope, it only issues a raw <c>UPDATE</c> against the row. A
-/// tracked, pre-shred <see cref="NorseUser"/> already loaded into the SAME scope still holds the old
-/// hashes and stamp in memory; if that scope later calls <c>SaveChanges</c> on the tracked instance,
-/// EF writes the stale values straight back over the just-nulled columns -- un-shredding the blind
-/// index. Callers must run <see cref="ShredAsync"/> from a dedicated scope with nothing else
-/// tracked, never a scope shared with other pending writes on the same subject -- recorded as the
-/// future DSAR machinery's contract, same as the retry-until-receipt obligation above.
+///     <see cref="ShredAsync" />'s single act 1-2 write is <c>ExecuteUpdateAsync</c>, which bypasses the
+///     change tracker entirely -- it never reads or updates any tracked <see cref="NorseUser" /> instance
+///     in <paramref name="context" />'s scope, it only issues a raw <c>UPDATE</c> against the row. A
+///     tracked, pre-shred <see cref="NorseUser" /> already loaded into the SAME scope still holds the old
+///     hashes and stamp in memory; if that scope later calls <c>SaveChanges</c> on the tracked instance,
+///     EF writes the stale values straight back over the just-nulled columns -- un-shredding the blind
+///     index. Callers must run <see cref="ShredAsync" /> from a dedicated scope with nothing else
+///     tracked, never a scope shared with other pending writes on the same subject -- recorded as the
+///     future DSAR machinery's contract, same as the retry-until-receipt obligation above.
 /// </remarks>
 public sealed class ErasureService(NorseIdentityDbContext context, ISubjectKeyStore keyStore)
 {

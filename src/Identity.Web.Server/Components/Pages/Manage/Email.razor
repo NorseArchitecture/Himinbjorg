@@ -17,11 +17,11 @@
 <FluentGrid>
     <FluentGridItem xs="12" sm="6">
         <form @onsubmit="OnSendEmailVerificationAsync" @formname="send-verification" id="send-verification-form" method="post">
-            <AntiforgeryToken />
+            <AntiforgeryToken/>
         </form>
         <EditForm Model="Input" FormName="change-email" OnValidSubmit="OnValidSubmitAsync" method="post">
-            <DataAnnotationsValidator />
-            <FluentValidationSummary class="text-danger" role="alert" />
+            <DataAnnotationsValidator/>
+            <FluentValidationSummary class="text-danger" role="alert"/>
             @if (_isEmailConfirmed)
             {
                 <FluentTextInput Value="@_email" Placeholder="Enter your email." Disabled Label="Email"
@@ -32,12 +32,14 @@
             else
             {
                 <FluentTextInput value="@_email" Placeholder="Please enter your email." Disabled Label="Email"
-                                 Appearance="TextInputAppearance.FilledDarker" Style="width: 100%" />
+                                 Appearance="TextInputAppearance.FilledDarker" Style="width: 100%"/>
                 <FluentButton Type="ButtonType.Submit" Appearance="ButtonAppearance.Primary" Form="send-verification-form"
-                              Style="width: 100%">Send verification email</FluentButton>
+                              Style="width: 100%">
+                    Send verification email
+                </FluentButton>
             }
             <FluentTextInput Name="Input.NewEmail" @bind-Value="Input.NewEmail" AutoComplete="email" Required="true"
-                             Placeholder="Please enter new email." Label="New email" Style="width: 100%" />
+                             Placeholder="Please enter new email." Label="New email" Style="width: 100%"/>
             @* <FluentValidationMessage For="() => Input.NewEmail" class="text-danger" /> *@
             <p style="margin-top: 10px; text-align: end;">
                 <FluentButton Type="ButtonType.Submit" Appearance="ButtonAppearance.Primary">Change email</FluentButton>
@@ -52,8 +54,7 @@
     string? _email;
     bool _isEmailConfirmed;
 
-    [CascadingParameter]
-    HttpContext HttpContext { get; set; } = null!;
+    [CascadingParameter] HttpContext HttpContext { get; set; } = null!;
 
     [SupplyParameterFromForm(FormName = "change-email")]
     InputModel Input { get; set; } = null!;
@@ -61,7 +62,7 @@
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
     {
-        Input ??= new();
+        Input ??= new InputModel();
 
         _user = await UserManager.GetUserAsync(HttpContext.User);
         if (_user is null)
@@ -134,4 +135,5 @@
         [Display(Name = "New email")]
         public string? NewEmail { get; set; }
     }
+
 }

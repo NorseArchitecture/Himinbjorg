@@ -21,9 +21,12 @@ public sealed class RegistrationCompositionTests
 		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<LoginCommand, NavigationResult>));
 		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<RegisterCommand, NavigationResult>));
 		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<LogoutCommand, NavigationResult>));
-		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<EmailExistsCommand, Norse.Abstractions.Contracts.BoolResponse>));
-		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<GetMyPersonalDataCommand, PersonalDataResponse>));
-		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<MaskedPersonalDataCommand, MaskedPersonalDataResponse>));
+		services.ShouldContain(d =>
+			d.ServiceType == typeof(IRequestHandler<EmailExistsCommand, Norse.Abstractions.Contracts.BoolResponse>));
+		services.ShouldContain(d =>
+			d.ServiceType == typeof(IRequestHandler<GetMyPersonalDataCommand, PersonalDataResponse>));
+		services.ShouldContain(d =>
+			d.ServiceType == typeof(IRequestHandler<MaskedPersonalDataCommand, MaskedPersonalDataResponse>));
 		services.Count(d => d.ServiceType == typeof(ISenderDispatch)).ShouldBe(6);
 
 		// The generated CommandRequestValidator<TCommand,TWire,TResponse> adapters — emitted

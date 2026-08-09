@@ -12,29 +12,6 @@ namespace Norse.Identity.Web.Server.Tests;
 [Collection(PostgresTestGroup.Name)]
 public sealed class ErasureServiceTests(PostgresIdentityFixture fixture)
 {
-	// Decorator: GetAsync/GetOrCreateAsync delegate; the first DestroyAsync throws to simulate a
-	// vault outage, every subsequent call (including the retry) delegates normally.
-	sealed class ThrowOnceKeyStore(ISubjectKeyStore inner) : ISubjectKeyStore
-	{
-		bool _thrown;
-
-		public ValueTask<SubjectKeyResult> GetAsync(Guid subjectId, CancellationToken cancellationToken = default) =>
-			inner.GetAsync(subjectId, cancellationToken);
-
-		public ValueTask<byte[]> GetOrCreateAsync(Guid subjectId, CancellationToken cancellationToken = default) =>
-			inner.GetOrCreateAsync(subjectId, cancellationToken);
-
-		public ValueTask<ErasureReceipt> DestroyAsync(Guid subjectId, CancellationToken cancellationToken = default)
-		{
-			if (!_thrown)
-			{
-				_thrown = true;
-				throw new InvalidOperationException("simulated vault outage");
-			}
-			return inner.DestroyAsync(subjectId, cancellationToken);
-		}
-	}
-
 	[Fact]
 	async Task Shred_nulls_lookup_hashes_rotates_the_stamp_and_destroys_the_key()
 	{
@@ -86,7 +63,8 @@ public sealed class ErasureServiceTests(PostgresIdentityFixture fixture)
 		var user = await fixture.SeedUserAsync("session@example.com");
 		var signInManager = fixture.CreateSignInManager();
 		var principal = await signInManager.CreateUserPrincipalAsync(user); // "the cookie" as issued pre-shred
-		var stampClaimBeforeShred = principal.FindFirstValue(new IdentityOptions().ClaimsIdentity.SecurityStampClaimType);
+		var stampClaimBeforeShred =
+			principal.FindFirstValue(new IdentityOptions().ClaimsIdentity.SecurityStampClaimType);
 
 		(await signInManager.ValidateSecurityStampAsync(principal)).ShouldNotBeNull(); // sanity arm: live before shred
 
@@ -99,7 +77,8 @@ public sealed class ErasureServiceTests(PostgresIdentityFixture fixture)
 			.SingleAsync(TestContext.Current.CancellationToken);
 		rotatedStamp.ShouldNotBe(stampClaimBeforeShred); // the cookie's own stamp claim is now stale
 
-		(await signInManager.ValidateSecurityStampAsync(principal)).ShouldBeNull(); // dead within one revalidation interval
+		(await signInManager.ValidateSecurityStampAsync(principal))
+			.ShouldBeNull(); // dead within one revalidation interval
 	}
 
 	[Fact]
@@ -114,10 +93,11 @@ public sealed class ErasureServiceTests(PostgresIdentityFixture fixture)
 		ThrowOnceKeyStore flaky = new(keyStore); // decorator: first DestroyAsync throws, rest delegate
 		ErasureService service = new(context, flaky);
 
-		await Should.ThrowAsync<InvalidOperationException>(
-			async () => await service.ShredAsync(user.Id, TestContext.Current.CancellationToken)); // fault propagates -- no swallow
+		await Should.ThrowAsync<InvalidOperationException>(async () =>
+			await service.ShredAsync(user.Id, TestContext.Current.CancellationToken)); // fault propagates -- no swallow
 
-		var half = await context.Users.AsNoTracking().SingleAsync(u => u.Id == user.Id, TestContext.Current.CancellationToken);
+		var half = await context.Users.AsNoTracking()
+			.SingleAsync(u => u.Id == user.Id, TestContext.Current.CancellationToken);
 		half.NormalizedUserName.ShouldBeNull(); // acts 1-2 committed
 		(await keyStore.GetAsync(user.Id, TestContext.Current.CancellationToken))
 			.Match(_ => "available", _ => "destroyed", () => "missing").ShouldBe("available"); // key intact, no receipt
@@ -132,7 +112,8 @@ public sealed class ErasureServiceTests(PostgresIdentityFixture fixture)
 	{
 		var (context, keyStore) = await fixture.CreateScopeAsync();
 		var ghost = Guid.NewGuid();
-		var outcome = await new ErasureService(context, keyStore).ShredAsync(ghost, TestContext.Current.CancellationToken);
+		var outcome =
+			await new ErasureService(context, keyStore).ShredAsync(ghost, TestContext.Current.CancellationToken);
 		outcome.TryGetValue(out Failed failed).ShouldBeTrue();
 		failed.Problem.Category.ShouldBe(ErrorCategory.NotFound);
 		(await keyStore.GetAsync(ghost, TestContext.Current.CancellationToken))
@@ -149,7 +130,32 @@ public sealed class ErasureServiceTests(PostgresIdentityFixture fixture)
 		var second = await fixture.SeedUserAsync("round-two@example.com"); // same email, same blind index value
 		second.Id.ShouldNotBe(first.Id);
 		var live = await context.Users.AsNoTracking()
-			.CountAsync(u => u.NormalizedUserName != null && u.NormalizedUserName == second.NormalizedUserName, TestContext.Current.CancellationToken);
+			.CountAsync(u => u.NormalizedUserName != null && u.NormalizedUserName == second.NormalizedUserName,
+				TestContext.Current.CancellationToken);
 		live.ShouldBe(1); // exactly one live row answers the lookup
+	}
+
+	// Decorator: GetAsync/GetOrCreateAsync delegate; the first DestroyAsync throws to simulate a
+	// vault outage, every subsequent call (including the retry) delegates normally.
+	sealed class ThrowOnceKeyStore(ISubjectKeyStore inner) : ISubjectKeyStore
+	{
+		bool _thrown;
+
+		public ValueTask<SubjectKeyResult> GetAsync(Guid subjectId, CancellationToken cancellationToken = default) =>
+			inner.GetAsync(subjectId, cancellationToken);
+
+		public ValueTask<byte[]> GetOrCreateAsync(Guid subjectId, CancellationToken cancellationToken = default) =>
+			inner.GetOrCreateAsync(subjectId, cancellationToken);
+
+		public ValueTask<ErasureReceipt> DestroyAsync(Guid subjectId, CancellationToken cancellationToken = default)
+		{
+			if (!_thrown)
+			{
+				_thrown = true;
+				throw new InvalidOperationException("simulated vault outage");
+			}
+
+			return inner.DestroyAsync(subjectId, cancellationToken);
+		}
 	}
 }

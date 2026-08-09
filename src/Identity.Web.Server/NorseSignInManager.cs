@@ -9,26 +9,25 @@ using Norse.Identity.EntityFramework;
 namespace Norse.Identity.Web.Server;
 
 /// <summary>
-/// Overrides <see cref="SignInWithClaimsAsync(NorseUser, bool, IEnumerable{Claim})"/>,
-/// <see cref="SignInWithClaimsAsync(NorseUser, AuthenticationProperties?, IEnumerable{Claim})"/>,
-/// <see cref="SignOutAsync"/>, and <see cref="SignInOrTwoFactorAsync"/> — every seam ASP.NET Core
-/// Identity's sign-in/sign-out/two-factor-challenge paths are actually known to route a raw cookie write
-/// through, confirmed one at a time by decompiling the real installed assembly rather than assumed —
-/// to detect when the caller is an already-established Blazor Server interactive circuit
-/// (<c>Context.Response.HasStarted</c>) — cookie writes are impossible there, not merely inconvenient.
-/// When detected, defers via <see cref="IDeferredSignIn"/> instead of writing the cookie directly and
-/// stashes the completion key on <c>HttpContext.Items</c> for the caller to read back. Every other call
-/// path (WASM/MAUI over gRPC-Web, any static-SSR request) is a real, distinct HTTP request with
-/// <c>Response.HasStarted == false</c> and behaves exactly as the unmodified base class would — zero
-/// behavior change for those paths. This list has grown once already by exactly this kind of gap —
-/// <see cref="SignInOrTwoFactorAsync"/> shipped uncovered at first, writing its own raw cookie via a
-/// path neither of the other two overrides touched — so treat "every seam" as a standing claim to
-/// re-verify, not a settled fact, the next time a new ASP.NET Core Identity entry point is wired here.
-///
-/// Lives in <c>Identity.Web.Server</c>, not the base <c>Identity</c> project — <c>Identity</c> is shared
-/// with <c>Identity.Migrations</c> (a console tool), and everything this type touches
-/// (<see cref="HttpContext"/>, <see cref="AuthenticationProperties"/>, <see cref="IDeferredSignIn"/>) is an
-/// ASP.NET-Core-web-hosting concern migration tooling has no business depending on.
+///     Overrides <see cref="SignInWithClaimsAsync(NorseUser, bool, IEnumerable{Claim})" />,
+///     <see cref="SignInWithClaimsAsync(NorseUser, AuthenticationProperties?, IEnumerable{Claim})" />,
+///     <see cref="SignOutAsync" />, and <see cref="SignInOrTwoFactorAsync" /> — every seam ASP.NET Core
+///     Identity's sign-in/sign-out/two-factor-challenge paths are actually known to route a raw cookie write
+///     through, confirmed one at a time by decompiling the real installed assembly rather than assumed —
+///     to detect when the caller is an already-established Blazor Server interactive circuit
+///     (<c>Context.Response.HasStarted</c>) — cookie writes are impossible there, not merely inconvenient.
+///     When detected, defers via <see cref="IDeferredSignIn" /> instead of writing the cookie directly and
+///     stashes the completion key on <c>HttpContext.Items</c> for the caller to read back. Every other call
+///     path (WASM/MAUI over gRPC-Web, any static-SSR request) is a real, distinct HTTP request with
+///     <c>Response.HasStarted == false</c> and behaves exactly as the unmodified base class would — zero
+///     behavior change for those paths. This list has grown once already by exactly this kind of gap —
+///     <see cref="SignInOrTwoFactorAsync" /> shipped uncovered at first, writing its own raw cookie via a
+///     path neither of the other two overrides touched — so treat "every seam" as a standing claim to
+///     re-verify, not a settled fact, the next time a new ASP.NET Core Identity entry point is wired here.
+///     Lives in <c>Identity.Web.Server</c>, not the base <c>Identity</c> project — <c>Identity</c> is shared
+///     with <c>Identity.Migrations</c> (a console tool), and everything this type touches
+///     (<see cref="HttpContext" />, <see cref="AuthenticationProperties" />, <see cref="IDeferredSignIn" />) is an
+///     ASP.NET-Core-web-hosting concern migration tooling has no business depending on.
 /// </summary>
 // CS9107 disabled deliberately, narrowly, right here: `schemes` has to be both forwarded to the base
 // constructor (it wants its own copy, kept in a private field this class can't reach) AND retained by
@@ -38,11 +37,16 @@ namespace Norse.Identity.Web.Server;
 // so two references to the same instance carry no risk the warning is generally guarding against.
 #pragma warning disable CS9107
 public sealed class NorseSignInManager(
-	UserManager<NorseUser> userManager, IHttpContextAccessor contextAccessor,
-	IUserClaimsPrincipalFactory<NorseUser> claimsFactory, IOptions<IdentityOptions> optionsAccessor,
-	ILogger<SignInManager<NorseUser>> logger, IAuthenticationSchemeProvider schemes,
-	IUserConfirmation<NorseUser> confirmation, IDeferredSignIn deferredSignIn)
-	: SignInManager<NorseUser>(userManager, contextAccessor, claimsFactory, optionsAccessor, logger, schemes, confirmation)
+	UserManager<NorseUser> userManager,
+	IHttpContextAccessor contextAccessor,
+	IUserClaimsPrincipalFactory<NorseUser> claimsFactory,
+	IOptions<IdentityOptions> optionsAccessor,
+	ILogger<SignInManager<NorseUser>> logger,
+	IAuthenticationSchemeProvider schemes,
+	IUserConfirmation<NorseUser> confirmation,
+	IDeferredSignIn deferredSignIn)
+	: SignInManager<NorseUser>(userManager, contextAccessor, claimsFactory, optionsAccessor, logger, schemes,
+		confirmation)
 #pragma warning restore CS9107
 {
 	/// <summary>The <c>HttpContext.Items</c> key under which a deferred completion key is stashed, when one is needed.</summary>
@@ -52,12 +56,18 @@ public sealed class NorseSignInManager(
 	// inside the base class and skip overriding it. Getting this wrong silently reintroduces the crash
 	// on whichever overload isn't actually hooked. Verify this claim yourself if you have any doubt
 	// (e.g. decompile the real installed assembly), don't take this comment on faith either.
-	/// <summary>Forwards to the <see cref="AuthenticationProperties"/> overload, which carries the actual deferral logic.</summary>
-	public override async Task SignInWithClaimsAsync(NorseUser user, bool isPersistent, IEnumerable<Claim> additionalClaims) =>
-		await SignInWithClaimsAsync(user, new AuthenticationProperties { IsPersistent = isPersistent }, additionalClaims).ConfigureAwait(false);
+	/// <summary>Forwards to the <see cref="AuthenticationProperties" /> overload, which carries the actual deferral logic.</summary>
+	public override async Task SignInWithClaimsAsync(NorseUser user, bool isPersistent,
+		IEnumerable<Claim> additionalClaims) =>
+		await SignInWithClaimsAsync(user, new AuthenticationProperties { IsPersistent = isPersistent },
+			additionalClaims).ConfigureAwait(false);
 
-	/// <summary>Signs in normally when the response can still write a cookie; otherwise stashes the sign-in via <see cref="IDeferredSignIn"/> and records the completion key on <see cref="DeferredSignInKeyItemName"/>.</summary>
-	public override async Task SignInWithClaimsAsync(NorseUser user, AuthenticationProperties? authenticationProperties, IEnumerable<Claim> additionalClaims)
+	/// <summary>
+	///     Signs in normally when the response can still write a cookie; otherwise stashes the sign-in via
+	///     <see cref="IDeferredSignIn" /> and records the completion key on <see cref="DeferredSignInKeyItemName" />.
+	/// </summary>
+	public override async Task SignInWithClaimsAsync(NorseUser user, AuthenticationProperties? authenticationProperties,
+		IEnumerable<Claim> additionalClaims)
 	{
 		if (!Context.Response.HasStarted)
 		{
@@ -67,11 +77,15 @@ public sealed class NorseSignInManager(
 
 		var principal = await CreateUserPrincipalAsync(user).ConfigureAwait(false);
 		((ClaimsIdentity)principal.Identity!).AddClaims(additionalClaims);
-		var key = deferredSignIn.StashSignIn(AuthenticationScheme, principal, authenticationProperties ?? new AuthenticationProperties());
+		var key = deferredSignIn.StashSignIn(AuthenticationScheme, principal,
+			authenticationProperties ?? new AuthenticationProperties());
 		Context.Items[DeferredSignInKeyItemName] = key;
 	}
 
-	/// <summary>Signs out normally when the response can still write a cookie; otherwise stashes the sign-out via <see cref="IDeferredSignIn"/> and records the completion key on <see cref="DeferredSignInKeyItemName"/>.</summary>
+	/// <summary>
+	///     Signs out normally when the response can still write a cookie; otherwise stashes the sign-out via
+	///     <see cref="IDeferredSignIn" /> and records the completion key on <see cref="DeferredSignInKeyItemName" />.
+	/// </summary>
 	public override async Task SignOutAsync()
 	{
 		if (!Context.Response.HasStarted)
@@ -95,26 +109,29 @@ public sealed class NorseSignInManager(
 	// the base class (inaccessible across the assembly boundary), so its exact claims shape is
 	// reproduced here rather than called -- verify that claim yourself too if in doubt.
 	/// <summary>
-	/// Delegates to the base class unless a second factor is genuinely required AND the response has
-	/// already started (an established Blazor Server circuit) -- in that one case, defers the partial
-	/// two-factor sign-in via <see cref="IDeferredSignIn"/> instead of letting the base class's raw
-	/// cookie write throw, reusing <see cref="DeferredSignInKeyItemName"/> so callers (e.g.
-	/// <c>LoginHandler</c>) find it the same way they already do for a completed sign-in.
+	///     Delegates to the base class unless a second factor is genuinely required AND the response has
+	///     already started (an established Blazor Server circuit) -- in that one case, defers the partial
+	///     two-factor sign-in via <see cref="IDeferredSignIn" /> instead of letting the base class's raw
+	///     cookie write throw, reusing <see cref="DeferredSignInKeyItemName" /> so callers (e.g.
+	///     <c>LoginHandler</c>) find it the same way they already do for a completed sign-in.
 	/// </summary>
-	protected override async Task<SignInResult> SignInOrTwoFactorAsync(NorseUser user, bool isPersistent, string? loginProvider = null, bool bypassTwoFactor = false)
+	protected override async Task<SignInResult> SignInOrTwoFactorAsync(NorseUser user, bool isPersistent,
+		string? loginProvider = null, bool bypassTwoFactor = false)
 	{
 		var requiresTwoFactor = !bypassTwoFactor
 			&& await IsTwoFactorEnabledAsync(user).ConfigureAwait(false)
 			&& !await IsTwoFactorClientRememberedAsync(user).ConfigureAwait(false);
 
 		if (!requiresTwoFactor || !Context.Response.HasStarted)
-			return await base.SignInOrTwoFactorAsync(user, isPersistent, loginProvider, bypassTwoFactor).ConfigureAwait(false);
+			return await base.SignInOrTwoFactorAsync(user, isPersistent, loginProvider, bypassTwoFactor)
+				.ConfigureAwait(false);
 
 		if (await schemes.GetSchemeAsync(IdentityConstants.TwoFactorUserIdScheme).ConfigureAwait(false) is not null)
 		{
 			var userId = await UserManager.GetUserIdAsync(user).ConfigureAwait(false);
 			var principal = StoreTwoFactorInfo(userId, loginProvider);
-			var key = deferredSignIn.StashSignIn(IdentityConstants.TwoFactorUserIdScheme, principal, new AuthenticationProperties());
+			var key = deferredSignIn.StashSignIn(IdentityConstants.TwoFactorUserIdScheme, principal,
+				new AuthenticationProperties());
 			Context.Items[DeferredSignInKeyItemName] = key;
 		}
 
@@ -137,19 +154,19 @@ public sealed class NorseSignInManager(
 	}
 
 	/// <summary>
-	/// Folds a destroyed key into a clean dead-session verdict. Law: a destroyed key IS a dead
-	/// session -- the shred ceremony's (<c>Norse.Identity.Web.Server.ErasureService</c>) third act
-	/// destroys the subject's key, and every subsequent attempt to re-materialize the row's
-	/// protected columns (<c>Email</c>, <c>UserName</c>, both still wired through
-	/// <see cref="NorsePersonalDataProtector"/>'s EF value converter) throws
-	/// <see cref="KeyDestroyedException"/>, unwrapped, straight out of EF's materializer -- including
-	/// from <c>UserManager.GetUserAsync</c>, which the base implementation calls to re-hydrate the
-	/// principal's subject. Left uncaught, a shredded subject's surviving cookie 500-loops out of the
-	/// cookie authentication middleware on every request instead of being rejected cleanly. This
-	/// catch is deliberately narrow: it lives ONLY at this revalidation boundary. Every other path
-	/// (<see cref="NorseUserStore"/>, <see cref="NorsePersonalDataProtector"/> itself) must keep
-	/// throwing -- the disclosure surface's <c>Erased</c> fold (a later task) depends on the
-	/// exception surviving there, and catching it earlier would silence that signal for good.
+	///     Folds a destroyed key into a clean dead-session verdict. Law: a destroyed key IS a dead
+	///     session -- the shred ceremony's (<c>Norse.Identity.Web.Server.ErasureService</c>) third act
+	///     destroys the subject's key, and every subsequent attempt to re-materialize the row's
+	///     protected columns (<c>Email</c>, <c>UserName</c>, both still wired through
+	///     <see cref="NorsePersonalDataProtector" />'s EF value converter) throws
+	///     <see cref="KeyDestroyedException" />, unwrapped, straight out of EF's materializer -- including
+	///     from <c>UserManager.GetUserAsync</c>, which the base implementation calls to re-hydrate the
+	///     principal's subject. Left uncaught, a shredded subject's surviving cookie 500-loops out of the
+	///     cookie authentication middleware on every request instead of being rejected cleanly. This
+	///     catch is deliberately narrow: it lives ONLY at this revalidation boundary. Every other path
+	///     (<see cref="NorseUserStore" />, <see cref="NorsePersonalDataProtector" /> itself) must keep
+	///     throwing -- the disclosure surface's <c>Erased</c> fold (a later task) depends on the
+	///     exception surviving there, and catching it earlier would silence that signal for good.
 	/// </summary>
 	public override async Task<NorseUser?> ValidateSecurityStampAsync(ClaimsPrincipal? principal)
 	{

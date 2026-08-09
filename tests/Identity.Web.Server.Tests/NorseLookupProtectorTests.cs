@@ -5,14 +5,6 @@ namespace Norse.Identity.Web.Server.Tests;
 
 public sealed class NorseLookupProtectorTests
 {
-	sealed class FakeRing : ILookupKeyRing
-	{
-		public byte[] Key { get; } = RandomNumberGenerator.GetBytes(32);
-		public string CurrentKeyId => "k1";
-		public IEnumerable<string> KeyIds => ["k1"];
-		public byte[] GetKey(string keyId) => keyId == "k1" ? Key : throw new KeyNotFoundException(keyId);
-	}
-
 	[Fact]
 	void Protect_is_a_deterministic_keyed_hmac_of_the_normalized_value()
 	{
@@ -38,5 +30,16 @@ public sealed class NorseLookupProtectorTests
 	{
 		NorseLookupProtector protector = new(new FakeRing());
 		Should.Throw<NotSupportedException>(() => protector.Unprotect("k1", "hash"));
+	}
+
+	sealed class FakeRing : ILookupKeyRing
+	{
+		public byte[] Key { get; } = RandomNumberGenerator.GetBytes(32);
+		public string CurrentKeyId => "k1";
+		public IEnumerable<string> KeyIds => ["k1"];
+
+		public byte[] GetKey(string keyId) => keyId == "k1" ?
+			Key :
+			throw new KeyNotFoundException(keyId);
 	}
 }
