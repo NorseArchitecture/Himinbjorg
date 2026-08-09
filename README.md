@@ -46,6 +46,8 @@ flowchart BT
 	Migrations --> EFMigrations
 	MigrationsPg --> Migrations
 	MigrationsPg --> EFPg
+	%% layout hint only, not a dependency — stacks Asgard above Heimdall in one column
+	FluentUI ~~~ WebServerLaw
 ```
 
 Dependencies are transitive-first by house law — Heimdall's `AuthN.Services` contract reaches `Identity.Web.Server` through `AuthN.Components.FluentUI`, and Urðarbrunnr's base `EntityFramework` reaches it through `Identity.EntityFramework`, so no direct edges exist for either. Two of the NorseRefs also mount source generators (`Generator="true"`): Urðarbrunnr's `Persistence.EntityFramework` brings the entity-configuration generator into `Identity.EntityFramework`, and Asgard's `Abstractions.Web.Server` brings the registration generator that emits `AddNorseIdentityWebServerHandlers()`. `Identity.Web.Server` pins the PostgreSQL provider as its runtime provider; the migrations family stays deliberately two-provider — `Identity.Migrations.SqlServer` mirrors the PostgreSQL leg edge for edge (`Identity.Migrations` + Urðarbrunnr's `EntityFramework.SqlServer`) and is left off the chart for legibility.
