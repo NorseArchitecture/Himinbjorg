@@ -19,10 +19,7 @@ The server-only identity store of the Norse Architecture, and — since PR #27 s
 Arrows point at the thing depended on. The gate and the hall depend on each other by design — Heimdall declares the contracts and pages, Himinbjörg implements and hosts them — which is why `Identity.Web.Server` sits above Heimdall's skin here while Heimdall's own chart shows this realm riding topmost.
 
 ```mermaid
-flowchart BT
-	subgraph Yggdrasil
-		HostingWebServer["Hosting.Web.Server"]
-	end
+flowchart TB
 	subgraph Himinbjorg["Himinbjörg — Norse.Identity"]
 		MigrationsPg["Identity.Migrations.PostgreSQL"]
 		MigrationsSql["Identity.Migrations.SqlServer"]
@@ -42,7 +39,6 @@ flowchart BT
 		EFMigrations["EntityFramework.Migrations"]
 		EF["EntityFramework"]
 	end
-	HostingWebServer --> WebServer
 	WebServer --> EntityFramework
 	WebServer --> FluentUI
 	WebServer --> WebServerLaw
