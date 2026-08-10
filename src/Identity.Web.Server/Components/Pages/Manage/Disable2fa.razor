@@ -6,7 +6,7 @@
 
 <PageTitle>Disable two-factor authentication (2FA)</PageTitle>
 
-<StatusMessage />
+<StatusMessage/>
 <h3>Disable two-factor authentication (2FA)</h3>
 
 <FluentGrid>
@@ -18,7 +18,7 @@
 
         <div>
             <form @formname="disable-2fa" @onsubmit="OnSubmitAsync" method="post">
-                <AntiforgeryToken />
+                <AntiforgeryToken/>
                 <p style="margin-top: 10px; text-align: end;">
                     <FluentButton Type="ButtonType.Submit" Appearance="ButtonAppearance.Primary">Disable 2FA</FluentButton>
                 </p>
@@ -30,8 +30,7 @@
 @code {
     NorseUser? _user;
 
-    [CascadingParameter]
-    HttpContext HttpContext { get; set; } = null!;
+    [CascadingParameter] HttpContext HttpContext { get; set; } = null!;
 
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
@@ -70,4 +69,5 @@
             "2fa has been disabled. You can reenable 2fa when you setup an authenticator app",
             HttpContext);
     }
+
 }

@@ -10,6 +10,12 @@ public sealed class NorseIdentityModelTests
 {
 	const string DatabaseName = "norse_identity_model_test";
 
+	static readonly Lazy<IModel> _sqlServerModel = new(() => BuildModel(NorseSqlServerEfProvider.Instance));
+	static readonly Lazy<IModel> _postgresModel = new(() => BuildModel(NorsePostgresEfProvider.Instance));
+
+	static IModel SqlServerModel => _sqlServerModel.Value;
+	static IModel PostgresModel => _postgresModel.Value;
+
 	// Build the model per provider the way the design-time factories do (ApplyNorseProviderOptions
 	// against the real provider binding) -- notably the SQL Server compatibility-level-170 floor,
 	// without which ComplexProperty<T>().ToJson() (the passkey Data mapping) does not compose.
@@ -20,12 +26,6 @@ public sealed class NorseIdentityModelTests
 		using NorseIdentityDbContext context = new(builder.Options);
 		return context.Model;
 	}
-
-	static readonly Lazy<IModel> _sqlServerModel = new(() => BuildModel(NorseSqlServerEfProvider.Instance));
-	static readonly Lazy<IModel> _postgresModel = new(() => BuildModel(NorsePostgresEfProvider.Instance));
-
-	static IModel SqlServerModel => _sqlServerModel.Value;
-	static IModel PostgresModel => _postgresModel.Value;
 
 	[Fact]
 	void Normalized_user_name_is_nullable_and_its_unique_index_is_filtered_on_sql_server()

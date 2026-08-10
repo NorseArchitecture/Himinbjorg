@@ -10,22 +10,18 @@
 
 <h1>Confirm email change</h1>
 
-<StatusMessage Message="@_message" />
+<StatusMessage Message="@_message"/>
 
 @code {
     string? _message;
 
-    [CascadingParameter]
-    HttpContext HttpContext { get; set; } = null!;
+    [CascadingParameter] HttpContext HttpContext { get; set; } = null!;
 
-    [SupplyParameterFromQuery]
-    string? UserId { get; set; }
+    [SupplyParameterFromQuery] string? UserId { get; set; }
 
-    [SupplyParameterFromQuery]
-    string? Email { get; set; }
+    [SupplyParameterFromQuery] string? Email { get; set; }
 
-    [SupplyParameterFromQuery]
-    string? Code { get; set; }
+    [SupplyParameterFromQuery] string? Code { get; set; }
 
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
@@ -64,4 +60,5 @@
         await SignInManager.RefreshSignInAsync(user);
         _message = "Thank you for confirming your email change.";
     }
+
 }

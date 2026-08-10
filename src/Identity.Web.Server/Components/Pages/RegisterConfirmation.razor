@@ -11,7 +11,7 @@
 
 <h1>Register confirmation</h1>
 
-<StatusMessage Message="@_statusMessage" />
+<StatusMessage Message="@_statusMessage"/>
 
 @if (_emailConfirmationLink is not null)
 {
@@ -29,14 +29,11 @@ else
     string? _emailConfirmationLink;
     string? _statusMessage;
 
-    [CascadingParameter]
-    HttpContext HttpContext { get; set; } = null!;
+    [CascadingParameter] HttpContext HttpContext { get; set; } = null!;
 
-    [SupplyParameterFromQuery]
-    string? Email { get; set; }
+    [SupplyParameterFromQuery] string? Email { get; set; }
 
-    [SupplyParameterFromQuery]
-    string? ReturnUrl { get; set; }
+    [SupplyParameterFromQuery] string? ReturnUrl { get; set; }
 
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
@@ -64,4 +61,5 @@ else
                 new Dictionary<string, object?> { ["userId"] = userId, ["code"] = code, ["returnUrl"] = ReturnUrl });
         }
     }
+
 }

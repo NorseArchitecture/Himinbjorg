@@ -9,16 +9,12 @@ using Norse.Primitives.Pii;
 
 namespace Norse.Identity.Web.Server;
 
-sealed class LoginHandler(SignInManager<NorseUser> signInManager, IDeferredSignIn deferredSignIn, IHttpContextAccessor httpContextAccessor)
+sealed class LoginHandler(
+	SignInManager<NorseUser> signInManager,
+	IDeferredSignIn deferredSignIn,
+	IHttpContextAccessor httpContextAccessor)
 	: IRequestHandler<LoginCommand, NavigationResult>
 {
-	// Anti-enumeration as a reference-identity guarantee (spec §9.3), not a structural coincidence:
-	// Problem.Errors is a dictionary, so two separately built Problems carrying identical content
-	// still compare unequal as records. Every credential-failure path below returns this exact
-	// instance, so the collapse is provable by reference, not just by matching field values.
-	static readonly Failed _invalidCredentials =
-		new(Problem.ModelError(ErrorCategory.InvalidCredentials, "Invalid email or password."));
-
 	// Himinbjörg is the layer that owns and serves the 2FA challenge page (still the pre-migration
 	// scaffold at Components/Pages/LoginWith2fa.razor, @page "/Account/LoginWith2fa"), so it's also the
 	// layer that resolves NavigationResult.NextUrl down to a concrete value in every case -- every client
@@ -38,7 +34,22 @@ sealed class LoginHandler(SignInManager<NorseUser> signInManager, IDeferredSignI
 	// carries zero behavior change for today's root-hosted deployment.
 	const string TwoFactorChallengeRoute = "/Account/LoginWith2fa";
 
-	public async ValueTask<Outcome<NavigationResult>> Handle(LoginCommand request, CancellationToken cancellationToken = default)
+	// Anti-enumeration as a reference-identity guarantee (spec §9.3), not a structural coincidence:
+	// Problem.Errors is a dictionary, so two separately built Problems carrying identical content
+	// still compare unequal as records. Every credential-failure path below returns this exact
+	// instance, so the collapse is provable by reference, not just by matching field values.
+	static readonly Failed _invalidCredentials =
+		new(Problem.ModelError(ErrorCategory.InvalidCredentials, "Invalid email or password."));
+
+	// Read once per Handle call -- HttpContext.Request.PathBase reflects the live request the sender
+	// is dispatching for, empty ("") for today's root-hosted deployment, and BuildRelative treats an
+	// empty PathBase as a no-op prefix, so every NextUrl value stays byte-identical to before this
+	// property existed until a non-root PathBase is actually in play.
+	PathString PathBase =>
+		httpContextAccessor.HttpContext!.Request.PathBase;
+
+	public async ValueTask<Outcome<NavigationResult>> Handle(LoginCommand request,
+		CancellationToken cancellationToken = default)
 	{
 		var wire = request.Request;
 
@@ -61,7 +72,10 @@ sealed class LoginHandler(SignInManager<NorseUser> signInManager, IDeferredSignI
 		// (spec §9.3: "so they don't try 10000 times").
 		if (result.IsLockedOut)
 			return Outcome<NavigationResult>.Err(ErrorCategory.LockedOut,
-				new Dictionary<string, string[]> { [""] = ["This account is locked out. Try again later or reset your password."] });
+				new Dictionary<string, string[]>
+				{
+					[""] = ["This account is locked out. Try again later or reset your password."]
+				});
 		if (result.IsNotAllowed)
 			return Outcome<NavigationResult>.Err(ErrorCategory.NotAllowed,
 				new Dictionary<string, string[]> { [""] = ["Sign-in is not allowed for this account."] });
@@ -80,8 +94,13 @@ sealed class LoginHandler(SignInManager<NorseUser> signInManager, IDeferredSignI
 		{
 			var challengeUrl = UriHelper.BuildRelative(
 				PathBase, TwoFactorChallengeRoute,
-				QueryString.Create("RememberMe", wire.RememberMe ? "true" : "false"));
-			return Outcome<NavigationResult>.Ok(new NavigationResult { NextUrl = TryGetDeferredCompletionUrl(challengeUrl) ?? challengeUrl });
+				QueryString.Create("RememberMe", wire.RememberMe ?
+					"true" :
+					"false"));
+			return Outcome<NavigationResult>.Ok(new NavigationResult
+			{
+				NextUrl = TryGetDeferredCompletionUrl(challengeUrl) ?? challengeUrl
+			});
 		}
 
 		// PasswordSignInAsync already collapses "no such user" and "wrong password" into the single
@@ -95,15 +114,11 @@ sealed class LoginHandler(SignInManager<NorseUser> signInManager, IDeferredSignI
 		// cookie was written directly -- resolved here, not left for the client to supply, so NextUrl
 		// is never null.
 		var appRoot = UriHelper.BuildRelative(PathBase, "/");
-		return Outcome<NavigationResult>.Ok(new NavigationResult { NextUrl = TryGetDeferredCompletionUrl(appRoot) ?? appRoot });
+		return Outcome<NavigationResult>.Ok(new NavigationResult
+		{
+			NextUrl = TryGetDeferredCompletionUrl(appRoot) ?? appRoot
+		});
 	}
-
-	// Read once per Handle call -- HttpContext.Request.PathBase reflects the live request the sender
-	// is dispatching for, empty ("") for today's root-hosted deployment, and BuildRelative treats an
-	// empty PathBase as a no-op prefix, so every NextUrl value stays byte-identical to before this
-	// property existed until a non-root PathBase is actually in play.
-	PathString PathBase =>
-		httpContextAccessor.HttpContext!.Request.PathBase;
 
 	// NOT verbatim-duplicated in LogoutHandler anymore -- Logout only ever lands back on "/", so its
 	// copy keeps a bare, parameterless shape; this one needs a returnUrl parameter because Login has

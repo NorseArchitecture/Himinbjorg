@@ -19,11 +19,14 @@ public sealed class IdentityRedirectManager(NavigationManager navigationManager)
 		MaxAge = TimeSpan.FromSeconds(5)
 	};
 
+	string CurrentPath =>
+		navigationManager.ToAbsoluteUri(navigationManager.Uri).GetLeftPart(UriPartial.Path);
+
 	/// <summary>
-	/// Navigates to <paramref name="uri"/>, coercing it to a base-relative path first if it is
-	/// absolute so a caller-supplied value can never be used as an open redirect.
+	///     Navigates to <paramref name="uri" />, coercing it to a base-relative path first if it is
+	///     absolute so a caller-supplied value can never be used as an open redirect.
 	/// </summary>
-	/// <param name="uri">The destination URI, or <see langword="null"/> to redirect to the app root.</param>
+	/// <param name="uri">The destination URI, or <see langword="null" /> to redirect to the app root.</param>
 	public void RedirectTo(string? uri)
 	{
 		uri ??= "";
@@ -38,10 +41,10 @@ public sealed class IdentityRedirectManager(NavigationManager navigationManager)
 	}
 
 	/// <summary>
-	/// Navigates to <paramref name="uri"/> with the given query string parameters appended.
+	///     Navigates to <paramref name="uri" /> with the given query string parameters appended.
 	/// </summary>
 	/// <param name="uri">The destination URI, without query parameters.</param>
-	/// <param name="queryParameters">The query parameters to append to <paramref name="uri"/>.</param>
+	/// <param name="queryParameters">The query parameters to append to <paramref name="uri" />.</param>
 	public void RedirectTo(string uri, Dictionary<string, object?> queryParameters)
 	{
 		var uriWithoutQuery = navigationManager.ToAbsoluteUri(uri).GetLeftPart(UriPartial.Path);
@@ -50,8 +53,8 @@ public sealed class IdentityRedirectManager(NavigationManager navigationManager)
 	}
 
 	/// <summary>
-	/// Stores <paramref name="message"/> in the status-message cookie and redirects to <paramref name="uri"/>
-	/// so it can be read and displayed after the next page load.
+	///     Stores <paramref name="message" /> in the status-message cookie and redirects to <paramref name="uri" />
+	///     so it can be read and displayed after the next page load.
 	/// </summary>
 	/// <param name="uri">The destination URI.</param>
 	/// <param name="message">The status message to surface on the destination page.</param>
@@ -62,16 +65,13 @@ public sealed class IdentityRedirectManager(NavigationManager navigationManager)
 		RedirectTo(uri);
 	}
 
-	string CurrentPath =>
-		navigationManager.ToAbsoluteUri(navigationManager.Uri).GetLeftPart(UriPartial.Path);
-
 	/// <summary>
-	/// Re-navigates to the current page, forcing Blazor to reload it.
+	///     Re-navigates to the current page, forcing Blazor to reload it.
 	/// </summary>
 	public void RedirectToCurrentPage() => RedirectTo(CurrentPath);
 
 	/// <summary>
-	/// Stores <paramref name="message"/> in the status-message cookie and re-navigates to the current page.
+	///     Stores <paramref name="message" /> in the status-message cookie and re-navigates to the current page.
 	/// </summary>
 	/// <param name="message">The status message to surface after the reload.</param>
 	/// <param name="context">The current HTTP context, used to write the status cookie.</param>
@@ -79,10 +79,11 @@ public sealed class IdentityRedirectManager(NavigationManager navigationManager)
 		RedirectToWithStatus(CurrentPath, message, context);
 
 	/// <summary>
-	/// Redirects to the invalid-user page with a status message identifying the missing user ID.
+	///     Redirects to the invalid-user page with a status message identifying the missing user ID.
 	/// </summary>
 	/// <param name="userManager">The user manager used to resolve the current user's ID for the message.</param>
 	/// <param name="context">The current HTTP context, used to read the user principal and write the status cookie.</param>
 	public void RedirectToInvalidUser(UserManager<NorseUser> userManager, HttpContext context) =>
-		RedirectToWithStatus("Account/InvalidUser", $"Error: Unable to load user with ID '{userManager.GetUserId(context.User)}'.", context);
+		RedirectToWithStatus("Account/InvalidUser",
+			$"Error: Unable to load user with ID '{userManager.GetUserId(context.User)}'.", context);
 }

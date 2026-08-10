@@ -20,8 +20,8 @@ public static class IdentityComponentsEndpointRouteBuilderExtensions
 	{
 		// These endpoints are required by the Identity Razor components defined in the /Components/Pages directory of this project.
 		/// <summary>
-		/// Maps the external login, logout, passkey, and account-management endpoints required by the
-		/// Identity Razor components under <c>/Components/Pages</c>.
+		///     Maps the external login, logout, passkey, and account-management endpoints required by the
+		///     Identity Razor components under <c>/Components/Pages</c>.
 		/// </summary>
 		/// <returns>A convention builder for the mapped <c>/Account</c> endpoint group.</returns>
 		public IEndpointConventionBuilder MapAdditionalIdentityEndpoints()
@@ -36,9 +36,11 @@ public static class IdentityComponentsEndpointRouteBuilderExtensions
 				[FromForm] string provider,
 				[FromForm] string returnUrl) =>
 			{
-				IEnumerable<KeyValuePair<string, StringValues>> query = [
+				IEnumerable<KeyValuePair<string, StringValues>> query =
+				[
 					new("ReturnUrl", returnUrl),
-					new("Action", ExternalLogin.LoginCallbackAction)];
+					new("Action", ExternalLogin.LoginCallbackAction)
+				];
 
 				var redirectUrl = UriHelper.BuildRelative(
 					context.Request.PathBase,
@@ -93,7 +95,9 @@ public static class IdentityComponentsEndpointRouteBuilderExtensions
 			{
 				await antiforgery.ValidateRequestAsync(context).ConfigureAwait(false);
 
-				var user = string.IsNullOrEmpty(username) ? null : await userManager.FindByNameAsync(username).ConfigureAwait(false);
+				var user = string.IsNullOrEmpty(username) ?
+					null :
+					await userManager.FindByNameAsync(username).ConfigureAwait(false);
 				var optionsJson = await signInManager.MakePasskeyRequestOptionsAsync(user).ConfigureAwait(false);
 				return TypedResults.Content(optionsJson, contentType: "application/json");
 			});
@@ -115,7 +119,8 @@ public static class IdentityComponentsEndpointRouteBuilderExtensions
 
 				provider = TemporaryFluentButtonFix(provider);
 
-				var properties = signInManager.ConfigureExternalAuthenticationProperties(provider, redirectUrl, signInManager.UserManager.GetUserId(context.User));
+				var properties = signInManager.ConfigureExternalAuthenticationProperties(provider, redirectUrl,
+					signInManager.UserManager.GetUserId(context.User));
 				return TypedResults.Challenge(properties, [provider]);
 			});
 
@@ -131,9 +136,9 @@ public static class IdentityComponentsEndpointRouteBuilderExtensions
 
 		// Find the value that appears twice in the list
 		provider = providers.GroupBy(p => p)
-							.Where(g => g.Count() == 2)
-							.Select(g => g.Key)
-							.First();
+			.Where(g => g.Count() == 2)
+			.Select(g => g.Key)
+			.First();
 		return provider;
 	}
 }

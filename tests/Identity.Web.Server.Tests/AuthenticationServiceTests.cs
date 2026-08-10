@@ -5,10 +5,10 @@ using Norse.AuthN.Services;
 namespace Norse.Identity.Web.Server.Tests;
 
 /// <summary>
-/// <see cref="AuthenticationService"/> is pure hydrate-and-send now — every method wraps the wire
-/// request in its command and forwards to <see cref="ISender"/> unchanged. These tests prove exactly
-/// that: field-for-field hydration of the command from the wire request, and the sender's outcome
-/// passed straight through with no mapping in between.
+///     <see cref="AuthenticationService" /> is pure hydrate-and-send now — every method wraps the wire
+///     request in its command and forwards to <see cref="ISender" /> unchanged. These tests prove exactly
+///     that: field-for-field hydration of the command from the wire request, and the sender's outcome
+///     passed straight through with no mapping in between.
 /// </summary>
 public sealed class AuthenticationServiceTests
 {
@@ -36,7 +36,8 @@ public sealed class AuthenticationServiceTests
 		sender.Send(Arg.Any<LoginCommand>(), Arg.Any<CancellationToken>()).Returns(_ => ValueTask.FromResult(expected));
 		AuthenticationService service = new(sender);
 
-		var outcome = await service.Login(new LoginRequest { EmailInput = "a@b.com", Password = "x" }, TestContext.Current.CancellationToken);
+		var outcome = await service.Login(new LoginRequest { EmailInput = "a@b.com", Password = "x" },
+			TestContext.Current.CancellationToken);
 
 		outcome.ShouldBeSameAs(expected);
 	}
@@ -49,7 +50,8 @@ public sealed class AuthenticationServiceTests
 		sender.Send(Arg.Any<LoginCommand>(), Arg.Any<CancellationToken>()).Returns(_ => ValueTask.FromResult(expected));
 		AuthenticationService service = new(sender);
 
-		var outcome = await service.Login(new LoginRequest { EmailInput = "a@b.com", Password = "x" }, TestContext.Current.CancellationToken);
+		var outcome = await service.Login(new LoginRequest { EmailInput = "a@b.com", Password = "x" },
+			TestContext.Current.CancellationToken);
 
 		outcome.ShouldBeSameAs(expected);
 	}
@@ -60,7 +62,9 @@ public sealed class AuthenticationServiceTests
 		RegisterCommand? captured = null;
 		var sender = Substitute.For<ISender>();
 		sender.Send(Arg.Do<RegisterCommand>(c => captured = c), Arg.Any<CancellationToken>())
-			.Returns(_ => ValueTask.FromResult(Outcome<NavigationResult>.Ok(new NavigationResult { NextUrl = "/Account/Login" })));
+			.Returns(_ =>
+				ValueTask.FromResult(
+					Outcome<NavigationResult>.Ok(new NavigationResult { NextUrl = "/Account/Login" })));
 		AuthenticationService service = new(sender);
 		RegisterRequest request = new() { EmailInput = "a@b.com", Password = "x" };
 
@@ -75,10 +79,12 @@ public sealed class AuthenticationServiceTests
 	{
 		var sender = Substitute.For<ISender>();
 		var expected = Outcome<NavigationResult>.Err(ErrorCategory.Conflict);
-		sender.Send(Arg.Any<RegisterCommand>(), Arg.Any<CancellationToken>()).Returns(_ => ValueTask.FromResult(expected));
+		sender.Send(Arg.Any<RegisterCommand>(), Arg.Any<CancellationToken>())
+			.Returns(_ => ValueTask.FromResult(expected));
 		AuthenticationService service = new(sender);
 
-		var outcome = await service.Register(new RegisterRequest { EmailInput = "a@b.com", Password = "x" }, TestContext.Current.CancellationToken);
+		var outcome = await service.Register(new RegisterRequest { EmailInput = "a@b.com", Password = "x" },
+			TestContext.Current.CancellationToken);
 
 		outcome.ShouldBeSameAs(expected);
 	}
@@ -103,7 +109,8 @@ public sealed class AuthenticationServiceTests
 	{
 		var sender = Substitute.For<ISender>();
 		var expected = Outcome<NavigationResult>.Ok(new NavigationResult { NextUrl = "/x" });
-		sender.Send(Arg.Any<LogoutCommand>(), Arg.Any<CancellationToken>()).Returns(_ => ValueTask.FromResult(expected));
+		sender.Send(Arg.Any<LogoutCommand>(), Arg.Any<CancellationToken>())
+			.Returns(_ => ValueTask.FromResult(expected));
 		AuthenticationService service = new(sender);
 
 		var outcome = await service.Logout(TestContext.Current.CancellationToken);
@@ -116,7 +123,8 @@ public sealed class AuthenticationServiceTests
 	{
 		var sender = Substitute.For<ISender>();
 		var expected = Outcome<NavigationResult>.Err(ErrorCategory.Fault);
-		sender.Send(Arg.Any<LogoutCommand>(), Arg.Any<CancellationToken>()).Returns(_ => ValueTask.FromResult(expected));
+		sender.Send(Arg.Any<LogoutCommand>(), Arg.Any<CancellationToken>())
+			.Returns(_ => ValueTask.FromResult(expected));
 		AuthenticationService service = new(sender);
 
 		var outcome = await service.Logout(TestContext.Current.CancellationToken);

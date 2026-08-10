@@ -6,22 +6,22 @@ using OpenIddict.EntityFrameworkCore.Models;
 namespace Norse.Identity.EntityFramework;
 
 /// <summary>
-/// Norse wrapper over OpenIddict's EF Core token entity, keyed by <see cref="Guid"/>. Adds explicit
-/// <see cref="ApplicationId"/>/<see cref="AuthorizationId"/> FK scalars for the same reason
-/// <see cref="NorseOpenIddictAuthorization.ApplicationId"/> exists — OpenIddict declares navigation
-/// only, no FK scalar, on both relationships.
+///     Norse wrapper over OpenIddict's EF Core token entity, keyed by <see cref="Guid" />. Adds explicit
+///     <see cref="ApplicationId" />/<see cref="AuthorizationId" /> FK scalars for the same reason
+///     <see cref="NorseOpenIddictAuthorization.ApplicationId" /> exists — OpenIddict declares navigation
+///     only, no FK scalar, on both relationships.
 /// </summary>
 public sealed class NorseOpenIddictToken
 	: OpenIddictEntityFrameworkCoreToken<Guid, NorseOpenIddictApplication, NorseOpenIddictAuthorization>,
-	  INorseEntity<NorseOpenIddictToken>
+		INorseEntity<NorseOpenIddictToken>
 {
 	/// <summary>
-	/// Gets or sets the ID of the application this token is scoped to.
+	///     Gets or sets the ID of the application this token is scoped to.
 	/// </summary>
 	public Guid? ApplicationId { get; init; }
 
 	/// <summary>
-	/// Gets or sets the ID of the authorization this token is bound to.
+	///     Gets or sets the ID of the authorization this token is bound to.
 	/// </summary>
 	public Guid? AuthorizationId { get; init; }
 

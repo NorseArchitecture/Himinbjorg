@@ -32,8 +32,8 @@ public sealed class NorseUserManagerTests
 		var result = await manager.CreateAsync(user);
 
 		result.Succeeded.ShouldBeTrue();
-		user.Id.ShouldNotBe(Guid.Empty);          // id assigned before the store ran
-		observed.ShouldBe(user.Id);               // ambient subject was live inside the store call
+		user.Id.ShouldNotBe(Guid.Empty); // id assigned before the store ran
+		observed.ShouldBe(user.Id); // ambient subject was live inside the store call
 		SubjectCryptoScope.CurrentSubject.ShouldBeNull(); // and restored after
 	}
 

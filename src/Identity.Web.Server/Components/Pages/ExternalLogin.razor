@@ -15,7 +15,7 @@
 
 <PageTitle>Register</PageTitle>
 
-<StatusMessage Message="@_message" />
+<StatusMessage Message="@_message"/>
 <h1>Register</h1>
 <h2>Associate your @ProviderDisplayName account.</h2>
 <div class="alert alert-info">
@@ -26,10 +26,10 @@
 <FluentGrid>
     <FluentGridItem xs="8" sm="4">
         <EditForm Model="Input" OnValidSubmit="OnValidSubmitAsync" FormName="confirmation" method="post">
-            <DataAnnotationsValidator />
-            <FluentValidationSummary class="text-danger" role="alert" />
+            <DataAnnotationsValidator/>
+            <FluentValidationSummary class="text-danger" role="alert"/>
             <FluentTextInput Name="Input.Email" @bind-Value="Input.Email" AutoComplete="email"
-                             Placeholder="Please enter your email." Label="Email" Style="width: 100%;" />
+                             Placeholder="Please enter your email." Label="Email" Style="width: 100%;"/>
             @* <FluentValidationMessage For="() => Input.Email" /> *@
             <FluentButton Type="ButtonType.Submit" Appearance="ButtonAppearance.Primary" Style="width: 100%;">Register</FluentButton>
         </EditForm>
@@ -42,20 +42,15 @@
     string? _message;
     ExternalLoginInfo? _externalLoginInfo;
 
-    [CascadingParameter]
-    HttpContext HttpContext { get; set; } = null!;
+    [CascadingParameter] HttpContext HttpContext { get; set; } = null!;
 
-    [SupplyParameterFromForm]
-    InputModel Input { get; set; } = null!;
+    [SupplyParameterFromForm] InputModel Input { get; set; } = null!;
 
-    [SupplyParameterFromQuery]
-    string? RemoteError { get; set; }
+    [SupplyParameterFromQuery] string? RemoteError { get; set; }
 
-    [SupplyParameterFromQuery]
-    string? ReturnUrl { get; set; }
+    [SupplyParameterFromQuery] string? ReturnUrl { get; set; }
 
-    [SupplyParameterFromQuery]
-    string? Action { get; set; }
+    [SupplyParameterFromQuery] string? Action { get; set; }
 
     string? ProviderDisplayName =>
         _externalLoginInfo?.ProviderDisplayName;
@@ -63,7 +58,7 @@
     /// <inheritdoc />
     protected override async Task OnInitializedAsync()
     {
-        Input ??= new();
+        Input ??= new InputModel();
 
         if (RemoteError is not null)
         {
@@ -118,7 +113,8 @@
             RedirectManager.RedirectTo(ReturnUrl);
             return;
         }
-        else if (result.IsLockedOut)
+
+        if (result.IsLockedOut)
         {
             RedirectManager.RedirectTo("Account/Lockout");
             return;
@@ -198,13 +194,13 @@
         {
             throw new NotSupportedException("The default UI requires a user store with email support.");
         }
+
         return (IUserEmailStore<NorseUser>)UserStore;
     }
 
     sealed class InputModel
     {
-        [Required]
-        [EmailAddress]
-        public string Email { get; set; } = "";
+        [Required] [EmailAddress] public string Email { get; set; } = "";
     }
+
 }

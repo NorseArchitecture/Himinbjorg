@@ -6,13 +6,13 @@ using OpenIddict.EntityFrameworkCore.Models;
 namespace Norse.Identity.EntityFramework;
 
 /// <summary>
-/// Norse wrapper over OpenIddict's EF Core application entity, keyed by <see cref="Guid"/>. Closes
-/// two non-JSON columns OpenIddict leaves unbounded by omission (verified against
-/// <c>openiddict-core</c> tag <c>7.5.0</c>).
+///     Norse wrapper over OpenIddict's EF Core application entity, keyed by <see cref="Guid" />. Closes
+///     two non-JSON columns OpenIddict leaves unbounded by omission (verified against
+///     <c>openiddict-core</c> tag <c>7.5.0</c>).
 /// </summary>
 public sealed class NorseOpenIddictApplication
 	: OpenIddictEntityFrameworkCoreApplication<Guid, NorseOpenIddictAuthorization, NorseOpenIddictToken>,
-	  INorseEntity<NorseOpenIddictApplication>, ITemporalEntity
+		INorseEntity<NorseOpenIddictApplication>, ITemporalEntity
 {
 	/// <inheritdoc />
 	public static void Configure(EntityTypeBuilder<NorseOpenIddictApplication> builder)

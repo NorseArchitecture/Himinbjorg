@@ -112,9 +112,11 @@ public sealed class LoginHandlerTests
 		// therefore holds ONE static instance and every credential-failure path returns it, making
 		// anti-enumeration a reference-identity guarantee rather than a structural coincidence.
 		var unknownUserOutcome = await NewHandlerWithUnknownUser().Handle(
-			new(new LoginRequest { EmailInput = "ghost@example.com", Password = "x" }), TestContext.Current.CancellationToken);
+			new(new LoginRequest { EmailInput = "ghost@example.com", Password = "x" }),
+			TestContext.Current.CancellationToken);
 		var wrongPasswordOutcome = await NewHandlerWithFailingSignIn().Handle(
-			new(new LoginRequest { EmailInput = "real@example.com", Password = "x" }), TestContext.Current.CancellationToken);
+			new(new LoginRequest { EmailInput = "real@example.com", Password = "x" }),
+			TestContext.Current.CancellationToken);
 
 		unknownUserOutcome.TryGetValue(out Failed first).ShouldBeTrue();
 		wrongPasswordOutcome.TryGetValue(out Failed second).ShouldBeTrue();
@@ -128,7 +130,8 @@ public sealed class LoginHandlerTests
 	}
 
 	[Fact]
-	async Task Returns_the_two_factor_challenge_url_on_the_success_side_when_the_password_is_correct_but_2fa_is_pending()
+	async Task
+		Returns_the_two_factor_challenge_url_on_the_success_side_when_the_password_is_correct_but_2fa_is_pending()
 	{
 		var signInManager = MockSignInManager.Create();
 		signInManager.PasswordSignInAsync("user@example.com", "correct-horse", false, true)
@@ -154,7 +157,12 @@ public sealed class LoginHandlerTests
 		signInManager.PasswordSignInAsync("user@example.com", "correct-horse", true, true)
 			.Returns(Microsoft.AspNetCore.Identity.SignInResult.TwoFactorRequired);
 		var handler = CreateHandler(signInManager);
-		LoginCommand command = new(new LoginRequest { EmailInput = "user@example.com", Password = "correct-horse", RememberMe = true });
+		LoginCommand command = new(new LoginRequest
+		{
+			EmailInput = "user@example.com",
+			Password = "correct-horse",
+			RememberMe = true
+		});
 
 		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
 
@@ -176,7 +184,8 @@ public sealed class LoginHandlerTests
 			.Returns(Microsoft.AspNetCore.Identity.SignInResult.TwoFactorRequired);
 		var deferredSignIn = Substitute.For<IDeferredSignIn>();
 		deferredSignIn.BuildCompletionUrl(Arg.Any<string>(), Arg.Any<string>())
-			.Returns(call => $"/_auth/complete?key={call.ArgAt<string>(0)}&returnUrl={Uri.EscapeDataString(call.ArgAt<string>(1))}");
+			.Returns(call =>
+				$"/_auth/complete?key={call.ArgAt<string>(0)}&returnUrl={Uri.EscapeDataString(call.ArgAt<string>(1))}");
 		DefaultHttpContext httpContext = new();
 		httpContext.Items[NorseSignInManager.DeferredSignInKeyItemName] = "stashed-key";
 		var handler = CreateHandler(signInManager, deferredSignIn, httpContext);
@@ -191,7 +200,9 @@ public sealed class LoginHandlerTests
 		// 3986, against /_auth/complete by stripping its last segment -- landing at the nonexistent
 		// /_auth/Account/LoginWith2fa instead of /Account/LoginWith2fa. Assert the escaped returnUrl
 		// segment itself starts with a slash, not just that the route name is present somewhere.
-		var returnUrlValue = success.Value.NextUrl![(success.Value.NextUrl.IndexOf("returnUrl=", StringComparison.Ordinal) + "returnUrl=".Length)..];
+		var returnUrlValue =
+			success.Value.NextUrl![
+				(success.Value.NextUrl.IndexOf("returnUrl=", StringComparison.Ordinal) + "returnUrl=".Length)..];
 		Uri.UnescapeDataString(returnUrlValue).ShouldStartWith("/");
 	}
 
@@ -258,7 +269,8 @@ public sealed class LoginHandlerTests
 			.Returns(Microsoft.AspNetCore.Identity.SignInResult.Success);
 		var deferredSignIn = Substitute.For<IDeferredSignIn>();
 		deferredSignIn.BuildCompletionUrl(Arg.Any<string>(), Arg.Any<string>())
-			.Returns(call => $"/_auth/complete?key={call.ArgAt<string>(0)}&returnUrl={Uri.EscapeDataString(call.ArgAt<string>(1))}");
+			.Returns(call =>
+				$"/_auth/complete?key={call.ArgAt<string>(0)}&returnUrl={Uri.EscapeDataString(call.ArgAt<string>(1))}");
 		DefaultHttpContext httpContext = new();
 		httpContext.Items[NorseSignInManager.DeferredSignInKeyItemName] = "stashed-key";
 		var handler = CreateHandler(signInManager, deferredSignIn, httpContext);

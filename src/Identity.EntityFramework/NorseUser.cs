@@ -6,37 +6,37 @@ using Norse.Persistence.EntityFramework;
 namespace Norse.Identity.EntityFramework;
 
 /// <summary>
-/// Norse platform ASP.NET Core Identity user entity, keyed by <see cref="Guid"/>.
+///     Norse platform ASP.NET Core Identity user entity, keyed by <see cref="Guid" />.
 /// </summary>
 public sealed class NorseUser : IdentityUser<Guid>, INorseEntity<NorseUser>, ITemporalEntity
 {
 	/// <summary>
-	/// The user's claims.
+	///     The user's claims.
 	/// </summary>
 	public ICollection<NorseUserClaim> Claims { get; init; } = [];
 
 	/// <summary>
-	/// The user's external logins.
+	///     The user's external logins.
 	/// </summary>
 	public ICollection<NorseUserLogin> Logins { get; init; } = [];
 
 	/// <summary>
-	/// The user's authentication tokens.
+	///     The user's authentication tokens.
 	/// </summary>
 	public ICollection<NorseUserToken> Tokens { get; init; } = [];
 
 	/// <summary>
-	/// The user's passkeys.
+	///     The user's passkeys.
 	/// </summary>
 	public ICollection<NorseUserPasskey> Passkeys { get; init; } = [];
 
 	/// <summary>
-	/// <c>UserManager{TUser}.NewSecurityStamp()</c> is <c>Base32.GenerateBase32()</c> — a
-	/// hardcoded <c>string.Create(32, ...)</c> with no configuration option, always exactly 32
-	/// characters (verified by decompiling Microsoft.Extensions.Identity.Core.dll directly).
-	/// Overridden here purely to attach <see cref="FixedLengthAttribute"/> — the base
-	/// <see cref="IdentityUser{TKey}.SecurityStamp"/> property can't carry an attribute Norse
-	/// doesn't own.
+	///     <c>UserManager{TUser}.NewSecurityStamp()</c> is <c>Base32.GenerateBase32()</c> — a
+	///     hardcoded <c>string.Create(32, ...)</c> with no configuration option, always exactly 32
+	///     characters (verified by decompiling Microsoft.Extensions.Identity.Core.dll directly).
+	///     Overridden here purely to attach <see cref="FixedLengthAttribute" /> — the base
+	///     <see cref="IdentityUser{TKey}.SecurityStamp" /> property can't carry an attribute Norse
+	///     doesn't own.
 	/// </summary>
 	[FixedLength(32)]
 	public override string? SecurityStamp { get; set; }

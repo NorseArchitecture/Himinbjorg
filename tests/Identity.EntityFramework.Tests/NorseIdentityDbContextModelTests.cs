@@ -25,8 +25,8 @@ public sealed class NorseIdentityDbContextModelTests
 
 		var openIddictTypes = new[]
 		{
-			typeof(NorseOpenIddictApplication), typeof(NorseOpenIddictAuthorization),
-			typeof(NorseOpenIddictScope), typeof(NorseOpenIddictToken),
+			typeof(NorseOpenIddictApplication), typeof(NorseOpenIddictAuthorization), typeof(NorseOpenIddictScope),
+			typeof(NorseOpenIddictToken)
 		};
 
 		foreach (var type in openIddictTypes)

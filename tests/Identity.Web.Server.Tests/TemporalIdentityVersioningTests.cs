@@ -4,17 +4,17 @@ using Norse.Identity.EntityFramework;
 namespace Norse.Identity.Web.Server.Tests;
 
 /// <summary>
-/// What the temporal apparatus actually does once identity traffic starts moving: real
-/// <c>UserManager</c>/<c>RoleManager</c>/<c>SignInManager</c> flows over a real, fully migrated
-/// <c>postgres:19beta2</c> database. The migration suite proves the apparatus stands; this one proves
-/// the platform's own write paths version through it.
+///     What the temporal apparatus actually does once identity traffic starts moving: real
+///     <c>UserManager</c>/<c>RoleManager</c>/<c>SignInManager</c> flows over a real, fully migrated
+///     <c>postgres:19beta2</c> database. The migration suite proves the apparatus stands; this one proves
+///     the platform's own write paths version through it.
 /// </summary>
 /// <remarks>
-/// Every history reading here goes through raw SQL on purpose: <c>system_period</c> is database-owned
-/// and outside the EF model (spec §3.2), and the history table is mapped by nothing at all. The period
-/// predicates live in SQL rather than being materialized and re-checked in C# because
-/// <c>Database.SqlQuery&lt;T&gt;</c> projects scalars only. Every count is scoped to the row the test
-/// created, so the shared fixture's other traffic cannot color it.
+///     Every history reading here goes through raw SQL on purpose: <c>system_period</c> is database-owned
+///     and outside the EF model (spec §3.2), and the history table is mapped by nothing at all. The period
+///     predicates live in SQL rather than being materialized and re-checked in C# because
+///     <c>Database.SqlQuery&lt;T&gt;</c> projects scalars only. Every count is scoped to the row the test
+///     created, so the shared fixture's other traffic cannot color it.
 /// </remarks>
 /// <param name="fixture">The shared real-Postgres, real-DI fixture.</param>
 [Collection(PostgresTestGroup.Name)]
@@ -92,12 +92,12 @@ public sealed class TemporalIdentityVersioningTests(PostgresIdentityFixture fixt
 
 	static Task<long> UserVersionsAsync(NorseIdentityDbContext context, Guid userId) =>
 		context.Database.SqlQuery<long>(
-			$"""SELECT count(*) AS "Value" FROM public.users_history WHERE id = {userId}""")
+				$"""SELECT count(*) AS "Value" FROM public.users_history WHERE id = {userId}""")
 			.SingleAsync(Cancellation);
 
 	static Task<long> UserRoleVersionsAsync(NorseIdentityDbContext context, Guid userId) =>
 		context.Database.SqlQuery<long>(
-			$"""SELECT count(*) AS "Value" FROM public.user_roles_history WHERE user_id = {userId}""")
+				$"""SELECT count(*) AS "Value" FROM public.user_roles_history WHERE user_id = {userId}""")
 			.SingleAsync(Cancellation);
 
 	// Empty ranges overlap nothing, so a WITHOUT OVERLAPS key admits any number of them -- isempty is

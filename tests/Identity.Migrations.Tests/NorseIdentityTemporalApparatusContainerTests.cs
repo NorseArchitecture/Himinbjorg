@@ -7,12 +7,12 @@ using Norse.Persistence.EntityFramework.PostgreSQL;
 namespace Norse.Identity.Migrations.Tests;
 
 /// <summary>
-/// The temporal apparatus against a real <c>postgres:19beta2</c> server: <c>InitialCreate</c> applies
-/// clean and the full apparatus stands for the eight ruled tables — and for nothing else. This realm
-/// keeps exactly one <c>InitialCreate</c> per provider (squashed in place, never stacked), so the
-/// apparatus arrives at table birth through the chassis's <c>CreateTable</c> path (spec §3.1), not
-/// through the §3.3 enable transition. Scaffolded SQL that reads right and refuses to apply is the
-/// failure this suite exists to catch, which is why nothing here asserts on a migration name.
+///     The temporal apparatus against a real <c>postgres:19beta2</c> server: <c>InitialCreate</c> applies
+///     clean and the full apparatus stands for the eight ruled tables — and for nothing else. This realm
+///     keeps exactly one <c>InitialCreate</c> per provider (squashed in place, never stacked), so the
+///     apparatus arrives at table birth through the chassis's <c>CreateTable</c> path (spec §3.1), not
+///     through the §3.3 enable transition. Scaffolded SQL that reads right and refuses to apply is the
+///     failure this suite exists to catch, which is why nothing here asserts on a migration name.
 /// </summary>
 /// <param name="fixture">The shared container.</param>
 [Collection("Postgres")]
@@ -67,8 +67,8 @@ public sealed class NorseIdentityTemporalApparatusContainerTests(PostgresContain
 	}
 
 	/// <summary>
-	/// Migrating is idempotent, so every fact here can stand the schema up for itself rather than
-	/// depending on which class in the collection ran first.
+	///     Migrating is idempotent, so every fact here can stand the schema up for itself rather than
+	///     depending on which class in the collection ran first.
 	/// </summary>
 	async Task<NorseIdentityDbContext> MigrateAsync()
 	{
@@ -96,8 +96,8 @@ public sealed class NorseIdentityTemporalApparatusContainerTests(PostgresContain
 	}
 
 	/// <summary>
-	/// Ordinary tables and views only ('r', 'v'): indexes and sequences live in <c>pg_class</c> too and
-	/// cannot outlive the table they belong to, so counting them would only add noise.
+	///     Ordinary tables and views only ('r', 'v'): indexes and sequences live in <c>pg_class</c> too and
+	///     cannot outlive the table they belong to, so counting them would only add noise.
 	/// </summary>
 	static Task<List<string>> RelationsAsync(NorseIdentityDbContext context, string pattern) =>
 		context.Database.SqlQuery<string>(
@@ -118,8 +118,8 @@ public sealed class NorseIdentityTemporalApparatusContainerTests(PostgresContain
 			""").ToListAsync(Cancellation);
 
 	/// <summary>
-	/// Trigger name and the function it is bound to, together: a trigger surviving under its old name and
-	/// still bound to a retired function is the failure a name-only check would sail past.
+	///     Trigger name and the function it is bound to, together: a trigger surviving under its old name and
+	///     still bound to a retired function is the failure a name-only check would sail past.
 	/// </summary>
 	static Task<List<string>> TriggerBindingsAsync(NorseIdentityDbContext context, string table)
 	{

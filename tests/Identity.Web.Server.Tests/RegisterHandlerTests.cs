@@ -33,7 +33,8 @@ public sealed class RegisterHandlerTests
 	// categorization below meaningfully, not just narrate it in a comment.
 	static UserManager<NorseUser> CreateUserManager(NorseUserStore store) =>
 		new(store, null!, new PasswordHasher<NorseUser>(),
-			[new UserValidator<NorseUser>()], [new PasswordValidator<NorseUser>()], new UpperInvariantLookupNormalizer(), new IdentityErrorDescriber(),
+			[new UserValidator<NorseUser>()], [new PasswordValidator<NorseUser>()],
+			new UpperInvariantLookupNormalizer(), new IdentityErrorDescriber(),
 			null!, NullLogger<UserManager<NorseUser>>.Instance);
 
 	// Rejection-of-an-invalid-request coverage moved to Midgard's ValidationBehavior tests —
@@ -46,7 +47,8 @@ public sealed class RegisterHandlerTests
 		using NorseUserStore store = new(context, new IdentityErrorDescriber());
 		using var userManager = CreateUserManager(store);
 		RegisterHandler handler = new(userManager);
-		RegisterCommand command = new(new RegisterRequest { EmailInput = "user@example.com", Password = "correct-horse-battery-1A!" });
+		RegisterCommand command =
+			new(new RegisterRequest { EmailInput = "user@example.com", Password = "correct-horse-battery-1A!" });
 
 		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
 
@@ -62,7 +64,8 @@ public sealed class RegisterHandlerTests
 		using NorseUserStore store = new(context, new IdentityErrorDescriber());
 		using var userManager = CreateUserManager(store);
 		RegisterHandler handler = new(userManager);
-		RegisterCommand command = new(new RegisterRequest { EmailInput = "user@example.com", Password = "correct-horse-battery-1A!" });
+		RegisterCommand command =
+			new(new RegisterRequest { EmailInput = "user@example.com", Password = "correct-horse-battery-1A!" });
 		await handler.Handle(command, TestContext.Current.CancellationToken);
 
 		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
