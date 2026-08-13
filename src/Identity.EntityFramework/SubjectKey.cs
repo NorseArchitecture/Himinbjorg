@@ -21,7 +21,7 @@ public sealed record SubjectKey : NorseEntityBase<SubjectKey>, INorseEntity<Subj
 	[SuppressMessage("Design", "CA1819:Properties should not return arrays",
 		Justification =
 			"byte[] is the canonical CLR shape EF Core maps to a varbinary/bytea column; this is entity mapping, not a public collection-design surface.")]
-	public required byte[] WrappedKey { get; init; }
+	public required byte[] WrappedKey { get; init; } = [];
 
 	/// <summary>The wrapping-key reference in the platform key store.</summary>
 	[MaxLength(128)]
@@ -34,6 +34,6 @@ public sealed record SubjectKey : NorseEntityBase<SubjectKey>, INorseEntity<Subj
 	public static void Configure(EntityTypeBuilder<SubjectKey> builder)
 	{
 		builder.ToTable("SubjectKeys");
-		builder.HasKey(k => k.SubjectId);
+		builder.HasKey(static k => k.SubjectId);
 	}
 }

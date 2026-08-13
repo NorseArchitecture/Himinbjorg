@@ -21,8 +21,8 @@ public sealed class NorseUserLogin : IdentityUserLogin<Guid>, INorseEntity<Norse
 	public static void Configure(EntityTypeBuilder<NorseUserLogin> builder)
 	{
 		builder.ToTable("UserLogins");
-		builder.Property(l => l.LoginProvider).HasMaxLength(128);
-		builder.Property(l => l.ProviderKey).HasMaxLength(256);
-		builder.Property(l => l.ProviderDisplayName).HasMaxLength(256);
+		builder.Property(static l => l.LoginProvider).HasMaxLength(128);
+		builder.Property(static l => l.ProviderKey).HasMaxLength(256);
+		builder.Property(static l => l.ProviderDisplayName).HasMaxLength(256);
 	}
 }

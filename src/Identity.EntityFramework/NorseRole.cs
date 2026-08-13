@@ -19,10 +19,13 @@ public sealed class NorseRole : IdentityRole<Guid>, INorseEntity<NorseRole>, ITe
 	public static void Configure(EntityTypeBuilder<NorseRole> builder)
 	{
 		builder.ToTable("Roles");
-		builder.Property(r => r.ConcurrencyStamp).HasConversion(IdentityValueConverters.Stamp).IsRequired();
-		builder.Property(r => r.Name).IsRequired();
-		builder.Property(r => r.NormalizedName).IsRequired();
-		builder.HasMany(r => r.Claims).WithOne(c => c.Role).HasForeignKey(c => c.RoleId).IsRequired();
-		builder.HasIndex(r => r.NormalizedName).IsUnique();
+		builder.Property(static r => r.ConcurrencyStamp).HasConversion(IdentityValueConverters.Stamp).IsRequired();
+		builder.Property(static r => r.Name).IsRequired();
+		builder.Property(static r => r.NormalizedName).IsRequired();
+		builder
+			.HasMany(static r => r.Claims)
+			.WithOne(static c => c.Role)
+			.HasForeignKey(static c => c.RoleId);
+		builder.HasIndex(static r => r.NormalizedName).IsUnique();
 	}
 }

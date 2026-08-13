@@ -45,7 +45,11 @@ public sealed class NorseUser : IdentityUser<Guid>, INorseEntity<NorseUser>, ITe
 	public static void Configure(EntityTypeBuilder<NorseUser> builder)
 	{
 		builder.ToTable("Users");
-		builder.Property(u => u.ConcurrencyStamp).HasConversion(IdentityValueConverters.Stamp).IsRequired();
+		builder
+			.Property(static u => u.ConcurrencyStamp)
+			.HasConversion(IdentityValueConverters.Stamp)
+			.IsRequired();
+
 		// UserManager.NewSecurityStamp() is Base32.GenerateBase32() -- always exactly 32 base32
 		// characters, never Guid-shaped -- so this must stay a plain bounded string, not go through
 		// IdentityValueConverters.Stamp (Guid.Parse would throw FormatException on every real stamp).
@@ -56,15 +60,28 @@ public sealed class NorseUser : IdentityUser<Guid>, INorseEntity<NorseUser>, ITe
 		// Postgres's own docs say character(n) has no storage/perf advantage over character varying(n)
 		// on this engine (unlike SQL Server/MySQL) and is usually the slower of the two -- pure
 		// downside, no upside, for Postgres.
-		builder.Property(u => u.SecurityStamp).HasMaxLength(32).IsRequired();
-		builder.Property(u => u.PasswordHash).HasConversion(IdentityValueConverters.Hash).HasMaxLength(128);
+		builder
+			.Property(static u => u.SecurityStamp)
+			.HasMaxLength(32)
+			.IsRequired();
+
+		builder
+			.Property(static u => u.PasswordHash)
+			.HasConversion(IdentityValueConverters.Hash)
+			.HasMaxLength(128);
+
 		// 20 fit a raw E.164 number; it doesn't fit the NorsePersonalDataProtector envelope
 		// ("v1:{subjectId:D}:{base64}") ProtectPersonalData now writes here instead -- 256 mirrors
 		// Email's own ASP.NET Core Identity convention bound (also unbounded-by-us, also ciphertext at
 		// rest, also fits comfortably: worst case is "v1:" + a 36-char GUID + ":" + base64(12-byte
 		// nonce + 16-byte E.164 plaintext + 16-byte tag), well under 100 characters).
-		builder.Property(u => u.PhoneNumber).HasMaxLength(256);
-		builder.Property(u => u.UserName).IsRequired();
+		builder
+			.Property(static u => u.PhoneNumber)
+			.HasMaxLength(256);
+		builder
+			.Property(static u => u.UserName)
+			.IsRequired();
+        
 		// NormalizedUserName stays nullable: the erasure ceremony nulls the lookup hashes so a
 		// re-registration of the same email inserts cleanly (payload columns are darkened, not
 		// nulled). SQL Server's provider convention turns the unique index below into a filtered
@@ -79,18 +96,31 @@ public sealed class NorseUser : IdentityUser<Guid>, INorseEntity<NorseUser>, ITe
 		// Same spec, §4.3.
 		builder.SplitToTable("UserLockout", static lockout =>
 		{
-			lockout.Property(u => u.LockoutEnd);
-			lockout.Property(u => u.AccessFailedCount);
+			lockout.Property(static u => u.PasswordHash);
+			lockout.Property(static u => u.LockoutEnd);
+			lockout.Property(static u => u.AccessFailedCount);
 		});
-		// Temporal + table-splitting is unsupported on SQL Server (dotnet/efcore#26457,
-		// migration generation fails per #30366) -- acknowledge the park per Urðarbrunnr's chassis
-		// guard until Himinbjörg#47's .NET 11 preview 7 spike confirms the fix and this comes out.
-		builder.TemporalParkedOnSqlServer();
 
-		builder.HasMany(u => u.Claims).WithOne(c => c.User).HasForeignKey(c => c.UserId).IsRequired();
-		builder.HasMany(u => u.Logins).WithOne(l => l.User).HasForeignKey(l => l.UserId).IsRequired();
-		builder.HasMany(u => u.Tokens).WithOne(t => t.User).HasForeignKey(t => t.UserId).IsRequired();
-		builder.HasMany(u => u.Passkeys).WithOne(p => p.User).HasForeignKey(p => p.UserId).IsRequired();
-		builder.HasIndex(u => u.NormalizedEmail);
+		builder
+			.HasMany(static u => u.Claims)
+			.WithOne(static c => c.User)
+			.HasForeignKey(static c => c.UserId);
+
+		builder
+			.HasMany(static u => u.Logins)
+			.WithOne(static l => l.User)
+			.HasForeignKey(static l => l.UserId);
+
+		builder
+			.HasMany(static u => u.Tokens)
+			.WithOne(static t => t.User)
+			.HasForeignKey(static t => t.UserId);
+
+		builder
+			.HasMany(static u => u.Passkeys)
+			.WithOne(static p => p.User)
+			.HasForeignKey(static p => p.UserId);
+
+		builder.HasIndex(static u => u.NormalizedEmail);
 	}
 }
