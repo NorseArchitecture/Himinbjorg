@@ -23,6 +23,8 @@
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="11.*-*" />
 		<PackageReference Include="OpenTelemetry.Exporter.InMemory" Version="1.*" />
 		<PackageReference Include="Testcontainers.PostgreSql" Version="*" />
+		<!-- Testcontainers pulls in SSH.NET 2025.1.0, which has a known high severity vulnerability (GHSA-q939-rpr3-3284); pin past it. -->
+		<PackageReference Include="SSH.NET" Version="*" />
 		<ProjectReference Include="../../src/Identity.Migrations/Identity.Migrations.csproj" />
 		<ProjectReference Include="../../src/Identity.Migrations.PostgreSQL/Identity.Migrations.PostgreSQL.csproj" />
 		<ProjectReference Include="../../src/Identity.Web.Server/Identity.Web.Server.csproj" />
