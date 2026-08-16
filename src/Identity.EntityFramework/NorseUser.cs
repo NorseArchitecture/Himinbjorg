@@ -81,7 +81,7 @@ public sealed class NorseUser : IdentityUser<Guid>, INorseEntity<NorseUser>, ITe
 		builder
 			.Property(static u => u.UserName)
 			.IsRequired();
-        
+
 		// NormalizedUserName stays nullable: the erasure ceremony nulls the lookup hashes so a
 		// re-registration of the same email inserts cleanly (payload columns are darkened, not
 		// nulled). SQL Server's provider convention turns the unique index below into a filtered
@@ -100,6 +100,12 @@ public sealed class NorseUser : IdentityUser<Guid>, INorseEntity<NorseUser>, ITe
 			lockout.Property(static u => u.LockoutEnd);
 			lockout.Property(static u => u.AccessFailedCount);
 		});
+
+		// SQL Server can't scope temporal system-versioning to one fragment of a split entity yet
+		// (dotnet/efcore#26457; the NRE this park avoids is #30366) -- Postgres has no such
+		// limitation and stays temporal here. Delete this park the day upstream ships per-fragment
+		// temporal control.
+		builder.TemporalParkedOnSqlServer();
 
 		builder
 			.HasMany(static u => u.Claims)

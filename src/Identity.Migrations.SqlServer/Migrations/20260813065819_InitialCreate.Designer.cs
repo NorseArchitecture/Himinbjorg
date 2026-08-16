@@ -13,15 +13,15 @@ using Norse.Identity.EntityFramework;
 namespace Norse.Identity.Migrations.SqlServer.Migrations;
 
 [DbContext(typeof(NorseIdentityDbContext))]
-[Migration("20260805231556_InitialCreate")]
-partial class _20260805231556_InitialCreate
+[Migration("20260813065819_InitialCreate")]
+partial class _20260813065819_InitialCreate
 {
     /// <inheritdoc />
     protected override void BuildTargetModel(ModelBuilder modelBuilder)
     {
 #pragma warning disable 612, 618
         modelBuilder
-            .HasAnnotation("ProductVersion", "11.0.0-preview.6.26359.118")
+            .HasAnnotation("ProductVersion", "11.0.0-preview.7.26381.103")
             .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
         SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -457,16 +457,6 @@ partial class _20260805231556_InitialCreate
                     .HasColumnType("nchar(32)")
                     .IsFixedLength();
 
-                b.Property<DateTime>("SystemPeriodEnd")
-                    .ValueGeneratedOnAddOrUpdate()
-                    .HasColumnType("datetime2")
-                    .HasColumnName("SystemPeriodEnd");
-
-                b.Property<DateTime>("SystemPeriodStart")
-                    .ValueGeneratedOnAddOrUpdate()
-                    .HasColumnType("datetime2")
-                    .HasColumnName("SystemPeriodStart");
-
                 b.Property<bool>("TwoFactorEnabled")
                     .HasColumnType("bit");
 
@@ -487,18 +477,18 @@ partial class _20260805231556_InitialCreate
 
                 b.ToTable("Users");
 
+                b.SplitToTable("UserLockout", null, t =>
+                    {
+                        t.Property("AccessFailedCount");
+
+                        t.Property("LockoutEnd");
+
+                        t.Property("PasswordHash");
+                    });
+
                 b
-                    .ToTable(tb => tb.IsTemporal(ttb =>
-                        {
-                            ttb.UseHistoryTable("UsersHistory");
-                            ttb
-                                .HasPeriodStart("SystemPeriodStart")
-                                .HasColumnName("SystemPeriodStart");
-                            ttb
-                                .HasPeriodEnd("SystemPeriodEnd")
-                                .HasColumnName("SystemPeriodEnd");
-                        }))
-                    .HasAnnotation("Norse:Temporal", true);
+                    .HasAnnotation("Norse:Temporal", true)
+                    .HasAnnotation("Norse:TemporalParkedOnSqlServer", true);
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserClaim", b =>
@@ -766,6 +756,15 @@ partial class _20260805231556_InitialCreate
                     .IsRequired();
 
                 b.Navigation("Role");
+            });
+
+        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUser", b =>
+            {
+                b.HasOne("Norse.Identity.EntityFramework.NorseUser", null)
+                    .WithOne()
+                    .HasForeignKey("Norse.Identity.EntityFramework.NorseUser", "Id")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserClaim", b =>

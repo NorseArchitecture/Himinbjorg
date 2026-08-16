@@ -17,13 +17,13 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20260805231556_InitialCreate";
+    public override string LastMigrationId => "20260813065819_InitialCreate";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
 #pragma warning disable 612, 618
         modelBuilder
-            .HasAnnotation("ProductVersion", "11.0.0-preview.6.26359.118")
+            .HasAnnotation("ProductVersion", "11.0.0-preview.7.26381.103")
             .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
         SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -459,16 +459,6 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .HasColumnType("nchar(32)")
                     .IsFixedLength();
 
-                b.Property<DateTime>("SystemPeriodEnd")
-                    .ValueGeneratedOnAddOrUpdate()
-                    .HasColumnType("datetime2")
-                    .HasColumnName("SystemPeriodEnd");
-
-                b.Property<DateTime>("SystemPeriodStart")
-                    .ValueGeneratedOnAddOrUpdate()
-                    .HasColumnType("datetime2")
-                    .HasColumnName("SystemPeriodStart");
-
                 b.Property<bool>("TwoFactorEnabled")
                     .HasColumnType("bit");
 
@@ -489,18 +479,18 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
 
                 b.ToTable("Users");
 
+                b.SplitToTable("UserLockout", null, t =>
+                    {
+                        t.Property("AccessFailedCount");
+
+                        t.Property("LockoutEnd");
+
+                        t.Property("PasswordHash");
+                    });
+
                 b
-                    .ToTable(tb => tb.IsTemporal(ttb =>
-                        {
-                            ttb.UseHistoryTable("UsersHistory");
-                            ttb
-                                .HasPeriodStart("SystemPeriodStart")
-                                .HasColumnName("SystemPeriodStart");
-                            ttb
-                                .HasPeriodEnd("SystemPeriodEnd")
-                                .HasColumnName("SystemPeriodEnd");
-                        }))
-                    .HasAnnotation("Norse:Temporal", true);
+                    .HasAnnotation("Norse:Temporal", true)
+                    .HasAnnotation("Norse:TemporalParkedOnSqlServer", true);
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserClaim", b =>
@@ -768,6 +758,15 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .IsRequired();
 
                 b.Navigation("Role");
+            });
+
+        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUser", b =>
+            {
+                b.HasOne("Norse.Identity.EntityFramework.NorseUser", null)
+                    .WithOne()
+                    .HasForeignKey("Norse.Identity.EntityFramework.NorseUser", "Id")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserClaim", b =>

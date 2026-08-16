@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Norse.Identity.Migrations.PostgreSQL.Migrations;
 
 /// <inheritdoc />
-public partial class _20260805231543_InitialCreate : Migration
+public partial class _20260813065832_InitialCreate : Migration
 {
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder)
@@ -99,18 +99,15 @@ public partial class _20260805231543_InitialCreate : Migration
                 email = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
                 normalized_email = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
                 email_confirmed = table.Column<bool>(type: "boolean", nullable: false),
-                password_hash = table.Column<byte[]>(type: "bytea", maxLength: 128, nullable: true),
                 concurrency_stamp = table.Column<Guid>(type: "uuid", nullable: false),
                 phone_number = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
                 phone_number_confirmed = table.Column<bool>(type: "boolean", nullable: false),
                 two_factor_enabled = table.Column<bool>(type: "boolean", nullable: false),
-                lockout_end = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                lockout_enabled = table.Column<bool>(type: "boolean", nullable: false),
-                access_failed_count = table.Column<int>(type: "integer", nullable: false)
+                lockout_enabled = table.Column<bool>(type: "boolean", nullable: false)
             },
             constraints: table =>
             {
-                table.PrimaryKey("pk_users", x => x.id);
+                table.PrimaryKey("PK_users", x => x.id);
             })
             .Annotation("Norse:Temporal", true);
 
@@ -181,6 +178,26 @@ public partial class _20260805231543_InitialCreate : Migration
                     onDelete: ReferentialAction.Cascade);
             })
             .Annotation("Norse:Temporal", true);
+
+        migrationBuilder.CreateTable(
+            name: "user_lockout",
+            columns: table => new
+            {
+                id = table.Column<Guid>(type: "uuid", nullable: false),
+                password_hash = table.Column<byte[]>(type: "bytea", maxLength: 128, nullable: true),
+                lockout_end = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                access_failed_count = table.Column<int>(type: "integer", nullable: false)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("PK_user_lockout", x => x.id);
+                table.ForeignKey(
+                    name: "FK_user_lockout_users_id",
+                    column: x => x.id,
+                    principalTable: "users",
+                    principalColumn: "id",
+                    onDelete: ReferentialAction.Cascade);
+            });
 
         migrationBuilder.CreateTable(
             name: "user_logins",
@@ -396,6 +413,9 @@ public partial class _20260805231543_InitialCreate : Migration
         migrationBuilder.DropTable(
             name: "user_claims")
             .Annotation("Norse:Temporal", true);
+
+        migrationBuilder.DropTable(
+            name: "user_lockout");
 
         migrationBuilder.DropTable(
             name: "user_logins")

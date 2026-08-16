@@ -273,15 +273,12 @@ CREATE TABLE users (
     email character varying(256),
     normalized_email character varying(256),
     email_confirmed boolean NOT NULL,
-    password_hash bytea,
     concurrency_stamp uuid NOT NULL,
     phone_number character varying(256),
     phone_number_confirmed boolean NOT NULL,
     two_factor_enabled boolean NOT NULL,
-    lockout_end timestamp with time zone,
     lockout_enabled boolean NOT NULL,
-    access_failed_count integer NOT NULL,
-    CONSTRAINT pk_users PRIMARY KEY (id)
+    CONSTRAINT "PK_users" PRIMARY KEY (id)
 );
 
 
@@ -296,14 +293,11 @@ CREATE TABLE "public"."users_history" (
 	"email" character varying(256),
 	"normalized_email" character varying(256),
 	"email_confirmed" boolean,
-	"password_hash" bytea,
 	"concurrency_stamp" uuid,
 	"phone_number" character varying(256),
 	"phone_number_confirmed" boolean,
 	"two_factor_enabled" boolean,
-	"lockout_end" timestamp with time zone,
 	"lockout_enabled" boolean,
-	"access_failed_count" integer,
 	"system_period" tstzrange NOT NULL,
 	PRIMARY KEY ("id", "system_period" WITHOUT OVERLAPS)
 );
@@ -323,12 +317,12 @@ BEGIN
 	IF TG_OP = 'UPDATE' AND NEW.system_period IS DISTINCT FROM OLD.system_period THEN
 		RAISE EXCEPTION 'system_period on "%.%" is database-owned; it cannot be written by clients.', TG_TABLE_SCHEMA, TG_TABLE_NAME;
 	END IF;
-	IF TG_OP = 'UPDATE' AND ROW(OLD."id", OLD."security_stamp", OLD."user_name", OLD."normalized_user_name", OLD."email", OLD."normalized_email", OLD."email_confirmed", OLD."password_hash", OLD."concurrency_stamp", OLD."phone_number", OLD."phone_number_confirmed", OLD."two_factor_enabled", OLD."lockout_end", OLD."lockout_enabled", OLD."access_failed_count") IS NOT DISTINCT FROM ROW(NEW."id", NEW."security_stamp", NEW."user_name", NEW."normalized_user_name", NEW."email", NEW."normalized_email", NEW."email_confirmed", NEW."password_hash", NEW."concurrency_stamp", NEW."phone_number", NEW."phone_number_confirmed", NEW."two_factor_enabled", NEW."lockout_end", NEW."lockout_enabled", NEW."access_failed_count") THEN
+	IF TG_OP = 'UPDATE' AND ROW(OLD."id", OLD."security_stamp", OLD."user_name", OLD."normalized_user_name", OLD."email", OLD."normalized_email", OLD."email_confirmed", OLD."concurrency_stamp", OLD."phone_number", OLD."phone_number_confirmed", OLD."two_factor_enabled", OLD."lockout_enabled") IS NOT DISTINCT FROM ROW(NEW."id", NEW."security_stamp", NEW."user_name", NEW."normalized_user_name", NEW."email", NEW."normalized_email", NEW."email_confirmed", NEW."concurrency_stamp", NEW."phone_number", NEW."phone_number_confirmed", NEW."two_factor_enabled", NEW."lockout_enabled") THEN
 		RETURN NEW;
 	END IF;
 	ts := greatest(pg_catalog.clock_timestamp(), pg_catalog.lower(OLD.system_period) + interval '1 microsecond');
-	INSERT INTO "public"."users_history" ("id", "security_stamp", "user_name", "normalized_user_name", "email", "normalized_email", "email_confirmed", "password_hash", "concurrency_stamp", "phone_number", "phone_number_confirmed", "two_factor_enabled", "lockout_end", "lockout_enabled", "access_failed_count", system_period)
-		VALUES (OLD."id", OLD."security_stamp", OLD."user_name", OLD."normalized_user_name", OLD."email", OLD."normalized_email", OLD."email_confirmed", OLD."password_hash", OLD."concurrency_stamp", OLD."phone_number", OLD."phone_number_confirmed", OLD."two_factor_enabled", OLD."lockout_end", OLD."lockout_enabled", OLD."access_failed_count", pg_catalog.tstzrange(pg_catalog.lower(OLD.system_period), ts));
+	INSERT INTO "public"."users_history" ("id", "security_stamp", "user_name", "normalized_user_name", "email", "normalized_email", "email_confirmed", "concurrency_stamp", "phone_number", "phone_number_confirmed", "two_factor_enabled", "lockout_enabled", system_period)
+		VALUES (OLD."id", OLD."security_stamp", OLD."user_name", OLD."normalized_user_name", OLD."email", OLD."normalized_email", OLD."email_confirmed", OLD."concurrency_stamp", OLD."phone_number", OLD."phone_number_confirmed", OLD."two_factor_enabled", OLD."lockout_enabled", pg_catalog.tstzrange(pg_catalog.lower(OLD.system_period), ts));
 	IF TG_OP = 'UPDATE' THEN
 		NEW.system_period := pg_catalog.tstzrange(ts, 'infinity');
 		RETURN NEW;
@@ -347,9 +341,9 @@ CREATE TRIGGER "users_versioning_delete" BEFORE DELETE ON "public"."users"
 
 
 CREATE VIEW "public"."users_timeline" AS
-SELECT "id", "security_stamp", "user_name", "normalized_user_name", "email", "normalized_email", "email_confirmed", "password_hash", "concurrency_stamp", "phone_number", "phone_number_confirmed", "two_factor_enabled", "lockout_end", "lockout_enabled", "access_failed_count", system_period FROM "public"."users"
+SELECT "id", "security_stamp", "user_name", "normalized_user_name", "email", "normalized_email", "email_confirmed", "concurrency_stamp", "phone_number", "phone_number_confirmed", "two_factor_enabled", "lockout_enabled", system_period FROM "public"."users"
 UNION ALL
-SELECT "id", "security_stamp", "user_name", "normalized_user_name", "email", "normalized_email", "email_confirmed", "password_hash", "concurrency_stamp", "phone_number", "phone_number_confirmed", "two_factor_enabled", "lockout_end", "lockout_enabled", "access_failed_count", system_period FROM "public"."users_history";
+SELECT "id", "security_stamp", "user_name", "normalized_user_name", "email", "normalized_email", "email_confirmed", "concurrency_stamp", "phone_number", "phone_number_confirmed", "two_factor_enabled", "lockout_enabled", system_period FROM "public"."users_history";
 
 
 CREATE TABLE authorizations (
@@ -497,6 +491,16 @@ CREATE VIEW "public"."user_claims_timeline" AS
 SELECT "id", "user_id", "claim_type", "claim_value", system_period FROM "public"."user_claims"
 UNION ALL
 SELECT "id", "user_id", "claim_type", "claim_value", system_period FROM "public"."user_claims_history";
+
+
+CREATE TABLE user_lockout (
+    id uuid NOT NULL,
+    password_hash bytea,
+    lockout_end timestamp with time zone,
+    access_failed_count integer NOT NULL,
+    CONSTRAINT "PK_user_lockout" PRIMARY KEY (id),
+    CONSTRAINT "FK_user_lockout_users_id" FOREIGN KEY (id) REFERENCES users (id) ON DELETE CASCADE
+);
 
 
 CREATE TABLE user_logins (
