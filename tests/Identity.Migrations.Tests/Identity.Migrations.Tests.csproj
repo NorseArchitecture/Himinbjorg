@@ -1,15 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<ItemGroup>
-		<!-- Needed directly, not just transitively: Migrations.PostgreSQL marks its NorseDesignRef
-		     to the Design chassis PrivateAssets="all", which blocks it from flowing here in package
-		     mode — and the container test references NorseIdentityDbContextFactory
-		     (NorseDesignTimeDbContextFactory<>) for the migrations-assembly name. -->
 		<NorseDesignRef Include="Persistence.EntityFramework.Design">
 			<Repo>Urdarbrunnr</Repo>
 		</NorseDesignRef>
 		<PackageReference Include="Testcontainers.PostgreSql" Version="*" />
-		<!-- Testcontainers pulls in SSH.NET 2025.1.0, which has a known high severity vulnerability (GHSA-q939-rpr3-3284); pin past it. -->
-		<PackageReference Include="SSH.NET" Version="*" />
 		<ProjectReference Include="../../src/Identity.Migrations/Identity.Migrations.csproj" />
 		<ProjectReference Include="../../src/Identity.Migrations.PostgreSQL/Identity.Migrations.PostgreSQL.csproj" />
 	</ItemGroup>
