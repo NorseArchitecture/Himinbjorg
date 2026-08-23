@@ -1,3 +1,4 @@
+using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Identity;
 using Norse.AuthN.Services;
 using Norse.Identity.EntityFramework;
@@ -24,8 +25,11 @@ public static class ServiceCollectionExtensions
 		///     and Layer 0's <c>Norse.*</c> wildcard does not reach them.
 		/// </summary>
 		/// <param name="connectionStringName">The configuration key under <c>ConnectionStrings</c>.</param>
+		/// <param name="signingCertificate">The OpenIddict signing/encryption certificate (spec §2.3).</param>
+		/// <param name="accessTokenLifetime">Overrides OpenIddict's default access token lifetime — see <see cref="IdentityBuilderExtensions.AddNorseIdentity" />.</param>
 		/// <returns>The same <paramref name="builder" /> for chaining.</returns>
-		public IHostApplicationBuilder AddNorseAuthenticationService(string connectionStringName)
+		public IHostApplicationBuilder AddNorseAuthenticationService(string connectionStringName,
+			X509Certificate2 signingCertificate, TimeSpan? accessTokenLifetime = null)
 		{
 			// Registered here, not by the host: IEmailSender<NorseUser> is closed over an entity the
 			// host has no business naming. A host wiring a real sender registers its own afterward and
@@ -35,7 +39,7 @@ public static class ServiceCollectionExtensions
 				.AddScoped<IAuthenticationService, AuthenticationService>()
 				.AddScoped<IIdentityService, IdentityService>()
 				.AddSingleton<IEmailSender<NorseUser>, IdentityNoOpEmailSender>()
-				.AddNorseIdentity()
+				.AddNorseIdentity(signingCertificate, accessTokenLifetime)
 				.AddSignInManager<NorseSignInManager>();
 
 			// The realm that brings the dependency declares its telemetry: this project is the only
