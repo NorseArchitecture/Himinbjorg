@@ -20,8 +20,9 @@ public sealed class ServiceCollectionExtensionsTests
 	void AddNorseAuthenticationService_registers_NorseSignInManager_as_SignInManager()
 	{
 		var builder = CreateBuilder();
+		using var certificate = IdentityTestCertificate.CreateFresh();
 
-		builder.AddNorseAuthenticationService("test");
+		builder.AddNorseAuthenticationService("test", certificate);
 
 		var descriptor = builder.Services.LastOrDefault(d => d.ServiceType == typeof(SignInManager<NorseUser>));
 		descriptor.ShouldNotBeNull();
@@ -34,8 +35,9 @@ public sealed class ServiceCollectionExtensionsTests
 		// IEmailSender<NorseUser> is closed over an entity the host has no business naming -- this
 		// registration is what lets Yggdrasil's composition root stay clear of Identity.EntityFramework.
 		var builder = CreateBuilder();
+		using var certificate = IdentityTestCertificate.CreateFresh();
 
-		builder.AddNorseAuthenticationService("test");
+		builder.AddNorseAuthenticationService("test", certificate);
 
 		var descriptor = builder.Services.LastOrDefault(d => d.ServiceType == typeof(IEmailSender<NorseUser>));
 		descriptor.ShouldNotBeNull();
@@ -47,8 +49,9 @@ public sealed class ServiceCollectionExtensionsTests
 	{
 		List<Metric> exported = [];
 		var builder = CreateBuilder();
+		using var certificate = IdentityTestCertificate.CreateFresh();
 
-		builder.AddNorseAuthenticationService("test");
+		builder.AddNorseAuthenticationService("test", certificate);
 		builder.Services.AddOpenTelemetry().WithMetrics(metrics => metrics.AddInMemoryExporter(exported));
 
 		using var host = builder.Build();

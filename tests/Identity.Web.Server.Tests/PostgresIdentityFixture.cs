@@ -1,8 +1,10 @@
+using System.Security.Cryptography.X509Certificates;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Norse.Abstractions.Backend.Keys;
 using Norse.Abstractions.Web.Server.DeferredSignIn;
 using Norse.Identity.EntityFramework;
@@ -11,6 +13,7 @@ using Norse.Identity.Migrations.PostgreSQL;
 using Norse.Infrastructure.Backend.Keys;
 using Norse.Persistence.EntityFramework;
 using Norse.Persistence.EntityFramework.PostgreSQL;
+using OpenIddict.Abstractions;
 using Testcontainers.PostgreSql;
 
 namespace Norse.Identity.Web.Server.Tests;
@@ -55,7 +58,8 @@ public sealed class PostgresIdentityFixture : IAsyncLifetime
 		.Build();
 
 	readonly List<IServiceScope> _scopes = [];
-	IHost _host = null!;
+	WebApplication _app = null!;
+	X509Certificate2 _certificate = null!;
 
 	string _keysRoot = null!;
 
@@ -75,16 +79,27 @@ public sealed class PostgresIdentityFixture : IAsyncLifetime
 		}
 
 		_keysRoot = Path.Combine(Path.GetTempPath(), $"norse-identity-keys-{Guid.NewGuid():N}");
+		_certificate = IdentityTestCertificate.CreateFresh();
 
-		var builder = Host.CreateApplicationBuilder();
+		var builder = WebApplication.CreateBuilder();
+		builder.WebHost.UseTestServer();
 		builder.Configuration["ConnectionStrings:identity"] = connectionString;
-		builder.AddNorseAuthenticationService("identity");
+		builder.AddNorseAuthenticationService("identity", _certificate);
 		builder.Services
+			// Neither AddNorseAuthenticationService nor AddNorseIdentity registers authorization
+			// services -- that's host-composition-root responsibility in production (Yggdrasil), and
+			// this fixture stands in for that root by also calling UseAuthorization() below, so it
+			// must supply the matching AddAuthorization() the middleware requires at startup.
+			.AddAuthorization()
 			.AddNorseDevelopmentKeys(_keysRoot)
 			.AddSingleton<IDeferredSignIn>(Substitute.For<IDeferredSignIn>())
 			.AddSingleton<IHttpContextAccessor>(new HttpContextAccessor { HttpContext = new DefaultHttpContext() });
 
-		_host = builder.Build();
+		_app = builder.Build();
+		_app.UseAuthentication();
+		_app.UseAuthorization();
+		_app.MapNorseOpenIddictEndpoints();
+		await _app.StartAsync(CancellationToken.None);
 
 		// Fixture-level smoke assertion (load-bearing, per Task 18's review): seeding through the
 		// real NorseUserManager must actually encrypt Email and HMAC NormalizedEmail, proving the
@@ -111,21 +126,33 @@ public sealed class PostgresIdentityFixture : IAsyncLifetime
 	{
 		foreach (var scope in _scopes)
 			scope.Dispose();
-		// IHost itself only declares IDisposable; the concrete Host the builder returns also
-		// implements IAsyncDisposable, so dispose asynchronously when it's there rather than block.
-		switch (_host)
-		{
-			case IAsyncDisposable asyncDisposable:
-				await asyncDisposable.DisposeAsync();
-				break;
-			case not null:
-				_host.Dispose();
-				break;
-		}
+		await _app.DisposeAsync(); // WebApplication implements IAsyncDisposable directly -- no switch needed.
+		_certificate.Dispose();
 
 		await _container.DisposeAsync();
 		if (Directory.Exists(_keysRoot))
 			Directory.Delete(_keysRoot, recursive: true);
+	}
+
+	/// <summary>A real <see cref="TestServer" />-backed <see cref="HttpClient" /> against <c>/connect/token</c>.</summary>
+	public HttpClient CreateTestClient()
+	{
+		var client = _app.GetTestServer().CreateClient();
+		// TestServer's default client addresses http://localhost/, but OpenIddict's token endpoint
+		// rejects non-HTTPS requests by default (spec §2.3 -- deliberately not relaxed via
+		// DisableTransportSecurityRequirement()). TestServer never opens a real socket, so pointing the
+		// client at an https:// base address is enough to make Request.IsHttps true -- no certificate
+		// needed on this side of the fake transport.
+		client.BaseAddress = new Uri("https://localhost/");
+		return client;
+	}
+
+	/// <summary>Resolves a real <see cref="IOpenIddictApplicationManager" /> from a new DI scope, for seeding test clients.</summary>
+	public IOpenIddictApplicationManager CreateApplicationManager()
+	{
+		var scope = _app.Services.CreateScope();
+		_scopes.Add(scope);
+		return scope.ServiceProvider.GetRequiredService<IOpenIddictApplicationManager>();
 	}
 
 	/// <summary>
@@ -134,7 +161,7 @@ public sealed class PostgresIdentityFixture : IAsyncLifetime
 	/// </summary>
 	public Task<(NorseIdentityDbContext Context, ISubjectKeyStore KeyStore)> CreateScopeAsync()
 	{
-		var scope = _host.Services.CreateScope();
+		var scope = _app.Services.CreateScope();
 		_scopes.Add(scope);
 		return Task.FromResult((
 			scope.ServiceProvider.GetRequiredService<NorseIdentityDbContext>(),
@@ -149,7 +176,7 @@ public sealed class PostgresIdentityFixture : IAsyncLifetime
 	/// </param>
 	public async Task<NorseUser> SeedUserAsync(string email, string? phone = null)
 	{
-		var scope = _host.Services.CreateScope();
+		var scope = _app.Services.CreateScope();
 		_scopes.Add(scope);
 		var userManager = scope.ServiceProvider.GetRequiredService<UserManager<NorseUser>>();
 		NorseUser user = new() { UserName = email, Email = email, PhoneNumber = phone };
@@ -166,7 +193,7 @@ public sealed class PostgresIdentityFixture : IAsyncLifetime
 	/// </summary>
 	public SignInManager<NorseUser> CreateSignInManager()
 	{
-		var scope = _host.Services.CreateScope();
+		var scope = _app.Services.CreateScope();
 		_scopes.Add(scope);
 		return scope.ServiceProvider.GetRequiredService<SignInManager<NorseUser>>();
 	}
@@ -178,7 +205,7 @@ public sealed class PostgresIdentityFixture : IAsyncLifetime
 	/// </summary>
 	public UserManager<NorseUser> CreateUserManager()
 	{
-		var scope = _host.Services.CreateScope();
+		var scope = _app.Services.CreateScope();
 		_scopes.Add(scope);
 		return scope.ServiceProvider.GetRequiredService<UserManager<NorseUser>>();
 	}
@@ -186,8 +213,9 @@ public sealed class PostgresIdentityFixture : IAsyncLifetime
 	/// <summary>Resolves a real <see cref="RoleManager{TRole}" /> from a new DI scope, for tests that grant and revoke roles.</summary>
 	public RoleManager<NorseRole> CreateRoleManager()
 	{
-		var scope = _host.Services.CreateScope();
+		var scope = _app.Services.CreateScope();
 		_scopes.Add(scope);
 		return scope.ServiceProvider.GetRequiredService<RoleManager<NorseRole>>();
 	}
+
 }

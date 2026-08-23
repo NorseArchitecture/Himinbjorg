@@ -13,6 +13,9 @@
 		<NorseRef Include="Persistence.EntityFramework.PostgreSQL">
 			<Repo>Urdarbrunnr</Repo>
 		</NorseRef>
+		<PackageReference Include="OpenIddict.Server.AspNetCore" Version="7.*" />
+		<PackageReference Include="OpenIddict.Validation.AspNetCore" Version="7.*" />
+		<PackageReference Include="OpenIddict.Validation.ServerIntegration" Version="7.*" />
 		<PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.*" />
 		<ProjectReference Include="../Identity.EntityFramework/Identity.EntityFramework.csproj" />
 	</ItemGroup>
