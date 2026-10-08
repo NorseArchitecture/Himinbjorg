@@ -7,7 +7,7 @@ using Norse.Persistence.EntityFramework.PostgreSQL;
 namespace Norse.Identity.Migrations.Tests;
 
 /// <summary>
-///     The temporal apparatus against a real <c>postgres:19beta2</c> server: <c>InitialCreate</c> applies
+///     The temporal apparatus against a real <c>postgres:19beta4</c> server: <c>InitialCreate</c> applies
 ///     clean and the full apparatus stands for the eight ruled tables — and for nothing else. This realm
 ///     keeps exactly one <c>InitialCreate</c> per provider (squashed in place, never stacked), so the
 ///     apparatus arrives at table birth through the chassis's <c>CreateTable</c> path (spec §3.1), not

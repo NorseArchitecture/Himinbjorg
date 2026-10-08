@@ -6,7 +6,7 @@ namespace Norse.Identity.Web.Server.Tests;
 /// <summary>
 ///     What the temporal apparatus actually does once identity traffic starts moving: real
 ///     <c>UserManager</c>/<c>RoleManager</c>/<c>SignInManager</c> flows over a real, fully migrated
-///     <c>postgres:19beta2</c> database. The migration suite proves the apparatus stands; this one proves
+///     <c>postgres:19beta4</c> database. The migration suite proves the apparatus stands; this one proves
 ///     the platform's own write paths version through it.
 /// </summary>
 /// <remarks>
