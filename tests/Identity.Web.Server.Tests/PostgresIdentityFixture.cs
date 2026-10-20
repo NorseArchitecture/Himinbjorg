@@ -53,7 +53,7 @@ namespace Norse.Identity.Web.Server.Tests;
 /// </remarks>
 public sealed class PostgresIdentityFixture : IAsyncLifetime
 {
-	readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:19beta4")
+	readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:19rc1")
 		.WithDatabase("norse_identity")
 		.Build();
 

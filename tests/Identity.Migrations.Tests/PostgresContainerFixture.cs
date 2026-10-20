@@ -4,7 +4,7 @@ namespace Norse.Identity.Migrations.Tests;
 
 public sealed class PostgresContainerFixture : IAsyncLifetime
 {
-	readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:19beta4")
+	readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:19rc1")
 		.WithDatabase("norse_identity")
 		.Build();
 
