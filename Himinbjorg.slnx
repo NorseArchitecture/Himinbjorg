@@ -17,6 +17,7 @@
 		<Project Path="src/Identity.Migrations/Identity.Migrations.csproj" />
 		<Project Path="src/Identity.Migrations.PostgreSQL/Identity.Migrations.PostgreSQL.csproj" />
 		<Project Path="src/Identity.Migrations.SqlServer/Identity.Migrations.SqlServer.csproj" />
+		<Project Path="src/Identity.Outcomes/Identity.Outcomes.csproj" />
 		<Project Path="src/Identity.Web.Server/Identity.Web.Server.csproj" />
 	</Folder>
 	<Folder Name="/tests/">
@@ -26,6 +27,7 @@
 		<Project Path="tests/Identity.Migrations.Tests/Identity.Migrations.Tests.csproj" />
 		<Project Path="tests/Identity.Migrations.PostgreSQL.Tests/Identity.Migrations.PostgreSQL.Tests.csproj" />
 		<Project Path="tests/Identity.Migrations.SqlServer.Tests/Identity.Migrations.SqlServer.Tests.csproj" />
+		<Project Path="tests/Identity.Outcomes.Tests/Identity.Outcomes.Tests.csproj" />
 		<Project Path="tests/Identity.Web.Server.Tests/Identity.Web.Server.Tests.csproj" />
 	</Folder>
 </Solution>

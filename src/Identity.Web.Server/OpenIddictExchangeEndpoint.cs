@@ -1,5 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore; // OpenIddictServerAspNetCoreHelpers.GetOpenIddictServerRequest lives here, not OpenIddict.Server.AspNetCore.
+using Norse.Abstractions.Contracts;
+using Norse.Identity.Outcomes;
 using OpenIddict.Abstractions;
 using OpenIddict.Server.AspNetCore;
 
@@ -36,13 +38,14 @@ static class OpenIddictExchangeEndpoint
 			throw new InvalidOperationException("The authenticated request carries no client_id.");
 
 		// OpenIddict has already authenticated this request against the seeded application (see class
-		// doc), so a miss here is an invariant violation, not a user-facing "unknown client" branch.
-		var application = await manager.FindByClientIdAsync(clientId, context.RequestAborted).ConfigureAwait(false) ??
-			throw new InvalidOperationException(
-				$"No application could be found for the already-authenticated client_id '{clientId}'.");
-		var applicationId = Guid.Parse(await manager.GetIdAsync(application, context.RequestAborted)
-			.ConfigureAwait(false) ??
-			throw new InvalidOperationException($"The application for client_id '{clientId}' carries no id."));
+		// doc), so a miss here is an invariant violation, not a user-facing "unknown client" branch: the
+		// .Outcome view's failure folds to the endpoint's own contract, an unhandled 500.
+		var application = Invariant(
+			await manager.Outcome.FindByClientIdAsync(clientId, context.RequestAborted).ConfigureAwait(false),
+			$"No application could be found for the already-authenticated client_id '{clientId}'.");
+		var applicationId = Guid.Parse(Invariant(
+			await manager.Outcome.GetIdAsync(application, context.RequestAborted).ConfigureAwait(false),
+			$"The application for client_id '{clientId}' carries no id."));
 
 		// OpenIddictConstants.Claims.Subject ("sub"), not ClaimTypes.NameIdentifier (a different, URI-shaped
 		// BCL claim type) -- OpenIddict's token-generation pipeline reads the principal's subject specifically
@@ -61,4 +64,9 @@ static class OpenIddictExchangeEndpoint
 
 		return Results.SignIn(principal, authenticationScheme: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
 	}
+
+	static T Invariant<T>(Outcome<T> outcome, string violation)
+		where T : notnull =>
+		outcome.Match(static value => value,
+			problem => throw new InvalidOperationException($"{violation} ({problem.Category})"));
 }

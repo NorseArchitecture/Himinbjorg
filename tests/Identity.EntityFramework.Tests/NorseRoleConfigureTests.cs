@@ -22,19 +22,9 @@ public sealed class NorseRoleConfigureTests
 		index.IsUnique.ShouldBeTrue();
 	}
 
-	[Fact]
-	void Configure_wires_Claims_relationship_through_the_Role_navigation()
-	{
-		ModelBuilder builder = new();
-		builder.Entity<NorseRole>(NorseRole.Configure);
-		builder.Entity<NorseRoleClaim>();
-
-		var claimType = builder.Model.FinalizeModel().FindEntityType(typeof(NorseRoleClaim))!;
-		var fk = claimType.GetForeignKeys().Single();
-
-		fk.DependentToPrincipal!.Name.ShouldBe(nameof(NorseRoleClaim.Role));
-		fk.IsRequired.ShouldBeTrue();
-	}
+	// The relationship fact (Role_claims_are_required_through_the_Role_navigation) moved to NorseIdentityModelTests (Task 4.2 triage, 2026-10-24):
+	// requiredness is now inferred by EF convention from the non-nullable FK, and a bare
+	// new ModelBuilder() runs no conventions, so only the provider-built model can observe it.
 
 	static IEntityType BuildEntityType()
 	{

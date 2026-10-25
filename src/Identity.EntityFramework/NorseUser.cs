@@ -41,6 +41,12 @@ public sealed class NorseUser : IdentityUser<Guid>, INorseEntity<NorseUser>, ITe
 	[FixedLength(32)]
 	public override string? SecurityStamp { get; set; }
 
+	/// <summary>
+	///     The entity-splitting fragment holding the credential and lookup columns, named before the naming
+	///     convention runs (<c>user_credentials</c> on PostgreSQL).
+	/// </summary>
+	public const string CredentialsTable = "UserCredentials";
+
 	/// <inheritdoc />
 	public static void Configure(EntityTypeBuilder<NorseUser> builder)
 	{
@@ -82,30 +88,46 @@ public sealed class NorseUser : IdentityUser<Guid>, INorseEntity<NorseUser>, ITe
 			.Property(static u => u.UserName)
 			.IsRequired();
 
-		// NormalizedUserName stays nullable: the erasure ceremony nulls the lookup hashes so a
-		// re-registration of the same email inserts cleanly (payload columns are darkened, not
-		// nulled). SQL Server's provider convention turns the unique index below into a filtered
-		// one (WHERE normalized_user_name IS NOT NULL) because the column is nullable; Postgres
-		// needs no filter -- NULLs are distinct there by default.
-		// ../../../Glitnir/docs/Platform/specs/2026-08-03-pii-primitives-identity-erasure-seam-design.md §4.2
+		// Brownfield exemption (2026-10-24 explicit-writes spec §14): hand-written .IsRequired() on members
+		// whose string? annotation belongs to IdentityUser<Guid>, not to us. Both lookup hashes are NOT NULL --
+		// load-bearing for the fragment's CHECK (normalized_email = normalized_user_name), which an unknown
+		// comparison would otherwise pass -- so Identity's own unique UserNameIndex on NormalizedUserName is
+		// email uniqueness, unfiltered on both providers. Erasure is a hard delete now; nothing nulls them.
+		// ../../../Glitnir/docs/Himinbjorg/specs/2026-10-24-identity-explicit-writes-temporal-split-design.md §3.1
+		builder
+			.Property(static u => u.NormalizedUserName)
+			.IsRequired();
+		builder
+			.Property(static u => u.NormalizedEmail)
+			.IsRequired();
 
-		// Rate-limiter state lives in its own non-temporal side table via entity splitting, so
-		// wrong-password churn never mints a history row once users goes temporal. LockoutEnabled
-		// is deliberately NOT split -- it's an admin policy decision, which IS identity record.
-		// UserManager/SignInManager read and write the properties unchanged; EF routes the columns.
-		// Same spec, §4.3.
-		builder.SplitToTable("UserLockout", static lockout =>
+		// The credential and lookup columns live in their own non-temporal fragment via entity splitting, so a
+		// password change, stamp rotation, failed attempt or lockout never mints a users history row, and
+		// erasure leaves none of them behind in history. LockoutEnabled is deliberately NOT split -- it's an
+		// admin policy decision, which IS identity record. UserManager/SignInManager read and write the
+		// properties unchanged; EF routes the columns. The fragment's FK to users cascades by default (PoC G3).
+		// The CHECK lives in NorseIdentityDbContext, which knows the provider's column naming.
+		// Same spec, §3.
+		builder.SplitToTable(CredentialsTable, static credentials =>
 		{
-			lockout.Property(static u => u.PasswordHash);
-			lockout.Property(static u => u.LockoutEnd);
-			lockout.Property(static u => u.AccessFailedCount);
+			credentials.Property(static u => u.PasswordHash);
+			credentials.Property(static u => u.SecurityStamp);
+			credentials.Property(static u => u.AccessFailedCount);
+			credentials.Property(static u => u.LockoutEnd);
+			credentials.Property(static u => u.NormalizedEmail);
+			credentials.Property(static u => u.NormalizedUserName);
 		});
 
-		// SQL Server can't scope temporal system-versioning to one fragment of a split entity yet
-		// (dotnet/efcore#26457; the NRE this park avoids is #30366) -- Postgres has no such
-		// limitation and stays temporal here. Delete this park the day upstream ships per-fragment
-		// temporal control.
-		builder.TemporalParkedOnSqlServer();
+		// EF can't scope SQL Server temporal system-versioning to one fragment of a split entity
+		// (dotnet/efcore#26457; composing IsTemporal() with SplitToTable() NREs, #30366), so users opts
+		// in to versioning its principal table only: on SQL Server the entity is deliberately not
+		// EF-temporal, and Urðarbrunnr's migration seams emit engine-native system-versioning with
+		// HIDDEN periods on users alone -- UserCredentials is never versioned. Cost, accepted for Identity
+		// only: no TemporalAsOf/TemporalAll LINQ on NorseUser under SQL Server. A no-op on Postgres,
+		// whose apparatus already versions the principal table only. The call site survives the day
+		// upstream ships per-fragment control; only the opt-in's realization changes.
+		// ../../../Glitnir/docs/Himinbjorg/specs/2026-10-24-identity-explicit-writes-temporal-split-design.md §6.1
+		builder.TemporalOnPrincipalTableOnly();
 
 		builder
 			.HasMany(static u => u.Claims)

@@ -1,7 +1,9 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Norse.Abstractions.Contracts;
 using Norse.Abstractions.Migrations.Seeding;
 using Norse.Identity.EntityFramework;
+using Norse.Identity.Outcomes;
 using OpenIddict.Abstractions;
 
 namespace Norse.Identity.Migrations;
@@ -41,37 +43,53 @@ public sealed class MachineClientSeedContributor(
 		var secret = configuration["OIDC_MACHINE_CLIENT_SECRET"] ??
 			throw new InvalidOperationException("Configuration value 'OIDC_MACHINE_CLIENT_SECRET' is not configured.");
 
-		var application = await applicationManager.FindByClientIdAsync(ClientId, cancellationToken)
-			.ConfigureAwait(false);
-
-		if (application is null)
+		var view = applicationManager.Outcome;
+		var found = await view.FindByClientIdAsync(ClientId, cancellationToken).ConfigureAwait(false);
+		if (found.TryGetValue(out Failed missing))
 		{
-			await applicationManager.CreateAsync(BuildDescriptor(secret), cancellationToken).ConfigureAwait(false);
+			if (missing.Problem.Category is not ErrorCategory.NotFound)
+				throw SeedingFailed(missing.Problem);
+			Required(await view.CreateAsync(BuildDescriptor(secret), cancellationToken).ConfigureAwait(false));
 			return;
 		}
 
-		var secretStillValid = await applicationManager
-			.ValidateClientSecretAsync(application, secret, cancellationToken)
-			.ConfigureAwait(false);
-		var permissions = await applicationManager.GetPermissionsAsync(application, cancellationToken)
-			.ConfigureAwait(false);
-		var clientType = await applicationManager.GetClientTypeAsync(application, cancellationToken)
-			.ConfigureAwait(false);
-		var displayName = await applicationManager.GetDisplayNameAsync(application, cancellationToken)
-			.ConfigureAwait(false);
+		var application = Required(found);
+		var secretStillValid = Required(await view.ValidateClientSecretAsync(application, secret, cancellationToken)
+			.ConfigureAwait(false));
+		var permissions = Required(await view.GetPermissionsAsync(application, cancellationToken).ConfigureAwait(false));
+		var clientTypeMatches = Matches(await view.GetClientTypeAsync(application, cancellationToken)
+			.ConfigureAwait(false), OpenIddictConstants.ClientTypes.Confidential);
+		var displayNameMatches = Matches(await view.GetDisplayNameAsync(application, cancellationToken)
+			.ConfigureAwait(false), DisplayName);
 
 		var permissionsMatch = permissions.ToHashSet().SetEquals(_requiredPermissions);
-		var clientTypeMatches = string.Equals(clientType, OpenIddictConstants.ClientTypes.Confidential,
-			StringComparison.Ordinal);
-		var displayNameMatches = string.Equals(displayName, DisplayName, StringComparison.Ordinal);
 
 		if (secretStillValid && permissionsMatch && clientTypeMatches && displayNameMatches)
 			return; // Nothing differs -- no write.
 
 		var descriptor = await BuildUpdateDescriptorAsync(application, secretStillValid ? null : secret,
 			cancellationToken).ConfigureAwait(false);
-		await applicationManager.UpdateAsync(application, descriptor, cancellationToken).ConfigureAwait(false);
+		Required(await view.UpdateAsync(application, descriptor, cancellationToken).ConfigureAwait(false));
 	}
+
+	/// <summary>
+	///     The success value; a failure fails the seed, which runs in the migrations job (startup, where a failure
+	///     is an exception by law), never in a request.
+	/// </summary>
+	static T Required<T>(Outcome<T> outcome)
+		where T : notnull =>
+		outcome.Match(static value => value, static problem => throw SeedingFailed(problem));
+
+	/// <summary>Whether a stored value equals <paramref name="expected" />; an absent one never does.</summary>
+	static bool Matches(Outcome<string> stored, string expected) =>
+		stored.Match(
+			value => string.Equals(value, expected, StringComparison.Ordinal),
+			static problem => problem.Category is ErrorCategory.NotFound ?
+				false :
+				throw SeedingFailed(problem));
+
+	static InvalidOperationException SeedingFailed(Problem problem) =>
+		new($"Seeding the machine client '{ClientId}' failed ({problem.Category}): {string.Join("; ", problem.Errors.Values.SelectMany(static messages => messages))}");
 
 	static OpenIddictApplicationDescriptor BuildDescriptor(string secret)
 	{
@@ -103,7 +121,8 @@ public sealed class MachineClientSeedContributor(
 		string? rotatedSecret, CancellationToken cancellationToken)
 	{
 		OpenIddictApplicationDescriptor descriptor = new();
-		await applicationManager.PopulateAsync(descriptor, application, cancellationToken).ConfigureAwait(false);
+		Required(await applicationManager.Outcome.PopulateAsync(descriptor, application, cancellationToken)
+			.ConfigureAwait(false));
 
 		descriptor.ClientType = OpenIddictConstants.ClientTypes.Confidential;
 		descriptor.DisplayName = DisplayName;

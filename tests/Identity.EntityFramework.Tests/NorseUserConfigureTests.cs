@@ -58,16 +58,9 @@ public sealed class NorseUserConfigureTests
 		property.GetValueConverter().ShouldBeNull();
 	}
 
-	[Fact]
-	void Configure_wires_Claims_relationship_through_the_User_navigation()
-	{
-		var model = BuildModel();
-		var claimType = model.FindEntityType(typeof(NorseUserClaim))!;
-		var fk = claimType.GetForeignKeys().Single();
-
-		fk.DependentToPrincipal!.Name.ShouldBe(nameof(NorseUserClaim.User));
-		fk.IsRequired.ShouldBeTrue();
-	}
+	// The relationship fact (User_claims_are_required_through_the_User_navigation) moved to NorseIdentityModelTests (Task 4.2 triage, 2026-10-24):
+	// requiredness is now inferred by EF convention from the non-nullable FK, and a bare
+	// new ModelBuilder() runs no conventions, so only the provider-built model can observe it.
 
 	// The NormalizedUserName unique index moved to NorseIdentityDbContext.OnModelCreating (2026-08-03
 	// PII spec §4.2): the filter differs by provider ([NormalizedUserName] IS NOT NULL on SQL Server,

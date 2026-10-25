@@ -17,6 +17,7 @@
 		<PackageReference Include="OpenIddict.Validation.AspNetCore" Version="7.*" />
 		<PackageReference Include="OpenIddict.Validation.ServerIntegration" Version="7.*" />
 		<PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.*" />
-		<ProjectReference Include="../Identity.EntityFramework/Identity.EntityFramework.csproj" />
+		<!-- Identity.EntityFramework flows through it (transitive-first). -->
+		<ProjectReference Include="../Identity.Outcomes/Identity.Outcomes.csproj" />
 	</ItemGroup>
 </Project>

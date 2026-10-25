@@ -4,6 +4,7 @@ using Norse.Abstractions.Contracts;
 using Norse.Abstractions.Web.Server.DeferredSignIn;
 using Norse.Abstractions.Web.Server.Mediator;
 using Norse.Identity.EntityFramework;
+using Norse.Identity.Outcomes;
 using Norse.Primitives;
 using Norse.Primitives.Pii;
 
@@ -62,26 +63,15 @@ sealed class LoginHandler(
 		// SignInManager mints/clears the cookie itself via its own IHttpContextAccessor dependency —
 		// no manual HttpContext.SignInAsync call needed here (must register AddHttpContextAccessor()).
 		// WireValue is the deliberate plaintext egress — Identity's store speaks canonical strings.
-		var result = await signInManager.PasswordSignInAsync(
-			email.Value.WireValue, wire.Password, wire.RememberMe, lockoutOnFailure: true).ConfigureAwait(false);
-
-		// A distinguishable category alone isn't enough — the UI (Task 8) reads only Errors, never
-		// ErrorCategory (that's server-only), so the actual human-readable text has to be populated
-		// here or LockedOut/NotAllowed would render identically to the deliberately-generic
-		// credential-check failure below, defeating the reason they stayed distinguishable at all
-		// (spec §9.3: "so they don't try 10000 times").
-		if (result.IsLockedOut)
-			return Outcome<NavigationResult>.Err(ErrorCategory.LockedOut,
-				new Dictionary<string, string[]>
-				{
-					[""] = ["This account is locked out. Try again later or reset your password."]
-				});
-		if (result.IsNotAllowed)
-			return Outcome<NavigationResult>.Err(ErrorCategory.NotAllowed,
-				new Dictionary<string, string[]> { [""] = ["Sign-in is not allowed for this account."] });
+		// The .Outcome view maps the SignInResult (spec §4.12); this handler only routes and words it.
+		var outcome = await signInManager.Outcome.PasswordSignInAsync(
+				email.Value.WireValue, wire.Password, wire.RememberMe, lockoutOnFailure: true, cancellationToken)
+			.ConfigureAwait(false);
+		if (outcome.TryGetValue(out Failed failed))
+			return Refused(failed);
 
 		// The user proved they know the correct password -- this is NOT a credential failure, so it
-		// must never fall into the shared _invalidCredentials branch below (that would make a correct
+		// must never fall into the shared _invalidCredentials collapse (Refused) (that would make a correct
 		// password indistinguishable from a wrong one to a 2FA-enabled user). It rides the success
 		// side of the Outcome instead, distinguished from a completed login by NextUrl pointing at the
 		// 2FA challenge -- RememberMe included, so the client never has to reconstruct it from its own
@@ -90,7 +80,8 @@ sealed class LoginHandler(
 		// (SignInOrTwoFactorAsync override) -- TryGetDeferredCompletionUrl finds that same stash and
 		// routes through the real completion request instead of the challenge page directly, exactly
 		// like the completed-sign-in branch below does.
-		if (result.RequiresTwoFactor)
+		if (outcome.TryGetValue(out Success<SignInCompletion> completion)
+			&& completion.Value is SignInCompletion.RequiresTwoFactor)
 		{
 			var challengeUrl = UriHelper.BuildRelative(
 				PathBase, TwoFactorChallengeRoute,
@@ -103,13 +94,6 @@ sealed class LoginHandler(
 			});
 		}
 
-		// PasswordSignInAsync already collapses "no such user" and "wrong password" into the single
-		// SignInResult.Failed case — anti-enumeration, spec §9.3 — so there is exactly one
-		// credential-failure branch here, and it always returns the shared _invalidCredentials
-		// instance rather than minting a fresh Problem per call.
-		if (!result.Succeeded)
-			return new Outcome<NavigationResult>(_invalidCredentials);
-
 		// The app root, PathBase-qualified, is the concrete default for a completed sign-in whose
 		// cookie was written directly -- resolved here, not left for the client to supply, so NextUrl
 		// is never null.
@@ -119,6 +103,26 @@ sealed class LoginHandler(
 			NextUrl = TryGetDeferredCompletionUrl(appRoot) ?? appRoot
 		});
 	}
+
+	// A distinguishable category alone isn't enough — the UI (Task 8) reads only Errors, never
+	// ErrorCategory (that's server-only), so the actual human-readable text has to be populated
+	// here or LockedOut/NotAllowed would render identically to the deliberately-generic
+	// credential-check failure, defeating the reason they stayed distinguishable at all
+	// (spec §9.3: "so they don't try 10000 times"). Every other failure collapses onto the one shared
+	// _invalidCredentials instance: failed credentials (PasswordSignInAsync already folds "no such user"
+	// into the same case), an indeterminate access-failed increment (explicit-writes spec §4.5: sign-in
+	// fails closed), and a key destroyed mid-erasure (an erased account must read as bad credentials).
+	static Outcome<NavigationResult> Refused(Failed failed) => failed.Problem.Category switch
+	{
+		ErrorCategory.LockedOut => Outcome<NavigationResult>.Err(ErrorCategory.LockedOut,
+			new Dictionary<string, string[]>
+			{
+				[""] = ["This account is locked out. Try again later or reset your password."]
+			}),
+		ErrorCategory.NotAllowed => Outcome<NavigationResult>.Err(ErrorCategory.NotAllowed,
+			new Dictionary<string, string[]> { [""] = ["Sign-in is not allowed for this account."] }),
+		_ => new Outcome<NavigationResult>(_invalidCredentials)
+	};
 
 	// NOT verbatim-duplicated in LogoutHandler anymore -- Logout only ever lands back on "/", so its
 	// copy keeps a bare, parameterless shape; this one needs a returnUrl parameter because Login has

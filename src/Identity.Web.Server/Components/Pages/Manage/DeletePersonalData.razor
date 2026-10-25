@@ -3,6 +3,7 @@
 @using Microsoft.AspNetCore.Identity
 @inject UserManager<NorseUser> UserManager
 @inject SignInManager<NorseUser> SignInManager
+@inject ErasureService Erasure
 @inject IdentityRedirectManager RedirectManager
 @inject ILogger<DeletePersonalData> Logger
 
@@ -75,15 +76,18 @@
             return;
         }
 
-        var result = await UserManager.DeleteAsync(_user);
-        if (!result.Succeeded)
+        // Erasure, not UserManager.DeleteAsync: the key goes first, then the row and its OpenIddict rows
+        // (explicit-writes spec §7). Every step is idempotent, so a failed run is finished by submitting again.
+        var userId = await UserManager.GetUserIdAsync(_user);
+        var shred = await Erasure.ShredAsync(_user.Id);
+        if (!shred.Match(static _ => true, static _ => false))
         {
-            throw new InvalidOperationException("Unexpected error occurred deleting user.");
+            _message = "Error: Your account could not be deleted. Please try again.";
+            return;
         }
 
         await SignInManager.SignOutAsync();
 
-        var userId = await UserManager.GetUserIdAsync(_user);
         Logger.LogInformation("User with ID '{UserId}' deleted themselves.", userId);
 
         RedirectManager.RedirectToCurrentPage();

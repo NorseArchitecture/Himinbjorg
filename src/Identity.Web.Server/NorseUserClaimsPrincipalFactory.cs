@@ -10,7 +10,7 @@ namespace Norse.Identity.Web.Server;
 ///     the closed set — opaque GUID, roles, security stamp — is dropped. Allowlist, not strip-list: a
 ///     claim Microsoft adds in a future release is dropped by construction, never leaked by omission.
 ///     The security-stamp claim stays because <c>SecurityStampValidator</c> revalidation is the
-///     mechanism that kills a dead user's live sessions after the shred ceremony rotates the stamp.
+///     mechanism that kills a live session once its user changes or is erased (the row is gone).
 ///     <c>ClaimTypes.Name</c> is omitted: display names come from the disclosure surface, masked.
 /// </summary>
 public sealed class NorseUserClaimsPrincipalFactory(

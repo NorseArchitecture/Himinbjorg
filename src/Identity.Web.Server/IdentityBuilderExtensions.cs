@@ -44,6 +44,11 @@ static class IdentityBuilderExtensions
 			{
 				o.Stores.SchemaVersion = IdentitySchemaVersions.Version3;
 				o.Stores.ProtectPersonalData = true;
+				// Email is the username, and both lookup hashes are NOT NULL on user_credentials, so a user
+				// without an email is unrepresentable: Identity's own UserValidator refuses it as InvalidEmail
+				// before any write, rather than the database refusing it as an exception (2026-10-24
+				// explicit-writes spec §3.1).
+				o.User.RequireUniqueEmail = true;
 			});
 			services
 				.AddSingleton<IPersonalDataProtector, NorsePersonalDataProtector>()

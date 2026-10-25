@@ -1,6 +1,7 @@
 using Norse.Primitives.Pii;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
+using Norse.Abstractions.Backend.Keys;
 using Norse.Abstractions.Contracts;
 using Norse.AuthN.Services;
 using Norse.Identity.EntityFramework;
@@ -45,6 +46,24 @@ public sealed class EmailExistsHandlerTests
 
 		outcome.TryGetValue(out Success<BoolResponse> success).ShouldBeTrue();
 		success.Value.Value.ShouldBeFalse();
+	}
+
+	[Fact]
+	async Task Reports_true_while_an_erasure_in_progress_still_holds_the_address()
+	{
+		// The key-destroyed window (explicit-writes spec §5): the row still holds the address until the erasure's
+		// transaction deletes it, so registering it would still conflict. The view answers Erased, not an exception.
+		using var userManager = MockUserManager.Create();
+		userManager.FindByEmailAsync("erasing@example.com")
+			.ThrowsAsync(new KeyDestroyedException(new(Guid.CreateVersion7(), DateTimeOffset.UnixEpoch)));
+		await using var container = BuildContainer(userManager);
+		EmailExistsHandler handler = new(container.GetRequiredService<IServiceScopeFactory>());
+		EmailExistsCommand command = new(new EmailExistsRequest { Email = EmailAddress.Parse("erasing@example.com") });
+
+		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
+
+		outcome.TryGetValue(out Success<BoolResponse> success).ShouldBeTrue();
+		success.Value.Value.ShouldBeTrue();
 	}
 
 	// The actual regression: reproduced live against a real Blazor Server circuit as

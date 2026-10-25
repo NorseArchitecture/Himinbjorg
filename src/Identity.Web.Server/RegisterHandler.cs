@@ -3,6 +3,7 @@ using Norse.Abstractions.Contracts;
 using Norse.Abstractions.Web.Server.Mediator;
 using Norse.AuthN.Services;
 using Norse.Identity.EntityFramework;
+using Norse.Identity.Outcomes;
 using Norse.Primitives;
 using Norse.Primitives.Pii;
 
@@ -28,28 +29,25 @@ sealed class RegisterHandler(UserManager<NorseUser> userManager)
 
 		// WireValue is the deliberate plaintext egress — Identity's store speaks canonical strings.
 		NorseUser user = new() { UserName = email.Value.WireValue, Email = email.Value.WireValue };
-		var result = await userManager.CreateAsync(user, wire.Password).ConfigureAwait(false);
+		var outcome = await userManager.Outcome.CreateAsync(user, wire.Password, cancellationToken).ConfigureAwait(false);
 
 		// The next hop is server-resolved (the login page today; the email-confirmation page the day
 		// that flow lands) — the client navigates it unconditionally, with no route of its own.
-		if (result.Succeeded)
+		// The category is the mapping table's (explicit-writes spec §4.12), never decided here: a genuine
+		// duplicate is Conflict (Buvy's explicit call, so a legitimate user sees "that email's taken" and
+		// doesn't retry a doomed registration 10,000 times, spec §9.3), a rejected password Validation, and
+		// anything unclassified a Fault.
+		if (!outcome.TryGetValue(out Failed failed))
 			return Outcome<NavigationResult>.Ok(new NavigationResult { NextUrl = "/Account/Login" });
-		// Only a genuine duplicate is Conflict — Buvy's explicit call, so a legitimate user sees
-		// "that email's taken" and doesn't retry a doomed registration 10,000 times (spec §9.3).
-		// Everything else (password-policy codes) is Validation — a rejected password isn't a conflict.
-		var isDuplicate = result.Errors.Any(e => e.Code is "DuplicateUserName" or "DuplicateEmail");
-		var category = isDuplicate ?
-			ErrorCategory.Conflict :
-			ErrorCategory.Validation;
-		// Grouped by the WIRE FIELD the error belongs on, never by IdentityError.Code directly — the
+		// The view keys errors by IdentityError.Code; regrouped here by the WIRE FIELD each belongs on — the
 		// client's ServerErrorCoordinator builds a FieldIdentifier from this dictionary's keys, and a
 		// key like "PasswordRequiresNonAlphanumeric" matches no bound field, so the message renders
 		// nowhere (neither inline, since no field has that name, nor in the model-level summary, since
 		// that only fires when Errors is empty) -- silently dropped, reproduced live 2026-08-07.
-		var errors = result.Errors
-			.GroupBy(e => FieldFor(e.Code))
-			.ToDictionary(g => g.Key, g => g.Select(e => e.Description).ToArray());
-		return Outcome<NavigationResult>.Err(category, errors);
+		var errors = failed.Problem.Errors
+			.GroupBy(static error => FieldFor(error.Key))
+			.ToDictionary(static group => group.Key, string[] (group) => [.. group.SelectMany(static error => error.Value)]);
+		return Outcome<NavigationResult>.Err(failed.Problem.Category, errors);
 	}
 
 	// UserName is always set to Email in this handler, so every user-name-shaped code belongs on the

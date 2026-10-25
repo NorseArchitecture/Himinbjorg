@@ -48,15 +48,6 @@
             return;
         }
 
-        // In our UI email and username are one and the same, so when we update the email
-        // we need to update the username.
-        var setUserNameResult = await UserManager.SetUserNameAsync(user, Email);
-        if (!setUserNameResult.Succeeded)
-        {
-            _message = "Error changing user name.";
-            return;
-        }
-
         await SignInManager.RefreshSignInAsync(user);
         _message = "Thank you for confirming your email change.";
     }
