@@ -39,6 +39,8 @@
 </FluentGrid>
 
 @code {
+    const int ShredAttempts = 3;
+
     string? _message;
     NorseUser? _user;
     bool _requirePassword;
@@ -77,12 +79,13 @@
         }
 
         // Erasure, not UserManager.DeleteAsync: the key goes first, then the row and its OpenIddict rows
-        // (explicit-writes spec §7). Every step is idempotent, so a failed run is finished by submitting again.
+        // (explicit-writes spec §7). Retried here, not by submitting again: past the key's destruction this page can
+        // no longer load the account, and the session dies at its next revalidation (PR #76 review).
         var userId = await UserManager.GetUserIdAsync(_user);
-        var shred = await Erasure.ShredAsync(_user.Id);
+        var shred = await Erasure.ShredWithRetriesAsync(_user.Id, ShredAttempts);
         if (!shred.Match(static _ => true, static _ => false))
         {
-            _message = "Error: Your account could not be deleted. Please try again.";
+            _message = "Error: Your account could not be fully deleted. The failure has been logged for an administrator to finish.";
             return;
         }
 

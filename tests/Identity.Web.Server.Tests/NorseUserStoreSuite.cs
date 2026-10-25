@@ -857,6 +857,43 @@ public abstract class NorseUserStoreSuite : IDisposable
 	}
 
 	[Fact(SkipUnless = nameof(IsTestable), Skip = UntestableReason)]
+	protected async Task ReplaceClaim_with_itself_keeps_the_claim_and_writes_nothing()
+	{
+		// PR #76 review: the converging delete matched the replacement's own row, so A -> A removed A.
+		_fixture.SkipUnlessAvailable();
+		var seeded = await _fixture.SeedUserAsync("replace-claim-itself@example.com");
+		await SeedClaimAsync(seeded.Id, "department", "sales");
+		var salesRow = await ClaimIdAsync(seeded.Id, "department", "sales");
+		var userManager = _fixture.CreateUserManager();
+		var user = (await userManager.FindByIdAsync(seeded.Id.ToString())).ShouldNotBeNull();
+
+		var result = await userManager.ReplaceClaimAsync(user, new("department", "sales"), new("department", "sales"));
+
+		result.Succeeded.ShouldBeTrue();
+		(await ClaimsAsync(seeded.Id)).ShouldBe([("department", "sales")]);
+		(await ClaimIdAsync(seeded.Id, "department", "sales")).ShouldBe(salesRow, "the claim is not rewritten");
+		var (verify, _) = await _fixture.CreateScopeAsync();
+		(await ClaimHistoryValuesAsync(verify, seeded.Id)).ShouldBeEmpty("an identical replacement is no change");
+	}
+
+	[Fact(SkipUnless = nameof(IsTestable), Skip = UntestableReason)]
+	protected async Task ReplaceClaim_differing_only_in_type_casing_rewrites_the_claim()
+	{
+		// The self-match also reaches a type that differs only in case wherever the column's collation ignores case
+		// (SQL Server's default): the rewrite must still land, not converge onto its own row and delete it.
+		_fixture.SkipUnlessAvailable();
+		var seeded = await _fixture.SeedUserAsync("replace-claim-casing@example.com");
+		await SeedClaimAsync(seeded.Id, "department", "sales");
+		var userManager = _fixture.CreateUserManager();
+		var user = (await userManager.FindByIdAsync(seeded.Id.ToString())).ShouldNotBeNull();
+
+		var result = await userManager.ReplaceClaimAsync(user, new("department", "sales"), new("Department", "sales"));
+
+		result.Succeeded.ShouldBeTrue();
+		(await ClaimsAsync(seeded.Id)).ShouldBe([("Department", "sales")]);
+	}
+
+	[Fact(SkipUnless = nameof(IsTestable), Skip = UntestableReason)]
 	protected async Task SetToken_on_existing_token_persists_under_NoTracking()
 	{
 		_fixture.SkipUnlessAvailable();

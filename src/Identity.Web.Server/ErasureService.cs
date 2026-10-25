@@ -86,6 +86,31 @@ public sealed partial class ErasureService(
 	}
 
 	/// <summary>
+	///     <see cref="ShredAsync" />, re-run while it answers <see cref="ErrorCategory.Fault" /> or
+	///     <see cref="ErrorCategory.Indeterminate" />, for a caller that cannot come back: once the key is destroyed,
+	///     the account can no longer be materialized and its session dies at the next revalidation, so a self-service
+	///     erasure gets no second request to retry from (PR #76 review). Re-running is safe at every boundary, since
+	///     every step is idempotent (spec §7.3). An outcome still failing after the last attempt is logged by the run
+	///     that produced it and is an operator's to finish.
+	/// </summary>
+	/// <param name="subjectId">The user id, which is also the subject id the key store and OpenIddict carry.</param>
+	/// <param name="attempts">The most runs to make, at least one.</param>
+	/// <param name="cancellationToken">Cancels the runs; cancellation propagates rather than folding to a fault.</param>
+	/// <returns>The first settled outcome, or the last attempt's failure.</returns>
+	public async Task<Outcome<ErasureReceipt>> ShredWithRetriesAsync(Guid subjectId, int attempts,
+		CancellationToken cancellationToken = default)
+	{
+		ArgumentOutOfRangeException.ThrowIfLessThan(attempts, 1);
+		Outcome<ErasureReceipt> outcome;
+		var attempt = 0;
+		do
+			outcome = await ShredAsync(subjectId, cancellationToken).ConfigureAwait(false);
+		while (++attempt < attempts && outcome.Match(static _ => false,
+			static problem => problem.Category is ErrorCategory.Fault or ErrorCategory.Indeterminate));
+		return outcome;
+	}
+
+	/// <summary>
 	///     The failures a retry can resolve, or that only an operator can: lock exhaustion
 	///     (<see cref="TimeoutException" />, spec §7.5), the key store's file or vault I/O, a key that vanished
 	///     with no receipt (<see cref="KeyMissingException" />), and the database, directly or after the

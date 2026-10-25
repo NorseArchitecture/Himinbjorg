@@ -604,6 +604,11 @@ public sealed class NorseUserStore(NorseIdentityDbContext context, IdentityError
 	{
 		ArgumentNullException.ThrowIfNull(claim);
 		ArgumentNullException.ThrowIfNull(newClaim);
+		// Replacing a claim with itself is no change: stage nothing, so nothing is rewritten and no history is minted.
+		if (string.Equals(claim.Type, newClaim.Type, StringComparison.Ordinal) &&
+			string.Equals(claim.Value, newClaim.Value, StringComparison.Ordinal))
+			return Task.CompletedTask;
+
 		Stage(user, new StagedIntent.ReplaceClaim(claim.Type, claim.Value, newClaim.Type, newClaim.Value));
 		return Task.CompletedTask;
 	}

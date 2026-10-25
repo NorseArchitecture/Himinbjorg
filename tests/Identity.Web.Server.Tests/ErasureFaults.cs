@@ -33,6 +33,9 @@ sealed class FaultingSubjectKeyStore(ISubjectKeyStore inner) : ISubjectKeyStore
 		init => _failAfterDestroy = value;
 	}
 
+	/// <summary>Thrown by every <see cref="DestroyAsync" /> after the real store has destroyed the key.</summary>
+	public Exception? FailEveryDestroy { get; init; }
+
 	public ValueTask<SubjectKeyResult> GetAsync(Guid subjectId, CancellationToken cancellationToken = default) =>
 		inner.GetAsync(subjectId, cancellationToken);
 
@@ -46,6 +49,9 @@ sealed class FaultingSubjectKeyStore(ISubjectKeyStore inner) : ISubjectKeyStore
 			throw before;
 
 		var receipt = await inner.DestroyAsync(subjectId, cancellationToken);
+		if (FailEveryDestroy is { } every)
+			throw every;
+
 		return Interlocked.Exchange(ref _failAfterDestroy, null) is { } after ?
 			throw after :
 			receipt;

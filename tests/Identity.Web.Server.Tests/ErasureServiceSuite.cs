@@ -210,6 +210,49 @@ public abstract class ErasureServiceSuite(IdentityFixture fixture)
 	}
 
 	[Fact(SkipUnless = nameof(IsTestable), Skip = UntestableReason)]
+	protected async Task Retrying_shred_finishes_a_failure_after_destroy_within_one_call()
+	{
+		// PR #76 review: past the key's destruction the caller can no longer materialize the account, nor keep its
+		// session, so an interactive caller's retry has to happen inside the request that destroyed the key.
+		fixture.SkipUnlessAvailable();
+		var user = await fixture.SeedUserAsync("retry-after-destroy@example.com");
+		var (context, keyStore) = await fixture.CreateScopeAsync();
+		FaultingSubjectKeyStore faulting = new(keyStore) { FailAfterDestroy = new IOException("simulated lost answer") };
+
+		var receipt = Receipt(await NewService(context, faulting).ShredWithRetriesAsync(user.Id, 3, Cancellation));
+
+		receipt.ShouldBe(await StoredReceiptAsync(keyStore, user.Id));
+		faulting.DestroyCalls.ShouldBe(2, "one failed run, then the retry that finished it");
+		(await RowExistsAsync(context, user.Id)).ShouldBeFalse();
+	}
+
+	[Fact(SkipUnless = nameof(IsTestable), Skip = UntestableReason)]
+	protected async Task Retrying_shred_gives_up_after_its_attempts_with_the_last_outcome()
+	{
+		fixture.SkipUnlessAvailable();
+		var user = await fixture.SeedUserAsync("retry-exhausted@example.com");
+		var (context, keyStore) = await fixture.CreateScopeAsync();
+		FaultingSubjectKeyStore faulting = new(keyStore) { FailEveryDestroy = new IOException("simulated outage") };
+
+		ShouldBeFault(await NewService(context, faulting).ShredWithRetriesAsync(user.Id, 3, Cancellation));
+
+		faulting.DestroyCalls.ShouldBe(3);
+		(await RowExistsAsync(context, user.Id)).ShouldBeTrue("the rows wait behind the destroyed key for an operator");
+	}
+
+	[Fact(SkipUnless = nameof(IsTestable), Skip = UntestableReason)]
+	protected async Task Retrying_shred_does_not_retry_NotFound()
+	{
+		fixture.SkipUnlessAvailable();
+		var (context, keyStore) = await fixture.CreateScopeAsync();
+		FaultingSubjectKeyStore faulting = new(keyStore);
+
+		ShouldBe(await NewService(context, faulting).ShredWithRetriesAsync(Guid.NewGuid(), 3, Cancellation), ErrorCategory.NotFound);
+
+		faulting.DestroyCalls.ShouldBe(0);
+	}
+
+	[Fact(SkipUnless = nameof(IsTestable), Skip = UntestableReason)]
 	protected async Task Failure_after_commit_then_retry_returns_same_receipt()
 	{
 		// The commit landed and its acknowledgement was lost: Indeterminate, never Fault, which would claim no effect

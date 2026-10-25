@@ -49,6 +49,7 @@ static class ProviderStatements
 		}),
 		new("user_claims", new Dictionary<string, string>
 		{
+			[nameof(NorseUserClaim.Id)] = "id",
 			[nameof(NorseUserClaim.UserId)] = "user_id",
 			[nameof(NorseUserClaim.ClaimType)] = "claim_type",
 			[nameof(NorseUserClaim.ClaimValue)] = "claim_value",
@@ -103,6 +104,7 @@ static class ProviderStatements
 		}),
 		new("[UserClaims]", new Dictionary<string, string>
 		{
+			[nameof(NorseUserClaim.Id)] = "[Id]",
 			[nameof(NorseUserClaim.UserId)] = "[UserId]",
 			[nameof(NorseUserClaim.ClaimType)] = "[ClaimType]",
 			[nameof(NorseUserClaim.ClaimValue)] = "[ClaimValue]",
@@ -334,7 +336,7 @@ static class ProviderStatements
 			UPDATE {claims.Name}
 			SET {set}
 			WHERE {ClaimKey(dialect, bind, userId, claim)}
-			AND NOT EXISTS (SELECT 1 FROM {claims.Name} AS held WHERE {ClaimKey(dialect, bind, userId, replacement, "held.")})
+			AND NOT EXISTS ({HeldElsewhere(dialect, bind, userId, replacement)})
 			""";
 		return context.Database.ExecuteSqlRawAsync(sql, bind.Parameters, cancellationToken);
 	}
@@ -358,7 +360,7 @@ static class ProviderStatements
 		var sql = $"""
 			DELETE FROM {claims.Name}
 			WHERE {ClaimKey(dialect, bind, userId, claim)}
-			AND EXISTS (SELECT 1 FROM {claims.Name} AS held WHERE {ClaimKey(dialect, bind, userId, replacement, "held.")})
+			AND EXISTS ({HeldElsewhere(dialect, bind, userId, replacement)})
 			""";
 		return context.Database.ExecuteSqlRawAsync(sql, bind.Parameters, cancellationToken);
 	}
@@ -538,6 +540,17 @@ static class ProviderStatements
 			$"{qualifier}{dialect.Claims.Columns[nameof(NorseUserClaim.ClaimType)]} = {bind.Value(nameof(NorseUserClaim.ClaimType), claim.Type)}",
 			$"{qualifier}{dialect.Claims.Columns[NorseUserClaim.ClaimValueHash]} = {Format(dialect.ClaimHash, bind.Value(nameof(NorseUserClaim.ClaimValue), claim.Value))}"
 		]);
+
+	/// <summary>
+	///     A row other than the one being replaced that holds <paramref name="replacement" />. The old claim's own row
+	///     must never count: wherever both keys match it (an identical claim, or a type differing only in case under a
+	///     case-insensitive collation), counting it would skip the rewrite and converge the claim away (PR #76 review).
+	/// </summary>
+	static string HeldElsewhere(Dialect dialect, Binder bind, Guid userId, (string Type, string Value) replacement)
+	{
+		var id = dialect.Claims.Columns[nameof(NorseUserClaim.Id)];
+		return $"SELECT 1 FROM {dialect.Claims.Name} AS held WHERE {ClaimKey(dialect, bind, userId, replacement, "held.")} AND held.{id} <> {dialect.Claims.Name}.{id}";
+	}
 
 	static string Format(string format, string operand) =>
 		string.Format(CultureInfo.InvariantCulture, format, operand);
