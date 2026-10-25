@@ -1,3 +1,4 @@
+using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Identity;
 using Norse.Identity.EntityFramework;
 
@@ -27,8 +28,17 @@ static class IdentityBuilderExtensions
 		///     <c>NormalizedUserName</c> end up holding the same blind-index HMAC once both normalized values are
 		///     updated -- that duplication is correct and expected, never a bug to "fix".
 		/// </remarks>
+		/// <param name="signingCertificate">
+		///     The OpenIddict signing/encryption certificate — a single certificate serving both roles
+		///     (spec §2.3). Callers own its lifetime; this method does not dispose it.
+		/// </param>
+		/// <param name="accessTokenLifetime">
+		///     Overrides OpenIddict's default access token lifetime. Omitted in production — exists so
+		///     Task 11's expired-token test can mint a token that is already expired by the time it's used,
+		///     without hand-constructing a JWT outside OpenIddict's own issuance path.
+		/// </param>
 		/// <returns>The <see cref="IdentityBuilder" /> for further chaining.</returns>
-		public IdentityBuilder AddNorseIdentity()
+		public IdentityBuilder AddNorseIdentity(X509Certificate2 signingCertificate, TimeSpan? accessTokenLifetime = null)
 		{
 			services.Configure<IdentityOptions>(o =>
 			{
@@ -53,7 +63,24 @@ static class IdentityBuilderExtensions
 			// client needs (this is the identity cookie) without naming the framework underneath it.
 			services.ConfigureApplicationCookie(options => options.Cookie.Name = "Norse.Identity");
 
-			services.AddNorseOpenIddictCore();
+			services.AddNorseOpenIddictCore()
+				.AddServer(o =>
+				{
+					o.AllowClientCredentialsFlow()
+						.SetTokenEndpointUris("/connect/token")
+						.DisableAccessTokenEncryption()
+						.AddSigningCertificate(signingCertificate)
+						.AddEncryptionCertificate(signingCertificate)
+						.UseAspNetCore(a => a.EnableTokenEndpointPassthrough());
+					if (accessTokenLifetime is { } lifetime)
+						o.SetAccessTokenLifetime(lifetime);
+				})
+				.AddValidation(o =>
+				{
+					o.UseLocalServer();
+					o.AddAudiences("Norse.Facade");
+					o.UseAspNetCore();
+				});
 
 			return identityBuilder;
 		}

@@ -12,8 +12,9 @@ public sealed class IdentityBuilderExtensionsTests
 	void AddNorseIdentity_registers_NorseUserStore_as_IUserStore()
 	{
 		ServiceCollection services = new();
+		using var certificate = IdentityTestCertificate.CreateFresh();
 
-		services.AddNorseIdentity();
+		services.AddNorseIdentity(certificate);
 
 		var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IUserStore<NorseUser>));
 		descriptor.ShouldNotBeNull();
@@ -24,8 +25,9 @@ public sealed class IdentityBuilderExtensionsTests
 	void AddNorseIdentity_returns_the_identity_builder_wrapping_the_same_services()
 	{
 		ServiceCollection services = new();
+		using var certificate = IdentityTestCertificate.CreateFresh();
 
-		var result = services.AddNorseIdentity();
+		var result = services.AddNorseIdentity(certificate);
 
 		result.Services.ShouldBeSameAs(services);
 	}
@@ -35,8 +37,9 @@ public sealed class IdentityBuilderExtensionsTests
 	{
 		ServiceCollection services = new();
 		services.AddDbContext<NorseIdentityDbContext>(o => o.UseSqlite("Data Source=:memory:"));
+		using var certificate = IdentityTestCertificate.CreateFresh();
 
-		services.AddNorseIdentity();
+		services.AddNorseIdentity(certificate);
 
 		using var provider = services.BuildServiceProvider();
 		var options = provider.GetRequiredService<IOptions<IdentityOptions>>();

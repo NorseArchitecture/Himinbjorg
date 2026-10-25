@@ -14,8 +14,9 @@ public sealed class RegistrationCompositionTests
 	{
 		var builder = Host.CreateApplicationBuilder();
 		builder.Configuration["ConnectionStrings:test"] = "Host=localhost;Database=test";
+		using var certificate = IdentityTestCertificate.CreateFresh();
 
-		builder.AddNorseAuthenticationService("test");
+		builder.AddNorseAuthenticationService("test", certificate);
 		var services = builder.Services;
 
 		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<LoginCommand, NavigationResult>));
