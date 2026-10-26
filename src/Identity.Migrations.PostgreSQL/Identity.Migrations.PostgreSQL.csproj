@@ -21,7 +21,7 @@
 		<NorseRef Include="Persistence.EntityFramework.PostgreSQL">
 			<Repo>Urdarbrunnr</Repo>
 		</NorseRef>
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="11.*-*">
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="11.0.0-rc.2.26504.105">
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
 		<ProjectReference Include="../Identity.Migrations/Identity.Migrations.csproj" />
