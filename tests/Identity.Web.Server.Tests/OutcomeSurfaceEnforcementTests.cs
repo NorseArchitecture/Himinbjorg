@@ -110,7 +110,9 @@ public sealed class OutcomeSurfaceEnforcementTests
 				continue;
 			}
 
-			il.Offset += opCode.OperandType switch
+			// Computed before it is added: `il.Offset += …` reads Offset first, so the switch count ReadInt32 consumes
+			// would be lost and the walk would land inside the jump table (an invalid opcode under Release IL).
+			var operandBytes = opCode.OperandType switch
 			{
 				OperandType.InlineNone => 0,
 				OperandType.ShortInlineBrTarget or OperandType.ShortInlineI or OperandType.ShortInlineVar => 1,
@@ -119,6 +121,7 @@ public sealed class OutcomeSurfaceEnforcementTests
 				OperandType.InlineSwitch => il.ReadInt32() * 4,
 				_ => 4
 			};
+			il.Offset += operandBytes;
 		}
 
 		return callees;
