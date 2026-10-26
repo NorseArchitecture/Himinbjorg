@@ -27,7 +27,15 @@ public sealed class NorseUserRole : IdentityUserRole<Guid>, INorseEntity<NorseUs
 	public static void Configure(EntityTypeBuilder<NorseUserRole> builder)
 	{
 		builder.ToTable("UserRoles");
-		builder.HasOne(ur => ur.User).WithMany().HasForeignKey(ur => ur.UserId).IsRequired();
-		builder.HasOne(ur => ur.Role).WithMany().HasForeignKey(ur => ur.RoleId).IsRequired();
+
+		builder
+			.HasOne(static ur => ur.User)
+			.WithMany()
+			.HasForeignKey(static ur => ur.UserId);
+
+		builder
+			.HasOne(static ur => ur.Role)
+			.WithMany()
+			.HasForeignKey(static ur => ur.RoleId);
 	}
 }

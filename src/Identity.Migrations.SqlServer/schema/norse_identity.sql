@@ -72,28 +72,22 @@ CREATE TABLE [SubjectKeys] (
 GO
 
 
-DECLARE @historyTableSchema3 nvarchar(max) = QUOTENAME(SCHEMA_NAME())
-EXEC(N'CREATE TABLE [Users] (
+CREATE TABLE [Users] (
     [Id] uniqueidentifier NOT NULL,
-    [SecurityStamp] nchar(32) NOT NULL,
-    [SystemPeriodEnd] datetime2 GENERATED ALWAYS AS ROW END HIDDEN NOT NULL,
-    [SystemPeriodStart] datetime2 GENERATED ALWAYS AS ROW START HIDDEN NOT NULL,
     [UserName] nvarchar(256) NOT NULL,
-    [NormalizedUserName] nvarchar(256) NULL,
     [Email] nvarchar(256) NULL,
-    [NormalizedEmail] nvarchar(256) NULL,
     [EmailConfirmed] bit NOT NULL,
-    [PasswordHash] varbinary(128) NULL,
     [ConcurrencyStamp] uniqueidentifier NOT NULL,
     [PhoneNumber] nvarchar(256) NULL,
     [PhoneNumberConfirmed] bit NOT NULL,
     [TwoFactorEnabled] bit NOT NULL,
-    [LockoutEnd] datetimeoffset NULL,
     [LockoutEnabled] bit NOT NULL,
-    [AccessFailedCount] int NOT NULL,
-    CONSTRAINT [PK_Users] PRIMARY KEY ([Id]),
-    PERIOD FOR SYSTEM_TIME([SystemPeriodStart], [SystemPeriodEnd])
-) WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = ' + @historyTableSchema3 + N'.[UsersHistory]))');
+    [SystemPeriodStart] datetime2 GENERATED ALWAYS AS ROW START HIDDEN NOT NULL,
+    [SystemPeriodEnd] datetime2 GENERATED ALWAYS AS ROW END HIDDEN NOT NULL,
+    PERIOD FOR SYSTEM_TIME ([SystemPeriodStart], [SystemPeriodEnd]),
+    CONSTRAINT [PK_Users] PRIMARY KEY ([Id])
+)
+WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = [dbo].[UsersHistory]));
 GO
 
 
@@ -113,7 +107,7 @@ CREATE TABLE [Authorizations] (
 GO
 
 
-DECLARE @historyTableSchema4 nvarchar(max) = QUOTENAME(SCHEMA_NAME())
+DECLARE @historyTableSchema3 nvarchar(max) = QUOTENAME(SCHEMA_NAME())
 EXEC(N'CREATE TABLE [RoleClaims] (
     [Id] int NOT NULL IDENTITY,
     [SystemPeriodEnd] datetime2 GENERATED ALWAYS AS ROW END HIDDEN NOT NULL,
@@ -124,13 +118,14 @@ EXEC(N'CREATE TABLE [RoleClaims] (
     CONSTRAINT [PK_RoleClaims] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_RoleClaims_Roles_RoleId] FOREIGN KEY ([RoleId]) REFERENCES [Roles] ([Id]) ON DELETE CASCADE,
     PERIOD FOR SYSTEM_TIME([SystemPeriodStart], [SystemPeriodEnd])
-) WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = ' + @historyTableSchema4 + N'.[RoleClaimsHistory]))');
+) WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = ' + @historyTableSchema3 + N'.[RoleClaimsHistory]))');
 GO
 
 
-DECLARE @historyTableSchema5 nvarchar(max) = QUOTENAME(SCHEMA_NAME())
+DECLARE @historyTableSchema4 nvarchar(max) = QUOTENAME(SCHEMA_NAME())
 EXEC(N'CREATE TABLE [UserClaims] (
     [Id] int NOT NULL IDENTITY,
+    [ClaimValueHash] AS ISNULL(CAST(HASHBYTES(''SHA2_256'', [ClaimValue]) AS binary(32)), 0x) PERSISTED,
     [SystemPeriodEnd] datetime2 GENERATED ALWAYS AS ROW END HIDDEN NOT NULL,
     [SystemPeriodStart] datetime2 GENERATED ALWAYS AS ROW START HIDDEN NOT NULL,
     [UserId] uniqueidentifier NOT NULL,
@@ -139,22 +134,32 @@ EXEC(N'CREATE TABLE [UserClaims] (
     CONSTRAINT [PK_UserClaims] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_UserClaims_Users_UserId] FOREIGN KEY ([UserId]) REFERENCES [Users] ([Id]) ON DELETE CASCADE,
     PERIOD FOR SYSTEM_TIME([SystemPeriodStart], [SystemPeriodEnd])
-) WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = ' + @historyTableSchema5 + N'.[UserClaimsHistory]))');
+) WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = ' + @historyTableSchema4 + N'.[UserClaimsHistory]))');
 GO
 
 
-DECLARE @historyTableSchema6 nvarchar(max) = QUOTENAME(SCHEMA_NAME())
-EXEC(N'CREATE TABLE [UserLogins] (
+CREATE TABLE [UserCredentials] (
+    [Id] uniqueidentifier NOT NULL,
+    [SecurityStamp] nchar(32) NOT NULL,
+    [NormalizedUserName] nvarchar(256) NOT NULL,
+    [NormalizedEmail] nvarchar(256) NOT NULL,
+    [PasswordHash] varbinary(128) NULL,
+    [LockoutEnd] datetimeoffset NULL,
+    [AccessFailedCount] int NOT NULL,
+    CONSTRAINT [PK_UserCredentials] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_UserCredentials_Users_Id] FOREIGN KEY ([Id]) REFERENCES [Users] ([Id]) ON DELETE CASCADE
+);
+GO
+
+
+CREATE TABLE [UserLogins] (
     [LoginProvider] nvarchar(128) NOT NULL,
     [ProviderKey] nvarchar(256) NOT NULL,
-    [SystemPeriodEnd] datetime2 GENERATED ALWAYS AS ROW END HIDDEN NOT NULL,
-    [SystemPeriodStart] datetime2 GENERATED ALWAYS AS ROW START HIDDEN NOT NULL,
     [ProviderDisplayName] nvarchar(256) NULL,
     [UserId] uniqueidentifier NOT NULL,
     CONSTRAINT [PK_UserLogins] PRIMARY KEY ([LoginProvider], [ProviderKey]),
-    CONSTRAINT [FK_UserLogins_Users_UserId] FOREIGN KEY ([UserId]) REFERENCES [Users] ([Id]) ON DELETE CASCADE,
-    PERIOD FOR SYSTEM_TIME([SystemPeriodStart], [SystemPeriodEnd])
-) WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = ' + @historyTableSchema6 + N'.[UserLoginsHistory]))');
+    CONSTRAINT [FK_UserLogins_Users_UserId] FOREIGN KEY ([UserId]) REFERENCES [Users] ([Id]) ON DELETE CASCADE
+);
 GO
 
 
@@ -168,7 +173,7 @@ CREATE TABLE [UserPasskeys] (
 GO
 
 
-DECLARE @historyTableSchema7 nvarchar(max) = QUOTENAME(SCHEMA_NAME())
+DECLARE @historyTableSchema5 nvarchar(max) = QUOTENAME(SCHEMA_NAME())
 EXEC(N'CREATE TABLE [UserRoles] (
     [UserId] uniqueidentifier NOT NULL,
     [RoleId] uniqueidentifier NOT NULL,
@@ -178,7 +183,7 @@ EXEC(N'CREATE TABLE [UserRoles] (
     CONSTRAINT [FK_UserRoles_Roles_RoleId] FOREIGN KEY ([RoleId]) REFERENCES [Roles] ([Id]) ON DELETE CASCADE,
     CONSTRAINT [FK_UserRoles_Users_UserId] FOREIGN KEY ([UserId]) REFERENCES [Users] ([Id]) ON DELETE CASCADE,
     PERIOD FOR SYSTEM_TIME([SystemPeriodStart], [SystemPeriodEnd])
-) WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = ' + @historyTableSchema7 + N'.[UserRolesHistory]))');
+) WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = ' + @historyTableSchema5 + N'.[UserRolesHistory]))');
 GO
 
 
@@ -246,7 +251,15 @@ CREATE UNIQUE INDEX [IX_Tokens_ReferenceId] ON [Tokens] ([ReferenceId]) WHERE [R
 GO
 
 
-CREATE INDEX [IX_UserClaims_UserId] ON [UserClaims] ([UserId]);
+CREATE UNIQUE INDEX [IX_UserClaims_UserId_ClaimType_ClaimValueHash] ON [UserClaims] ([UserId], [ClaimType], [ClaimValueHash]);
+GO
+
+
+CREATE INDEX [EmailIndex] ON [UserCredentials] ([NormalizedEmail]);
+GO
+
+
+CREATE UNIQUE INDEX [UserNameIndex] ON [UserCredentials] ([NormalizedUserName]);
 GO
 
 
@@ -262,11 +275,7 @@ CREATE INDEX [IX_UserRoles_RoleId] ON [UserRoles] ([RoleId]);
 GO
 
 
-CREATE INDEX [EmailIndex] ON [Users] ([NormalizedEmail]);
-GO
-
-
-CREATE UNIQUE INDEX [UserNameIndex] ON [Users] ([NormalizedUserName]) WHERE [NormalizedUserName] IS NOT NULL;
+ALTER TABLE [UserCredentials] ADD CONSTRAINT [CK_UserCredentials_EmailIsUserName] CHECK ([NormalizedEmail] = [NormalizedUserName]);
 GO
 
 

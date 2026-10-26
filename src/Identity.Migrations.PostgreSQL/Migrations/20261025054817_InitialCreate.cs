@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Norse.Identity.Migrations.PostgreSQL.Migrations;
 
 /// <inheritdoc />
-public partial class _20260805231543_InitialCreate : Migration
+public partial class _20261025054817_InitialCreate : Migration
 {
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder)
@@ -93,24 +93,18 @@ public partial class _20260805231543_InitialCreate : Migration
             columns: table => new
             {
                 id = table.Column<Guid>(type: "uuid", nullable: false),
-                security_stamp = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
                 user_name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
-                normalized_user_name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
                 email = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
-                normalized_email = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
                 email_confirmed = table.Column<bool>(type: "boolean", nullable: false),
-                password_hash = table.Column<byte[]>(type: "bytea", maxLength: 128, nullable: true),
                 concurrency_stamp = table.Column<Guid>(type: "uuid", nullable: false),
                 phone_number = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
                 phone_number_confirmed = table.Column<bool>(type: "boolean", nullable: false),
                 two_factor_enabled = table.Column<bool>(type: "boolean", nullable: false),
-                lockout_end = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                lockout_enabled = table.Column<bool>(type: "boolean", nullable: false),
-                access_failed_count = table.Column<int>(type: "integer", nullable: false)
+                lockout_enabled = table.Column<bool>(type: "boolean", nullable: false)
             },
             constraints: table =>
             {
-                table.PrimaryKey("pk_users", x => x.id);
+                table.PrimaryKey("PK_users", x => x.id);
             })
             .Annotation("Norse:Temporal", true);
 
@@ -166,6 +160,7 @@ public partial class _20260805231543_InitialCreate : Migration
             {
                 id = table.Column<int>(type: "integer", nullable: false)
                     .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                claim_value_hash = table.Column<byte[]>(type: "bytea", maxLength: 32, nullable: false, computedColumnSql: "norse_utf8_sha256(claim_value)", stored: true),
                 user_id = table.Column<Guid>(type: "uuid", nullable: false),
                 claim_type = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
                 claim_value = table.Column<string>(type: "text", maxLength: -1, nullable: false)
@@ -181,6 +176,30 @@ public partial class _20260805231543_InitialCreate : Migration
                     onDelete: ReferentialAction.Cascade);
             })
             .Annotation("Norse:Temporal", true);
+
+        migrationBuilder.CreateTable(
+            name: "user_credentials",
+            columns: table => new
+            {
+                id = table.Column<Guid>(type: "uuid", nullable: false),
+                security_stamp = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
+                normalized_user_name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                normalized_email = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                password_hash = table.Column<byte[]>(type: "bytea", maxLength: 128, nullable: true),
+                lockout_end = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                access_failed_count = table.Column<int>(type: "integer", nullable: false)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("PK_user_credentials", x => x.id);
+                table.ForeignKey(
+                    name: "FK_user_credentials_users_id",
+                    column: x => x.id,
+                    principalTable: "users",
+                    principalColumn: "id",
+                    onDelete: ReferentialAction.Cascade);
+            })
+            .Annotation("Norse:FragmentCheckConstraint:ck_user_credentials_email_is_user_name", "normalized_email = normalized_user_name");
 
         migrationBuilder.CreateTable(
             name: "user_logins",
@@ -200,8 +219,7 @@ public partial class _20260805231543_InitialCreate : Migration
                     principalTable: "users",
                     principalColumn: "id",
                     onDelete: ReferentialAction.Cascade);
-            })
-            .Annotation("Norse:Temporal", true);
+            });
 
         migrationBuilder.CreateTable(
             name: "user_passkeys",
@@ -345,9 +363,21 @@ public partial class _20260805231543_InitialCreate : Migration
             unique: true);
 
         migrationBuilder.CreateIndex(
-            name: "ix_user_claims_user_id",
+            name: "ix_user_claims_user_id_claim_type_claim_value_hash",
             table: "user_claims",
-            column: "user_id");
+            columns: new[] { "user_id", "claim_type", "claim_value_hash" },
+            unique: true);
+
+        migrationBuilder.CreateIndex(
+            name: "email_index",
+            table: "user_credentials",
+            column: "normalized_email");
+
+        migrationBuilder.CreateIndex(
+            name: "user_name_index",
+            table: "user_credentials",
+            column: "normalized_user_name",
+            unique: true);
 
         migrationBuilder.CreateIndex(
             name: "ix_user_logins_user_id",
@@ -363,17 +393,6 @@ public partial class _20260805231543_InitialCreate : Migration
             name: "ix_user_roles_role_id",
             table: "user_roles",
             column: "role_id");
-
-        migrationBuilder.CreateIndex(
-            name: "email_index",
-            table: "users",
-            column: "normalized_email");
-
-        migrationBuilder.CreateIndex(
-            name: "user_name_index",
-            table: "users",
-            column: "normalized_user_name",
-            unique: true);
     }
 
     /// <inheritdoc />
@@ -398,8 +417,10 @@ public partial class _20260805231543_InitialCreate : Migration
             .Annotation("Norse:Temporal", true);
 
         migrationBuilder.DropTable(
-            name: "user_logins")
-            .Annotation("Norse:Temporal", true);
+            name: "user_credentials");
+
+        migrationBuilder.DropTable(
+            name: "user_logins");
 
         migrationBuilder.DropTable(
             name: "user_passkeys");

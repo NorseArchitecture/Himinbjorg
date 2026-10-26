@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using Norse.Abstractions.Backend.Keys;
 using Norse.Abstractions.Web.Server.DeferredSignIn;
 using Norse.Identity.EntityFramework;
+using Norse.Identity.Outcomes;
 
 namespace Norse.Identity.Web.Server;
 
@@ -155,8 +156,8 @@ public sealed class NorseSignInManager(
 
 	/// <summary>
 	///     Folds a destroyed key into a clean dead-session verdict. Law: a destroyed key IS a dead
-	///     session -- the shred ceremony's (<c>Norse.Identity.Web.Server.ErasureService</c>) third act
-	///     destroys the subject's key, and every subsequent attempt to re-materialize the row's
+	///     session -- erasure (<c>Norse.Identity.Web.Server.ErasureService</c>) destroys the subject's key
+	///     before its transaction deletes the row, and in that window every attempt to re-materialize the row's
 	///     protected columns (<c>Email</c>, <c>UserName</c>, both still wired through
 	///     <see cref="NorsePersonalDataProtector" />'s EF value converter) throws
 	///     <see cref="KeyDestroyedException" />, unwrapped, straight out of EF's materializer -- including
@@ -166,7 +167,9 @@ public sealed class NorseSignInManager(
 	///     catch is deliberately narrow: it lives ONLY at this revalidation boundary. Every other path
 	///     (<see cref="NorseUserStore" />, <see cref="NorsePersonalDataProtector" /> itself) must keep
 	///     throwing -- the disclosure surface's <c>Erased</c> fold (a later task) depends on the
-	///     exception surviving there, and catching it earlier would silence that signal for good.
+	///     exception surviving there, and catching it earlier would silence that signal for good. The classification
+	///     is <see cref="IdentityOutcomeMap.IsErased" />, the one the <c>Erased</c> mapping row and the revalidating
+	///     state provider share (2026-10-24 explicit-writes spec §4.12).
 	/// </summary>
 	public override async Task<NorseUser?> ValidateSecurityStampAsync(ClaimsPrincipal? principal)
 	{
@@ -174,7 +177,7 @@ public sealed class NorseSignInManager(
 		{
 			return await base.ValidateSecurityStampAsync(principal).ConfigureAwait(false);
 		}
-		catch (KeyDestroyedException)
+		catch (Exception exception) when (IdentityOutcomeMap.IsErased(exception))
 		{
 			return null;
 		}

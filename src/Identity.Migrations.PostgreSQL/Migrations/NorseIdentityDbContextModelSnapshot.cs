@@ -17,13 +17,13 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20260805231543_InitialCreate";
+    public override string LastMigrationId => "20261025054817_InitialCreate";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
 #pragma warning disable 612, 618
         modelBuilder
-            .HasAnnotation("ProductVersion", "11.0.0-preview.6.26359.118")
+            .HasAnnotation("ProductVersion", "11.0.0-rc.2.26504.105")
             .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
         NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -423,11 +423,13 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .HasColumnName("lockout_end");
 
                 b.Property<string>("NormalizedEmail")
+                    .IsRequired()
                     .HasMaxLength(256)
                     .HasColumnType("character varying(256)")
                     .HasColumnName("normalized_email");
 
                 b.Property<string>("NormalizedUserName")
+                    .IsRequired()
                     .HasMaxLength(256)
                     .HasColumnType("character varying(256)")
                     .HasColumnName("normalized_user_name");
@@ -462,8 +464,7 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .HasColumnType("character varying(256)")
                     .HasColumnName("user_name");
 
-                b.HasKey("Id")
-                    .HasName("pk_users");
+                b.HasKey("Id");
 
                 b.HasIndex("NormalizedEmail")
                     .HasDatabaseName("email_index");
@@ -474,7 +475,26 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
 
                 b.ToTable("users");
 
-                b.HasAnnotation("Norse:Temporal", true);
+                b.SplitToTable("user_credentials", null, t =>
+                    {
+                        t.Property("AccessFailedCount");
+
+                        t.Property("LockoutEnd");
+
+                        t.Property("NormalizedEmail");
+
+                        t.Property("NormalizedUserName");
+
+                        t.Property("PasswordHash");
+
+                        t.Property("SecurityStamp");
+
+                        t.HasAnnotation("Norse:FragmentCheckConstraint:ck_user_credentials_email_is_user_name", "normalized_email = normalized_user_name");
+                    });
+
+                b
+                    .HasAnnotation("Norse:Temporal", true)
+                    .HasAnnotation("Norse:TemporalPrincipalTableOnly", true);
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserClaim", b =>
@@ -498,6 +518,14 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .HasColumnType("text")
                     .HasColumnName("claim_value");
 
+                b.Property<byte[]>("ClaimValueHash")
+                    .IsRequired()
+                    .ValueGeneratedOnAddOrUpdate()
+                    .HasMaxLength(32)
+                    .HasColumnType("bytea")
+                    .HasColumnName("claim_value_hash")
+                    .HasComputedColumnSql("norse_utf8_sha256(claim_value)", true);
+
                 b.Property<Guid>("UserId")
                     .HasColumnType("uuid")
                     .HasColumnName("user_id");
@@ -505,8 +533,9 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                 b.HasKey("Id")
                     .HasName("pk_user_claims");
 
-                b.HasIndex("UserId")
-                    .HasDatabaseName("ix_user_claims_user_id");
+                b.HasIndex("UserId", "ClaimType", "ClaimValueHash")
+                    .IsUnique()
+                    .HasDatabaseName("ix_user_claims_user_id_claim_type_claim_value_hash");
 
                 b.ToTable("user_claims");
 
@@ -541,8 +570,6 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .HasDatabaseName("ix_user_logins_user_id");
 
                 b.ToTable("user_logins");
-
-                b.HasAnnotation("Norse:Temporal", true);
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserPasskey", b =>
@@ -713,6 +740,15 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .HasConstraintName("fk_role_claims_roles_role_id");
 
                 b.Navigation("Role");
+            });
+
+        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUser", b =>
+            {
+                b.HasOne("Norse.Identity.EntityFramework.NorseUser", null)
+                    .WithOne()
+                    .HasForeignKey("Norse.Identity.EntityFramework.NorseUser", "Id")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserClaim", b =>

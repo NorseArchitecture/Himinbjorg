@@ -29,9 +29,16 @@ public sealed class NorseOpenIddictToken
 	public static void Configure(EntityTypeBuilder<NorseOpenIddictToken> builder)
 	{
 		builder.ToTable("Tokens");
-		builder.Property(t => t.Payload).HasMaxLength(-1);
-		builder.Property(t => t.Properties).HasMaxLength(-1);
-		builder.HasOne(t => t.Application).WithMany(a => a.Tokens).HasForeignKey(t => t.ApplicationId);
-		builder.HasOne(t => t.Authorization).WithMany(a => a.Tokens).HasForeignKey(t => t.AuthorizationId);
+		builder.Property(static t => t.Payload).HasMaxLength(-1);
+		builder.Property(static t => t.Properties).HasMaxLength(-1);
+		builder
+			.HasOne(static t => t.Application)
+			.WithMany(static a => a.Tokens)
+			.HasForeignKey(static t => t.ApplicationId);
+
+		builder
+			.HasOne(static t => t.Authorization)
+			.WithMany(static a => a.Tokens)
+			.HasForeignKey(static t => t.AuthorizationId);
 	}
 }

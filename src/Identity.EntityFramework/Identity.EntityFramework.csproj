@@ -8,7 +8,7 @@
 		<NorseRef Include="Persistence.EntityFramework" Generator="true">
 			<Repo>Urdarbrunnr</Repo>
 		</NorseRef>
-		<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="11.*-*" />
+		<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="11.0.0-rc.2.26504.105" />
 		<PackageReference Include="OpenIddict.EntityFrameworkCore" Version="7.*" />
 	</ItemGroup>
 </Project>

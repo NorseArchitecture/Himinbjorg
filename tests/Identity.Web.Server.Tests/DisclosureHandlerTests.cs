@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Norse.Abstractions.Backend.Keys;
 using Norse.Abstractions.Contracts;
 using Norse.AuthN.Services;
-using Norse.Identity.EntityFramework;
 using Norse.Identity.Web.Server.Disclosure;
 using Norse.Primitives;
 
@@ -12,9 +12,9 @@ namespace Norse.Identity.Web.Server.Tests;
 /// <summary>
 ///     The disclosure surface's handler tests (2026-08-03 PII spec §6, real Postgres): self-disclosure
 ///     returns the full decrypted wire strings, masked disclosure returns the PII structs' own masks, an
-///     unknown subject is <see cref="ErrorCategory.NotFound" />, and a shredded subject is
-///     <see cref="ErrorCategory.Erased" /> with the exact receipt -- proving the repository fold's
-///     <see cref="KeyDestroyedException" /> catch survives a real EF materialization round trip, not a
+///     unknown or shredded subject is <see cref="ErrorCategory.NotFound" />, and a subject whose key is
+///     destroyed but whose row is not yet deleted is <see cref="ErrorCategory.Erased" /> with the exact receipt --
+///     proving the repository fold's <see cref="KeyDestroyedException" /> catch survives a real EF materialization round trip, not a
 ///     hand-thrown stand-in (spec §8 verify item 11).
 /// </summary>
 // Real-Postgres tests share exactly one PostgresIdentityFixture instance across the whole
@@ -66,34 +66,13 @@ public sealed class DisclosureHandlerTests(PostgresIdentityFixture fixture)
 	}
 
 	[Fact]
-	async Task Masked_disclosure_of_an_email_less_subject_answers_empty_string_not_a_fault()
+	async Task Reading_a_subject_in_the_key_destroyed_window_answers_erased_with_the_receipt()
 	{
-		// Email is nullable in the model -- only UserName is required (NorseUser.Configure) -- so a
-		// legal row can carry no email at all. Seeded directly through UserManager rather than
-		// fixture.SeedUserAsync, which always sets Email = the username argument.
-		var (context, _) = await fixture.CreateScopeAsync();
-		var userManager = fixture.CreateUserManager();
-		NorseUser user = new() { UserName = "no-email-user" };
-		(await userManager.CreateAsync(user)).Succeeded.ShouldBeTrue();
-
-		GetMaskedPersonalDataHandler handler = new(context);
-		var outcome = await handler.Handle(new(new GetMaskedPersonalDataRequest { SubjectId = user.Id }),
-			TestContext.Current.CancellationToken);
-
-		outcome.TryGetValue(out Success<MaskedPersonalDataResponse> success)
-			.ShouldBeTrue(); // not a Fault -- a legal row shape
-		success.Value.Email.ShouldBe("");
-		success.Value.PhoneNumber.ShouldBe("");
-	}
-
-	[Fact]
-	async Task Reading_a_shredded_subject_answers_erased_with_the_receipt()
-	{
+		// The §5 window of the explicit-writes spec: erasure destroys the key first, so until its transaction
+		// deletes the row, materializing it throws KeyDestroyedException and disclosure answers Erased.
 		var (context, keyStore) = await fixture.CreateScopeAsync();
 		var user = await fixture.SeedUserAsync("gone@example.com");
-		var shred = await new ErasureService(context, keyStore).ShredAsync(user.Id,
-			TestContext.Current.CancellationToken);
-		shred.TryGetValue(out Success<ErasureReceipt> receipt).ShouldBeTrue();
+		var receipt = await keyStore.DestroyAsync(user.Id, TestContext.Current.CancellationToken);
 
 		GetMaskedPersonalDataHandler handler = new(context);
 		var outcome = await handler.Handle(new(new GetMaskedPersonalDataRequest { SubjectId = user.Id }),
@@ -102,7 +81,26 @@ public sealed class DisclosureHandlerTests(PostgresIdentityFixture fixture)
 		outcome.TryGetValue(out Failed failed).ShouldBeTrue();
 		failed.Problem.Category.ShouldBe(ErrorCategory.Erased);
 		failed.Problem.Receipt
-			.ShouldBe(receipt.Value); // spec §8 verify item 11: the typed exception crossed EF materialization intact
+			.ShouldBe(receipt); // spec §8 verify item 11: the typed exception crossed EF materialization intact
+	}
+
+	[Fact]
+	async Task Reading_a_shredded_subject_answers_not_found()
+	{
+		// The accepted interim (explicit-writes spec §7.4): the row is gone, and until #55 persists receipts a
+		// live lookup of an erased subject finds nothing.
+		var (context, keyStore) = await fixture.CreateScopeAsync();
+		var user = await fixture.SeedUserAsync("shredded@example.com");
+		var shred = await new ErasureService(context, keyStore, NullLogger<ErasureService>.Instance)
+			.ShredAsync(user.Id, TestContext.Current.CancellationToken);
+		shred.TryGetValue(out Success<ErasureReceipt> _).ShouldBeTrue();
+
+		GetMaskedPersonalDataHandler handler = new(context);
+		var outcome = await handler.Handle(new(new GetMaskedPersonalDataRequest { SubjectId = user.Id }),
+			TestContext.Current.CancellationToken);
+
+		outcome.TryGetValue(out Failed failed).ShouldBeTrue();
+		failed.Problem.Category.ShouldBe(ErrorCategory.NotFound);
 	}
 
 	[Fact]

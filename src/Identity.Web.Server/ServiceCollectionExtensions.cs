@@ -29,7 +29,22 @@ public static class ServiceCollectionExtensions
 		/// <param name="accessTokenLifetime">Overrides OpenIddict's default access token lifetime — see <see cref="IdentityBuilderExtensions.AddNorseIdentity" />.</param>
 		/// <returns>The same <paramref name="builder" /> for chaining.</returns>
 		public IHostApplicationBuilder AddNorseAuthenticationService(string connectionStringName,
-			X509Certificate2 signingCertificate, TimeSpan? accessTokenLifetime = null)
+			X509Certificate2 signingCertificate, TimeSpan? accessTokenLifetime = null) =>
+			builder.AddNorseAuthenticationService(NorsePostgresEfProvider.Instance, connectionStringName,
+				signingCertificate, accessTokenLifetime);
+
+		/// <summary>
+		///     The same composition over an explicit provider binding. Internal on purpose: production
+		///     composes on Postgres through the public overload, and this seam exists so the SQL Server
+		///     container fixture runs the identical graph rather than a hand-copied one.
+		/// </summary>
+		/// <param name="provider">The provider binding the context registers against.</param>
+		/// <param name="connectionStringName">The configuration key under <c>ConnectionStrings</c>.</param>
+		/// <param name="signingCertificate">The OpenIddict signing/encryption certificate (spec §2.3).</param>
+		/// <param name="accessTokenLifetime">Overrides OpenIddict's default access token lifetime.</param>
+		/// <returns>The same <paramref name="builder" /> for chaining.</returns>
+		internal IHostApplicationBuilder AddNorseAuthenticationService(INorseEfProvider provider,
+			string connectionStringName, X509Certificate2 signingCertificate, TimeSpan? accessTokenLifetime = null)
 		{
 			// Registered here, not by the host: IEmailSender<NorseUser> is closed over an entity the
 			// host has no business naming. A host wiring a real sender registers its own afterward and
@@ -38,6 +53,7 @@ public static class ServiceCollectionExtensions
 				.AddNorseIdentityWebServerHandlers()
 				.AddScoped<IAuthenticationService, AuthenticationService>()
 				.AddScoped<IIdentityService, IdentityService>()
+				.AddScoped<ErasureService>()
 				.AddSingleton<IEmailSender<NorseUser>, IdentityNoOpEmailSender>()
 				.AddNorseIdentity(signingCertificate, accessTokenLifetime)
 				.AddSignInManager<NorseSignInManager>();
@@ -50,8 +66,7 @@ public static class ServiceCollectionExtensions
 				.AddOpenTelemetry()
 				.WithMetrics(static metrics => metrics.AddMeter("Microsoft.AspNetCore.Identity"));
 
-			return builder.AddNorseContext<NorseIdentityDbContext>(NorsePostgresEfProvider.Instance,
-				connectionStringName);
+			return builder.AddNorseContext<NorseIdentityDbContext>(provider, connectionStringName);
 		}
 	}
 }

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Components.Server;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using Norse.Identity.EntityFramework;
+using Norse.Identity.Outcomes;
 
 namespace Norse.Identity.Web.Server;
 
@@ -31,7 +32,17 @@ public sealed class IdentityRevalidatingAuthenticationStateProvider(
 		var scope = scopeFactory.CreateAsyncScope();
 		await using var _ = scope.ConfigureAwait(false);
 		var userManager = scope.ServiceProvider.GetRequiredService<UserManager<NorseUser>>();
-		return await ValidateSecurityStampAsync(userManager, authenticationState.User).ConfigureAwait(false);
+		// A framework-boundary adapter (2026-10-24 explicit-writes spec §4.12): Blazor's revalidation loop calls this,
+		// never .Outcome. In the key-destroyed window materializing the user throws, and a destroyed key is a dead
+		// session, so it folds to "invalid" -- classified by the one helper NorseSignInManager's fold shares.
+		try
+		{
+			return await ValidateSecurityStampAsync(userManager, authenticationState.User).ConfigureAwait(false);
+		}
+		catch (Exception exception) when (IdentityOutcomeMap.IsErased(exception))
+		{
+			return false;
+		}
 	}
 
 	async Task<bool> ValidateSecurityStampAsync(UserManager<NorseUser> userManager, ClaimsPrincipal principal)

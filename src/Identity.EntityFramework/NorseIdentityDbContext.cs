@@ -92,27 +92,49 @@ public sealed class NorseIdentityDbContext(DbContextOptions<NorseIdentityDbConte
 		// protector) lands here, right after ApplyNorseConfigurations, the day this schema's first
 		// struct-typed PII property (an EncryptedString-shaped value object) is added -- not before.
 
-		// Filter differs by provider: SQL Server needs an explicit filtered index since the column is
-		// nullable now (payload columns darken on erasure, they don't null -- but the lookup hash
-		// legitimately can be absent pre-hash or post-erasure); Postgres's NULLS DISTINCT default
-		// already treats multiple NULLs as non-colliding, so no filter is needed there.
-		// Temporal system-versioning is on, un-split: the eight entities carrying the durable identity
-		// and authorization record declare ITemporalEntity, and Urðarbrunnr's chassis realizes it --
-		// PostgreSQL in migration SQL generation, SQL Server through the realization hook read off this
-		// context's options above. Nothing composes IsTemporal() with SplitToTable() here yet, so the
-		// dotnet/efcore#30366 NullReferenceException that parked this effort is out of reach on this
-		// branch. The AccessFailedCount/LockoutEnd split (Himinbjörg#47) is the shape that reaches it,
-		// and it composes at .NET 11 preview 7 behind TemporalParkedOnSqlServer() -- until then, lockout
-		// churn mints history rows on users, accepted on the record for the local proving ground. Full
-		// design: ../Glitnir/docs/Platform/specs/2026-08-04-temporal-tables-persistence-chassis-design.md.
+		// Temporal system-versioning: the seven entities carrying the durable identity and authorization
+		// record declare ITemporalEntity, and Urðarbrunnr's chassis realizes it -- PostgreSQL in migration
+		// SQL generation, SQL Server through the realization hook read off this context's options above.
+		// NorseUser is the one split entity (the user_credentials fragment, Himinbjörg#47), and EF
+		// can't compose IsTemporal() with SplitToTable() (dotnet/efcore#30366), so it declares
+		// TemporalOnPrincipalTableOnly(): on SQL Server it is versioned engine-natively on users alone, not
+		// EF-temporal; the other six stay EF-native. Full design:
+		// ../Glitnir/docs/Platform/specs/2026-08-04-temporal-tables-persistence-chassis-design.md and
+		// ../Glitnir/docs/Himinbjorg/specs/2026-10-24-identity-explicit-writes-temporal-split-design.md §6.1.
+		//
+		// Two provider-specific expressions follow, here because only the context knows the provider. Email is
+		// the username: CHECK (normalized_email = normalized_user_name) on the user_credentials fragment, with
+		// both hashes NOT NULL (NorseUser.Configure), so the unique index on the user-name hash is email
+		// uniqueness. EF can't declare a CHECK on a split fragment (an entity-level one lands on users, where the
+		// columns no longer live), so it rides Urðarbrunnr's HasFragmentCheckConstraint, whose name is used
+		// verbatim -- hence the provider-cased name as well as the provider-quoted SQL. Claims are a set:
+		// claim_value_hash is a stored SHA-256 of claim_value -- PostgreSQL through
+		// the chassis-owned IMMUTABLE norse_utf8_sha256 (convert_to is STABLE and refused inline), which
+		// Urðarbrunnr's migrations generator emits ahead of user_claims; SQL Server cast to binary(32), since bare
+		// HASHBYTES types the column varbinary(8000), past the index-key limit. EF emits no NOT NULL on a computed
+		// column, so SQL Server infers nullability from the expression, and HASHBYTES reads as nullable: the
+		// ISNULL(..., 0x) wrap is what makes the catalog report the column NOT NULL (ruled 2026-10-25, Task 4.13).
+		// The fallback is unreachable, since ClaimValue is NOT NULL, and ISNULL takes its first argument's type, so
+		// the column stays binary(32). The hash is provider-local and
+		// never compared across providers. Writes to UserClaims need QUOTED_IDENTIFIER ON (SqlClient's default;
+		// sqlcmd needs -I). ../Glitnir/docs/Himinbjorg/specs/2026-10-24-identity-explicit-writes-temporal-split-design.md
+		// §3.1 and §4.6.
 		var isSqlServer = Database.ProviderName == NorseDbContextOptionsExtensions.SqlServerProviderName;
-		builder.Entity<NorseUser>(entity =>
-		{
-			entity.HasIndex(u => u.NormalizedUserName)
-				.IsUnique()
-				.HasFilter(isSqlServer ?
-					"[NormalizedUserName] IS NOT NULL" :
-					null);
-		});
+		builder
+			.Entity<NorseUser>()
+			.SplitToTable(NorseUser.CredentialsTable, credentials => credentials.HasFragmentCheckConstraint(
+				isSqlServer ?
+					"CK_UserCredentials_EmailIsUserName" :
+					"ck_user_credentials_email_is_user_name",
+				isSqlServer ?
+					"[NormalizedEmail] = [NormalizedUserName]" :
+					"normalized_email = normalized_user_name"));
+		builder
+			.Entity<NorseUserClaim>()
+			.Property<byte[]>(NorseUserClaim.ClaimValueHash)
+			.HasComputedColumnSql(isSqlServer ?
+					"ISNULL(CAST(HASHBYTES('SHA2_256', [ClaimValue]) AS binary(32)), 0x)" :
+					"norse_utf8_sha256(claim_value)",
+				stored: true);
 	}
 }

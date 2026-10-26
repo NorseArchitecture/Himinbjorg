@@ -11,6 +11,7 @@
 		<NorseRef Include="Persistence.EntityFramework.Migrations">
 			<Repo>Urdarbrunnr</Repo>
 		</NorseRef>
-		<ProjectReference Include="../Identity.EntityFramework/Identity.EntityFramework.csproj" />
+		<!-- Identity.EntityFramework flows through it (transitive-first). -->
+		<ProjectReference Include="../Identity.Outcomes/Identity.Outcomes.csproj" />
 	</ItemGroup>
 </Project>

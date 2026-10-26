@@ -18,18 +18,18 @@ public sealed class NorseOpenIddictApplication
 	public static void Configure(EntityTypeBuilder<NorseOpenIddictApplication> builder)
 	{
 		builder.ToTable("Applications");
-		builder.Property(a => a.ClientSecret).HasMaxLength(-1);
-		builder.Property(a => a.DisplayName).HasMaxLength(200);
+		builder.Property(static a => a.ClientSecret).HasMaxLength(-1);
+		builder.Property(static a => a.DisplayName).HasMaxLength(200);
 
 		// JSON-serialized collections/dictionaries OpenIddict itself leaves unbounded by omission
 		// (verified against openiddict-core tag 7.5.0) -- genuinely unbounded, not merely unconfigured.
-		builder.Property(a => a.DisplayNames).HasMaxLength(-1);
-		builder.Property(a => a.JsonWebKeySet).HasMaxLength(-1);
-		builder.Property(a => a.Permissions).HasMaxLength(-1);
-		builder.Property(a => a.PostLogoutRedirectUris).HasMaxLength(-1);
-		builder.Property(a => a.Properties).HasMaxLength(-1);
-		builder.Property(a => a.RedirectUris).HasMaxLength(-1);
-		builder.Property(a => a.Requirements).HasMaxLength(-1);
-		builder.Property(a => a.Settings).HasMaxLength(-1);
+		builder.Property(static a => a.DisplayNames).HasMaxLength(-1);
+		builder.Property(static a => a.JsonWebKeySet).HasMaxLength(-1);
+		builder.Property(static a => a.Permissions).HasMaxLength(-1);
+		builder.Property(static a => a.PostLogoutRedirectUris).HasMaxLength(-1);
+		builder.Property(static a => a.Properties).HasMaxLength(-1);
+		builder.Property(static a => a.RedirectUris).HasMaxLength(-1);
+		builder.Property(static a => a.Requirements).HasMaxLength(-1);
+		builder.Property(static a => a.Settings).HasMaxLength(-1);
 	}
 }

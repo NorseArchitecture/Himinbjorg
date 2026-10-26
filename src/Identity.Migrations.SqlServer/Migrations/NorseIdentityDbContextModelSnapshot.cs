@@ -17,13 +17,13 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20260805231556_InitialCreate";
+    public override string LastMigrationId => "20261025131631_InitialCreate";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
 #pragma warning disable 612, 618
         modelBuilder
-            .HasAnnotation("ProductVersion", "11.0.0-preview.6.26359.118")
+            .HasAnnotation("ProductVersion", "11.0.0-rc.2.26504.105")
             .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
         SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -435,10 +435,12 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .HasColumnType("datetimeoffset");
 
                 b.Property<string>("NormalizedEmail")
+                    .IsRequired()
                     .HasMaxLength(256)
                     .HasColumnType("nvarchar(256)");
 
                 b.Property<string>("NormalizedUserName")
+                    .IsRequired()
                     .HasMaxLength(256)
                     .HasColumnType("nvarchar(256)");
 
@@ -459,16 +461,6 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .HasColumnType("nchar(32)")
                     .IsFixedLength();
 
-                b.Property<DateTime>("SystemPeriodEnd")
-                    .ValueGeneratedOnAddOrUpdate()
-                    .HasColumnType("datetime2")
-                    .HasColumnName("SystemPeriodEnd");
-
-                b.Property<DateTime>("SystemPeriodStart")
-                    .ValueGeneratedOnAddOrUpdate()
-                    .HasColumnType("datetime2")
-                    .HasColumnName("SystemPeriodStart");
-
                 b.Property<bool>("TwoFactorEnabled")
                     .HasColumnType("bit");
 
@@ -484,23 +476,30 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
 
                 b.HasIndex("NormalizedUserName")
                     .IsUnique()
-                    .HasDatabaseName("UserNameIndex")
-                    .HasFilter("[NormalizedUserName] IS NOT NULL");
+                    .HasDatabaseName("UserNameIndex");
 
                 b.ToTable("Users");
 
+                b.SplitToTable("UserCredentials", null, t =>
+                    {
+                        t.Property("AccessFailedCount");
+
+                        t.Property("LockoutEnd");
+
+                        t.Property("NormalizedEmail");
+
+                        t.Property("NormalizedUserName");
+
+                        t.Property("PasswordHash");
+
+                        t.Property("SecurityStamp");
+
+                        t.HasAnnotation("Norse:FragmentCheckConstraint:CK_UserCredentials_EmailIsUserName", "[NormalizedEmail] = [NormalizedUserName]");
+                    });
+
                 b
-                    .ToTable(tb => tb.IsTemporal(ttb =>
-                        {
-                            ttb.UseHistoryTable("UsersHistory");
-                            ttb
-                                .HasPeriodStart("SystemPeriodStart")
-                                .HasColumnName("SystemPeriodStart");
-                            ttb
-                                .HasPeriodEnd("SystemPeriodEnd")
-                                .HasColumnName("SystemPeriodEnd");
-                        }))
-                    .HasAnnotation("Norse:Temporal", true);
+                    .HasAnnotation("Norse:Temporal", true)
+                    .HasAnnotation("Norse:TemporalPrincipalTableOnly", true);
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserClaim", b =>
@@ -521,6 +520,13 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .HasMaxLength(-1)
                     .HasColumnType("nvarchar(max)");
 
+                b.Property<byte[]>("ClaimValueHash")
+                    .IsRequired()
+                    .ValueGeneratedOnAddOrUpdate()
+                    .HasMaxLength(32)
+                    .HasColumnType("varbinary(32)")
+                    .HasComputedColumnSql("ISNULL(CAST(HASHBYTES('SHA2_256', [ClaimValue]) AS binary(32)), 0x)", true);
+
                 b.Property<DateTime>("SystemPeriodEnd")
                     .ValueGeneratedOnAddOrUpdate()
                     .HasColumnType("datetime2")
@@ -536,7 +542,8 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
 
                 b.HasKey("Id");
 
-                b.HasIndex("UserId");
+                b.HasIndex("UserId", "ClaimType", "ClaimValueHash")
+                    .IsUnique();
 
                 b.ToTable("UserClaims");
 
@@ -568,16 +575,6 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .HasMaxLength(256)
                     .HasColumnType("nvarchar(256)");
 
-                b.Property<DateTime>("SystemPeriodEnd")
-                    .ValueGeneratedOnAddOrUpdate()
-                    .HasColumnType("datetime2")
-                    .HasColumnName("SystemPeriodEnd");
-
-                b.Property<DateTime>("SystemPeriodStart")
-                    .ValueGeneratedOnAddOrUpdate()
-                    .HasColumnType("datetime2")
-                    .HasColumnName("SystemPeriodStart");
-
                 b.Property<Guid>("UserId")
                     .HasColumnType("uniqueidentifier");
 
@@ -586,19 +583,6 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                 b.HasIndex("UserId");
 
                 b.ToTable("UserLogins");
-
-                b
-                    .ToTable(tb => tb.IsTemporal(ttb =>
-                        {
-                            ttb.UseHistoryTable("UserLoginsHistory");
-                            ttb
-                                .HasPeriodStart("SystemPeriodStart")
-                                .HasColumnName("SystemPeriodStart");
-                            ttb
-                                .HasPeriodEnd("SystemPeriodEnd")
-                                .HasColumnName("SystemPeriodEnd");
-                        }))
-                    .HasAnnotation("Norse:Temporal", true);
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserPasskey", b =>
@@ -768,6 +752,15 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .IsRequired();
 
                 b.Navigation("Role");
+            });
+
+        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUser", b =>
+            {
+                b.HasOne("Norse.Identity.EntityFramework.NorseUser", null)
+                    .WithOne()
+                    .HasForeignKey("Norse.Identity.EntityFramework.NorseUser", "Id")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseUserClaim", b =>

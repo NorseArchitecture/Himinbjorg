@@ -15,14 +15,14 @@ public sealed class NorseOpenIddictScope
 	public static void Configure(EntityTypeBuilder<NorseOpenIddictScope> builder)
 	{
 		builder.ToTable("Scopes");
-		builder.Property(s => s.Description).HasMaxLength(1000);
-		builder.Property(s => s.DisplayName).HasMaxLength(200);
+		builder.Property(static s => s.Description).HasMaxLength(1000);
+		builder.Property(static s => s.DisplayName).HasMaxLength(200);
 
 		// JSON-serialized localized/collection columns OpenIddict itself leaves unbounded by omission
 		// (verified against openiddict-core tag 7.5.0) -- genuinely unbounded, not merely unconfigured.
-		builder.Property(s => s.Descriptions).HasMaxLength(-1);
-		builder.Property(s => s.DisplayNames).HasMaxLength(-1);
-		builder.Property(s => s.Properties).HasMaxLength(-1);
-		builder.Property(s => s.Resources).HasMaxLength(-1);
+		builder.Property(static s => s.Descriptions).HasMaxLength(-1);
+		builder.Property(static s => s.DisplayNames).HasMaxLength(-1);
+		builder.Property(static s => s.Properties).HasMaxLength(-1);
+		builder.Property(static s => s.Resources).HasMaxLength(-1);
 	}
 }

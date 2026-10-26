@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Http;
+using Norse.Abstractions.Backend.Keys;
 using Norse.Abstractions.Contracts;
 using Norse.Abstractions.Web.Server.DeferredSignIn;
 using Norse.AuthN.Services;
 using Norse.Identity.EntityFramework;
+using Norse.Identity.Outcomes;
 using Norse.Primitives;
 
 namespace Norse.Identity.Web.Server.Tests;
@@ -280,5 +282,33 @@ public sealed class LoginHandlerTests
 
 		outcome.TryGetValue(out Success<NavigationResult> success).ShouldBeTrue();
 		success.Value.NextUrl.ShouldContain("stashed-key");
+	}
+
+	[Theory]
+	[InlineData(true)]
+	[InlineData(false)]
+	async Task An_indeterminate_increment_or_a_destroyed_key_fails_closed_to_the_same_invalid_credentials_instance(
+		bool indeterminate)
+	{
+		// Spec §4.5: an indeterminate access-failed increment fails sign-in closed, to LoginHandler's single static
+		// Failed. A key destroyed mid-erasure (spec §5) answers the same: an erased account is indistinguishable from
+		// bad credentials.
+		var signInManager = MockSignInManager.Create();
+		Exception thrown = indeterminate ?
+			new IndeterminateWriteException("the increment", new TimeoutException()) :
+			new KeyDestroyedException(new(Guid.CreateVersion7(), DateTimeOffset.UnixEpoch));
+		signInManager.PasswordSignInAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<bool>())
+			.ThrowsAsync(thrown);
+		var reference = await NewHandlerWithFailingSignIn().Handle(
+			new(new LoginRequest { EmailInput = "real@example.com", Password = "x" }),
+			TestContext.Current.CancellationToken);
+
+		var outcome = await CreateHandler(signInManager).Handle(
+			new(new LoginRequest { EmailInput = "real@example.com", Password = "x" }),
+			TestContext.Current.CancellationToken);
+
+		reference.TryGetValue(out Failed expected).ShouldBeTrue();
+		outcome.TryGetValue(out Failed failed).ShouldBeTrue();
+		failed.Problem.ShouldBeSameAs(expected.Problem);
 	}
 }

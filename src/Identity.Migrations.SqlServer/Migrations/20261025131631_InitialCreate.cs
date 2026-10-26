@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Norse.Identity.Migrations.SqlServer.Migrations;
 
 /// <inheritdoc />
-public partial class _20260805231556_InitialCreate : Migration
+public partial class _20261025131631_InitialCreate : Migration
 {
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder)
@@ -116,34 +116,20 @@ public partial class _20260805231556_InitialCreate : Migration
             columns: table => new
             {
                 Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                SecurityStamp = table.Column<string>(type: "nchar(32)", fixedLength: true, maxLength: 32, nullable: false),
-                SystemPeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
-                    .Annotation("SqlServer:TemporalIsPeriodEndColumn", true),
-                SystemPeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
-                    .Annotation("SqlServer:TemporalIsPeriodStartColumn", true),
                 UserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
-                NormalizedUserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                 Email = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
-                NormalizedEmail = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                 EmailConfirmed = table.Column<bool>(type: "bit", nullable: false),
-                PasswordHash = table.Column<byte[]>(type: "varbinary(128)", maxLength: 128, nullable: true),
                 ConcurrencyStamp = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                 PhoneNumber = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                 PhoneNumberConfirmed = table.Column<bool>(type: "bit", nullable: false),
                 TwoFactorEnabled = table.Column<bool>(type: "bit", nullable: false),
-                LockoutEnd = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true),
-                LockoutEnabled = table.Column<bool>(type: "bit", nullable: false),
-                AccessFailedCount = table.Column<int>(type: "int", nullable: false)
+                LockoutEnabled = table.Column<bool>(type: "bit", nullable: false)
             },
             constraints: table =>
             {
                 table.PrimaryKey("PK_Users", x => x.Id);
             })
-            .Annotation("SqlServer:IsTemporal", true)
-            .Annotation("SqlServer:TemporalHistoryTableName", "UsersHistory")
-            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
-            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
-            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
+            .Annotation("Norse:TemporalPrincipalTableOnly", true);
 
         migrationBuilder.CreateTable(
             name: "Authorizations",
@@ -205,6 +191,7 @@ public partial class _20260805231556_InitialCreate : Migration
             {
                 Id = table.Column<int>(type: "int", nullable: false)
                     .Annotation("SqlServer:Identity", "1, 1"),
+                ClaimValueHash = table.Column<byte[]>(type: "varbinary(32)", maxLength: 32, nullable: false, computedColumnSql: "ISNULL(CAST(HASHBYTES('SHA2_256', [ClaimValue]) AS binary(32)), 0x)", stored: true),
                 SystemPeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
                     .Annotation("SqlServer:TemporalIsPeriodEndColumn", true),
                 SystemPeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
@@ -230,15 +217,35 @@ public partial class _20260805231556_InitialCreate : Migration
             .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
 
         migrationBuilder.CreateTable(
+            name: "UserCredentials",
+            columns: table => new
+            {
+                Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                SecurityStamp = table.Column<string>(type: "nchar(32)", fixedLength: true, maxLength: 32, nullable: false),
+                NormalizedUserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
+                NormalizedEmail = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
+                PasswordHash = table.Column<byte[]>(type: "varbinary(128)", maxLength: 128, nullable: true),
+                LockoutEnd = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true),
+                AccessFailedCount = table.Column<int>(type: "int", nullable: false)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("PK_UserCredentials", x => x.Id);
+                table.ForeignKey(
+                    name: "FK_UserCredentials_Users_Id",
+                    column: x => x.Id,
+                    principalTable: "Users",
+                    principalColumn: "Id",
+                    onDelete: ReferentialAction.Cascade);
+            })
+            .Annotation("Norse:FragmentCheckConstraint:CK_UserCredentials_EmailIsUserName", "[NormalizedEmail] = [NormalizedUserName]");
+
+        migrationBuilder.CreateTable(
             name: "UserLogins",
             columns: table => new
             {
                 LoginProvider = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
                 ProviderKey = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
-                SystemPeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
-                    .Annotation("SqlServer:TemporalIsPeriodEndColumn", true),
-                SystemPeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
-                    .Annotation("SqlServer:TemporalIsPeriodStartColumn", true),
                 ProviderDisplayName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                 UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
             },
@@ -251,12 +258,7 @@ public partial class _20260805231556_InitialCreate : Migration
                     principalTable: "Users",
                     principalColumn: "Id",
                     onDelete: ReferentialAction.Cascade);
-            })
-            .Annotation("SqlServer:IsTemporal", true)
-            .Annotation("SqlServer:TemporalHistoryTableName", "UserLoginsHistory")
-            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
-            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
-            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
+            });
 
         migrationBuilder.CreateTable(
             name: "UserPasskeys",
@@ -411,9 +413,21 @@ public partial class _20260805231556_InitialCreate : Migration
             filter: "[ReferenceId] IS NOT NULL");
 
         migrationBuilder.CreateIndex(
-            name: "IX_UserClaims_UserId",
+            name: "IX_UserClaims_UserId_ClaimType_ClaimValueHash",
             table: "UserClaims",
-            column: "UserId");
+            columns: new[] { "UserId", "ClaimType", "ClaimValueHash" },
+            unique: true);
+
+        migrationBuilder.CreateIndex(
+            name: "EmailIndex",
+            table: "UserCredentials",
+            column: "NormalizedEmail");
+
+        migrationBuilder.CreateIndex(
+            name: "UserNameIndex",
+            table: "UserCredentials",
+            column: "NormalizedUserName",
+            unique: true);
 
         migrationBuilder.CreateIndex(
             name: "IX_UserLogins_UserId",
@@ -429,18 +443,6 @@ public partial class _20260805231556_InitialCreate : Migration
             name: "IX_UserRoles_RoleId",
             table: "UserRoles",
             column: "RoleId");
-
-        migrationBuilder.CreateIndex(
-            name: "EmailIndex",
-            table: "Users",
-            column: "NormalizedEmail");
-
-        migrationBuilder.CreateIndex(
-            name: "UserNameIndex",
-            table: "Users",
-            column: "NormalizedUserName",
-            unique: true,
-            filter: "[NormalizedUserName] IS NOT NULL");
     }
 
     /// <inheritdoc />
@@ -477,12 +479,11 @@ public partial class _20260805231556_InitialCreate : Migration
             .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
 
         migrationBuilder.DropTable(
-            name: "UserLogins")
-            .Annotation("SqlServer:IsTemporal", true)
-            .Annotation("SqlServer:TemporalHistoryTableName", "UserLoginsHistory")
-            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
-            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
-            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
+            name: "UserCredentials")
+            .Annotation("Norse:FragmentCheckConstraint:CK_UserCredentials_EmailIsUserName", "[NormalizedEmail] = [NormalizedUserName]");
+
+        migrationBuilder.DropTable(
+            name: "UserLogins");
 
         migrationBuilder.DropTable(
             name: "UserPasskeys");
@@ -511,11 +512,7 @@ public partial class _20260805231556_InitialCreate : Migration
 
         migrationBuilder.DropTable(
             name: "Users")
-            .Annotation("SqlServer:IsTemporal", true)
-            .Annotation("SqlServer:TemporalHistoryTableName", "UsersHistory")
-            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
-            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
-            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
+            .Annotation("Norse:TemporalPrincipalTableOnly", true);
 
         migrationBuilder.DropTable(
             name: "Applications")

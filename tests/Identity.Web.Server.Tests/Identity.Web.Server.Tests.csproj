@@ -10,11 +10,13 @@
 			<Repo>Midgard</Repo>
 		</NorseRef>
 		<PackageReference Include="Microsoft.AspNetCore.TestHost" Version="11.*-*" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="11.*-*" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="11.0.0-rc.2.26504.105" />
 		<PackageReference Include="OpenTelemetry.Exporter.InMemory" Version="*" />
+		<PackageReference Include="Testcontainers.MsSql" Version="*" />
 		<PackageReference Include="Testcontainers.PostgreSql" Version="*" />
 		<ProjectReference Include="../../src/Identity.Migrations/Identity.Migrations.csproj" />
 		<ProjectReference Include="../../src/Identity.Migrations.PostgreSQL/Identity.Migrations.PostgreSQL.csproj" />
+		<ProjectReference Include="../../src/Identity.Migrations.SqlServer/Identity.Migrations.SqlServer.csproj" />
 		<ProjectReference Include="../../src/Identity.Web.Server/Identity.Web.Server.csproj" />
 	</ItemGroup>
 </Project>

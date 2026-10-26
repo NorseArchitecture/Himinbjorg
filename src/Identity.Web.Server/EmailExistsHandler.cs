@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Norse.Abstractions.Contracts;
 using Norse.Abstractions.Web.Server.Mediator;
 using Norse.Identity.EntityFramework;
+using Norse.Identity.Outcomes;
 using Norse.Primitives;
 using Norse.Primitives.Pii;
 
@@ -41,7 +42,17 @@ sealed class EmailExistsHandler(IServiceScopeFactory scopeFactory)
 			return Outcome<BoolResponse>.Ok(new BoolResponse { Value = false });
 		var userManager = scope.ServiceProvider.GetRequiredService<UserManager<NorseUser>>();
 		// WireValue is the deliberate plaintext egress — Identity's store speaks canonical strings.
-		var user = await userManager.FindByEmailAsync(email.Value.WireValue).ConfigureAwait(false);
-		return Outcome<BoolResponse>.Ok(new BoolResponse { Value = user is not null });
+		var found = await userManager.Outcome.FindByEmailAsync(email.Value.WireValue, cancellationToken)
+			.ConfigureAwait(false);
+		// Erased is the key-destroyed window (explicit-writes spec §5): the row holds the address until the erasure's
+		// transaction deletes it, so it is still taken. Any other failure travels as itself.
+		return found.Match(
+			static _ => Outcome<BoolResponse>.Ok(new BoolResponse { Value = true }),
+			static problem => problem.Category switch
+			{
+				ErrorCategory.NotFound => Outcome<BoolResponse>.Ok(new BoolResponse { Value = false }),
+				ErrorCategory.Erased => Outcome<BoolResponse>.Ok(new BoolResponse { Value = true }),
+				_ => new Outcome<BoolResponse>(new Failed(problem))
+			});
 	}
 }

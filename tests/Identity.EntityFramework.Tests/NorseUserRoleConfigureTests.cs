@@ -8,17 +8,9 @@ public sealed class NorseUserRoleConfigureTests
 	[Fact]
 	void Configure_sets_table_name() => BuildEntityType().GetTableName().ShouldBe("UserRoles");
 
-	[Fact]
-	void Configure_wires_explicit_User_and_Role_navigations()
-	{
-		var entityType = BuildEntityType();
-		List<IForeignKey> foreignKeys = [.. entityType.GetForeignKeys()];
-
-		foreignKeys.ShouldContain(fk =>
-			fk.DependentToPrincipal!.Name == nameof(NorseUserRole.User) && fk.IsRequired);
-		foreignKeys.ShouldContain(fk =>
-			fk.DependentToPrincipal!.Name == nameof(NorseUserRole.Role) && fk.IsRequired);
-	}
+	// The relationship fact (User_roles_are_required_through_explicit_User_and_Role_navigations) moved to NorseIdentityModelTests (Task 4.2 triage, 2026-10-24):
+	// requiredness is now inferred by EF convention from the non-nullable FK, and a bare
+	// new ModelBuilder() runs no conventions, so only the provider-built model can observe it.
 
 	static IEntityType BuildEntityType()
 	{

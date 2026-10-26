@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<Description>Norse.Identity.Outcomes: the one table that maps ASP.NET Core Identity and OpenIddict results to Outcome&lt;T&gt; (IdentityOutcomeMap, including the shared erased-key classifier), the .Outcome views over UserManager&lt;NorseUser&gt; and IOpenIddictApplicationManager, the Norse-minted Identity error codes, and IndeterminateWriteException. Deliberately Microsoft.NET.Sdk, not Sdk.Web: the migrations service takes the OpenIddict view without the ASP.NET Core framework reference. SignInManager's view lives in Identity.Web.Server, beside the framework it belongs to.</Description>
+		<!-- EF Core (through Identity.EntityFramework) is not AOT/trim-compatible; override the src-level default. -->
+		<IsAotCompatible>false</IsAotCompatible>
+	</PropertyGroup>
+	<ItemGroup>
+		<!-- KeyDestroyedException; Abstractions.Contracts (Outcome<T>, ErrorCategory) flows through it. -->
+		<NorseRef Include="Abstractions.Backend">
+			<Repo>Asgard</Repo>
+		</NorseRef>
+		<ProjectReference Include="../Identity.EntityFramework/Identity.EntityFramework.csproj" />
+	</ItemGroup>
+</Project>
