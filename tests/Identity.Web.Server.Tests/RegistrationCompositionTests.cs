@@ -28,7 +28,14 @@ public sealed class RegistrationCompositionTests
 			d.ServiceType == typeof(IRequestHandler<GetMyPersonalDataCommand, PersonalDataResponse>));
 		services.ShouldContain(d =>
 			d.ServiceType == typeof(IRequestHandler<MaskedPersonalDataCommand, MaskedPersonalDataResponse>));
-		services.Count(d => d.ServiceType == typeof(ISenderDispatch)).ShouldBe(6);
+		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<TwoFactorSignInCommand, NavigationResult>));
+		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<RecoveryCodeSignInCommand, NavigationResult>));
+		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<ForgotPasswordCommand, NavigationResult>));
+		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<ResetPasswordCommand, NavigationResult>));
+		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<ConfirmEmailCommand, Norse.Abstractions.Contracts.BoolResponse>));
+		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<ConfirmEmailChangeCommand, NavigationResult>));
+		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<ResendEmailConfirmationCommand, Norse.Abstractions.Contracts.BoolResponse>));
+		services.Count(d => d.ServiceType == typeof(ISenderDispatch)).ShouldBe(13);
 
 		// The generated CommandRequestValidator<TCommand,TWire,TResponse> adapters — emitted
 		// uniformly for every wrapper command, LogoutCommand/GetMyPersonalDataCommand/
@@ -41,11 +48,25 @@ public sealed class RegistrationCompositionTests
 		services.ShouldContain(d => d.ServiceType == typeof(IValidator<EmailExistsCommand>));
 		services.ShouldContain(d => d.ServiceType == typeof(IValidator<GetMyPersonalDataCommand>));
 		services.ShouldContain(d => d.ServiceType == typeof(IValidator<MaskedPersonalDataCommand>));
+		services.ShouldContain(d => d.ServiceType == typeof(IValidator<TwoFactorSignInCommand>));
+		services.ShouldContain(d => d.ServiceType == typeof(IValidator<RecoveryCodeSignInCommand>));
+		services.ShouldContain(d => d.ServiceType == typeof(IValidator<ForgotPasswordCommand>));
+		services.ShouldContain(d => d.ServiceType == typeof(IValidator<ResetPasswordCommand>));
+		services.ShouldContain(d => d.ServiceType == typeof(IValidator<ConfirmEmailCommand>));
+		services.ShouldContain(d => d.ServiceType == typeof(IValidator<ConfirmEmailChangeCommand>));
+		services.ShouldContain(d => d.ServiceType == typeof(IValidator<ResendEmailConfirmationCommand>));
 
 		// Heimdall's real wire validators — registered under IValidator<TWire> so the adapters above
 		// have something to resolve and run.
 		services.ShouldContain(d => d.ServiceType == typeof(IValidator<LoginRequest>));
 		services.ShouldContain(d => d.ServiceType == typeof(IValidator<RegisterRequest>));
 		services.ShouldContain(d => d.ServiceType == typeof(IValidator<GetMaskedPersonalDataRequest>));
+		services.ShouldContain(d => d.ServiceType == typeof(IValidator<TwoFactorSignInRequest>));
+		services.ShouldContain(d => d.ServiceType == typeof(IValidator<RecoveryCodeSignInRequest>));
+		services.ShouldContain(d => d.ServiceType == typeof(IValidator<ForgotPasswordRequest>));
+		services.ShouldContain(d => d.ServiceType == typeof(IValidator<ResetPasswordRequest>));
+		services.ShouldContain(d => d.ServiceType == typeof(IValidator<ConfirmEmailRequest>));
+		services.ShouldContain(d => d.ServiceType == typeof(IValidator<ConfirmEmailChangeRequest>));
+		services.ShouldContain(d => d.ServiceType == typeof(IValidator<ResendEmailConfirmationRequest>));
 	}
 }

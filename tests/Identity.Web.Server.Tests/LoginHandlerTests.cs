@@ -21,7 +21,8 @@ public sealed class LoginHandlerTests
 	{
 		var accessor = Substitute.For<IHttpContextAccessor>();
 		accessor.HttpContext.Returns(httpContext ?? new DefaultHttpContext());
-		return new LoginHandler(signInManager, deferredSignIn ?? Substitute.For<IDeferredSignIn>(), accessor);
+		return new LoginHandler(signInManager,
+			new DeferredCompletion(deferredSignIn ?? Substitute.For<IDeferredSignIn>(), accessor), accessor);
 	}
 
 	// PasswordSignInAsync already collapses "wrong password against a real user" into
@@ -138,7 +139,9 @@ public sealed class LoginHandlerTests
 		var signInManager = MockSignInManager.Create();
 		signInManager.PasswordSignInAsync("user@example.com", "correct-horse", false, true)
 			.Returns(Microsoft.AspNetCore.Identity.SignInResult.TwoFactorRequired);
-		var handler = CreateHandler(signInManager);
+		DefaultHttpContext httpContext = new();
+		httpContext.Items[NorseSignInManager.TwoFactorChallengeItemName] = "tok";
+		var handler = CreateHandler(signInManager, httpContext: httpContext);
 		LoginCommand command = new(new LoginRequest { EmailInput = "user@example.com", Password = "correct-horse" });
 
 		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
@@ -146,49 +149,38 @@ public sealed class LoginHandlerTests
 		// The correct password must never route into the same branch a wrong password does -- that
 		// would make a 2FA-enabled user's genuinely correct password indistinguishable from a failed
 		// one, defeating the entire point of a second factor. The server resolves NextUrl to the full
-		// navigation target itself -- the client gets a concrete URL, never a flag to branch on or a
-		// route to build.
+		// navigation target itself -- the challenge token NorseSignInManager parked, carried on the
+		// query -- so the client gets a concrete URL, never a flag to branch on or a route to build.
 		outcome.TryGetValue(out Success<NavigationResult> success).ShouldBeTrue();
-		success.Value.NextUrl.ShouldBe("/Account/LoginWith2fa?RememberMe=false");
+		success.Value.NextUrl.ShouldBe("/Account/LoginWith2fa?challenge=tok");
 	}
 
 	[Fact]
-	async Task The_two_factor_challenge_url_carries_the_caller_s_RememberMe_choice()
+	async Task A_two_factor_required_result_without_a_parked_token_throws()
 	{
 		var signInManager = MockSignInManager.Create();
-		signInManager.PasswordSignInAsync("user@example.com", "correct-horse", true, true)
+		signInManager.PasswordSignInAsync("user@example.com", "correct-horse", false, true)
 			.Returns(Microsoft.AspNetCore.Identity.SignInResult.TwoFactorRequired);
 		var handler = CreateHandler(signInManager);
-		LoginCommand command = new(new LoginRequest
-		{
-			EmailInput = "user@example.com",
-			Password = "correct-horse",
-			RememberMe = true
-		});
+		LoginCommand command = new(new LoginRequest { EmailInput = "user@example.com", Password = "correct-horse" });
 
-		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
-
-		outcome.TryGetValue(out Success<NavigationResult> success).ShouldBeTrue();
-		success.Value.NextUrl.ShouldBe("/Account/LoginWith2fa?RememberMe=true");
+		await Should.ThrowAsync<InvalidOperationException>(async () =>
+			await handler.Handle(command, TestContext.Current.CancellationToken));
 	}
 
-	// The exact scenario the leading-slash bug lived in: 2FA required AND the cookie had to be
-	// deferred (an established circuit). This drives through the real TryGetDeferredCompletionUrl
-	// detour instead of the `?? challengeUrl` fallback the two tests above exercise -- asserting the
-	// resulting URL's returnUrl segment is root-relative, since Midgard's completion endpoint emits it
-	// into a meta-refresh with no <base> tag: a path-relative value there 404s (RFC 3986 relative
-	// resolution against /_auth/complete strips the last path segment), a root-relative one doesn't.
+	// Nothing is stashed on the two-factor branch -- NorseSignInManager parks a challenge token instead of
+	// writing (or deferring) a partial cookie -- so the challenge URL is never a deferred-completion
+	// returnUrl. An identity key on Items (which that branch never leaves) still must not pull it through
+	// the detour: the assertion pins the absence of the call, not just the URL it would have produced.
 	[Fact]
-	async Task Two_factor_challenge_routes_through_deferred_completion_with_a_root_relative_return_url_when_stashed()
+	async Task The_two_factor_branch_never_routes_through_deferred_completion()
 	{
 		var signInManager = MockSignInManager.Create();
 		signInManager.PasswordSignInAsync("user@example.com", "correct-horse", false, true)
 			.Returns(Microsoft.AspNetCore.Identity.SignInResult.TwoFactorRequired);
 		var deferredSignIn = Substitute.For<IDeferredSignIn>();
-		deferredSignIn.BuildCompletionUrl(Arg.Any<string>(), Arg.Any<string>())
-			.Returns(call =>
-				$"/_auth/complete?key={call.ArgAt<string>(0)}&returnUrl={Uri.EscapeDataString(call.ArgAt<string>(1))}");
 		DefaultHttpContext httpContext = new();
+		httpContext.Items[NorseSignInManager.TwoFactorChallengeItemName] = "tok";
 		httpContext.Items[NorseSignInManager.DeferredSignInKeyItemName] = "stashed-key";
 		var handler = CreateHandler(signInManager, deferredSignIn, httpContext);
 		LoginCommand command = new(new LoginRequest { EmailInput = "user@example.com", Password = "correct-horse" });
@@ -196,16 +188,8 @@ public sealed class LoginHandlerTests
 		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
 
 		outcome.TryGetValue(out Success<NavigationResult> success).ShouldBeTrue();
-		success.Value.NextUrl.ShouldContain("stashed-key");
-		success.Value.NextUrl.ShouldContain(Uri.EscapeDataString("/Account/LoginWith2fa?RememberMe=false"));
-		// The actual regression this guards: a path-relative returnUrl here would resolve, under RFC
-		// 3986, against /_auth/complete by stripping its last segment -- landing at the nonexistent
-		// /_auth/Account/LoginWith2fa instead of /Account/LoginWith2fa. Assert the escaped returnUrl
-		// segment itself starts with a slash, not just that the route name is present somewhere.
-		var returnUrlValue =
-			success.Value.NextUrl![
-				(success.Value.NextUrl.IndexOf("returnUrl=", StringComparison.Ordinal) + "returnUrl=".Length)..];
-		Uri.UnescapeDataString(returnUrlValue).ShouldStartWith("/");
+		success.Value.NextUrl.ShouldBe("/Account/LoginWith2fa?challenge=tok");
+		deferredSignIn.DidNotReceiveWithAnyArgs().BuildCompletionUrl(default!, default!);
 	}
 
 	[Fact]
@@ -254,13 +238,14 @@ public sealed class LoginHandlerTests
 			.Returns(Microsoft.AspNetCore.Identity.SignInResult.TwoFactorRequired);
 		DefaultHttpContext httpContext = new();
 		httpContext.Request.PathBase = "/example";
+		httpContext.Items[NorseSignInManager.TwoFactorChallengeItemName] = "tok";
 		var handler = CreateHandler(signInManager, httpContext: httpContext);
 		LoginCommand command = new(new LoginRequest { EmailInput = "user@example.com", Password = "correct-horse" });
 
 		var outcome = await handler.Handle(command, TestContext.Current.CancellationToken);
 
 		outcome.TryGetValue(out Success<NavigationResult> success).ShouldBeTrue();
-		success.Value.NextUrl.ShouldBe("/example/Account/LoginWith2fa?RememberMe=false");
+		success.Value.NextUrl.ShouldBe("/example/Account/LoginWith2fa?challenge=tok");
 	}
 
 	[Fact]

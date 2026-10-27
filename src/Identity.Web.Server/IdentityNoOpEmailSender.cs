@@ -5,9 +5,10 @@ using Norse.Identity.EntityFramework;
 namespace Norse.Identity.Web.Server;
 
 /// <summary>
-///     A no-op <see cref="IEmailSender{TUser}" /> that logs instead of sending. Remove the
-///     "else if (EmailSender is IdentityNoOpEmailSender)" block from RegisterConfirmation.razor after
-///     wiring up a real implementation.
+///     The <see cref="IEmailSender{TUser}" /> every environment but <c>Development</c> resolves: it sends nothing
+///     and logs nothing, so no link or code it is handed ever leaves the process. <see cref="DevelopmentEmailSender" />
+///     is the development-only logger; a host wiring a real sender registers its own after
+///     <c>AddNorseAuthenticationService</c> and wins the resolution.
 /// </summary>
 public sealed class IdentityNoOpEmailSender : IEmailSender<NorseUser>
 {

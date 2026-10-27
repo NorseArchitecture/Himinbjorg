@@ -1,6 +1,9 @@
 using System.Data.Common;
 using System.Security.Claims;
+using System.Text;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -8,8 +11,11 @@ using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Norse.Abstractions.Backend.Keys;
+using Norse.Abstractions.Contracts;
+using Norse.Abstractions.Web.Server.DeferredSignIn;
 using Norse.Identity.EntityFramework;
 using Norse.Identity.Web.Server.Store;
+using Norse.Primitives;
 
 namespace Norse.Identity.Web.Server.Tests;
 
@@ -666,6 +672,43 @@ public abstract class NorseUserStoreSuite : IDisposable
 		reread.ConcurrencyStamp.ShouldBe(seeded.ConcurrencyStamp);
 		var (verify, _) = await _fixture.CreateScopeAsync();
 		(await UserVersionsAsync(verify, seeded.Id)).ShouldBe(0, "a wrong password never mints a users history row");
+	}
+
+	[Fact(SkipUnless = nameof(IsTestable), Skip = UntestableReason)]
+	protected async Task ConfirmEmailChange_writes_one_users_version_with_email_and_username_changed_together()
+	{
+		// The 2026-10-26 account-lifecycle spec's real-database fact: the handler's one ChangeEmailAsync sets email and
+		// username together (law), so the flush is one users statement and one superseded version, never two.
+		_fixture.SkipUnlessAvailable();
+		const string NewEmail = "confirm-change-renamed@example.com";
+		var seeded = await _fixture.SeedUserAsync("confirm-change@example.com");
+		var (verify, _) = await _fixture.CreateScopeAsync();
+		var emailBefore = await RawUsersColumnAsync(verify, nameof(NorseUser.Email), seeded.Id);
+		var userNameBefore = await RawUsersColumnAsync(verify, nameof(NorseUser.UserName), seeded.Id);
+		var userManager = _fixture.CreateUserManager();
+		var token = await userManager.GenerateChangeEmailTokenAsync(
+			(await userManager.FindByIdAsync(seeded.Id.ToString())).ShouldNotBeNull(), NewEmail);
+		var accessor = Substitute.For<IHttpContextAccessor>();
+		accessor.HttpContext.Returns(new DefaultHttpContext());
+		// The sign-in manager is a substitute: the fixture's shared context has no request services to authenticate
+		// against, and the refresh is ConfirmEmailChangeHandlerTests' subject, not this fact's.
+		ConfirmEmailChangeHandler handler = new(userManager, MockSignInManager.Create(), FakePrincipal.For(seeded.Id),
+			new(Substitute.For<IDeferredSignIn>(), accessor), accessor);
+
+		var outcome = await handler.Handle(new(new()
+		{
+			UserId = seeded.Id.ToString(),
+			EmailInput = NewEmail,
+			Code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token))
+		}), Cancellation);
+
+		outcome.TryGetValue(out Success<NavigationResult> _).ShouldBeTrue();
+		var reread = await RereadAsync(seeded.Id);
+		reread.Email.ShouldBe(NewEmail);
+		reread.UserName.ShouldBe(NewEmail);
+		(await RawUsersColumnAsync(verify, nameof(NorseUser.Email), seeded.Id)).ShouldNotBe(emailBefore);
+		(await RawUsersColumnAsync(verify, nameof(NorseUser.UserName), seeded.Id)).ShouldNotBe(userNameBefore);
+		(await UserVersionsAsync(verify, seeded.Id)).ShouldBe(1, "email and username change in one users statement");
 	}
 
 	[Fact(SkipUnless = nameof(IsTestable), Skip = UntestableReason)]

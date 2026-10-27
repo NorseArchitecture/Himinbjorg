@@ -29,7 +29,7 @@ public sealed class NorseUserManager(
 	IServiceProvider services,
 	ILogger<UserManager<NorseUser>> logger) :
 	UserManager<NorseUser>(store, optionsAccessor, passwordHasher, userValidators, passwordValidators,
-		keyNormalizer, errors, services, logger)
+		keyNormalizer, errors, services, logger), IRecoveryCodeReplacement
 {
 	/// <summary>The <see cref="IdentityError.Code" /> a refused <c>SetUserNameAsync</c> answers.</summary>
 	public const string UserNameIsDerivedErrorCode = NorseIdentityErrorCodes.UserNameIsDerived;
@@ -103,6 +103,44 @@ public sealed class NorseUserManager(
 		ArgumentNullException.ThrowIfNull(user);
 		using (SubjectCryptoScope.Begin(user.Id))
 			return await base.RedeemTwoFactorRecoveryCodeAsync(user, code).ConfigureAwait(false);
+	}
+
+	/// <summary>
+	///     The base loop, losslessly: generates <paramref name="number" /> distinct codes, stages them on the store, and
+	///     answers the update's own result beside them, so an indeterminate commit reaches the caller instead of the
+	///     <see langword="null" /> <see cref="GenerateNewTwoFactorRecoveryCodesAsync" /> answers for every failure.
+	///     <see cref="UpdateUserAsync" /> opens the subject's crypto scope, and the store encrypts the staged set inside
+	///     it at the flush.
+	/// </summary>
+	/// <inheritdoc />
+	/// <exception cref="NotSupportedException">The store is not an <see cref="IUserTwoFactorRecoveryCodeStore{TUser}" />.</exception>
+	public async Task<(IdentityResult Result, string[] Codes)> ReplaceRecoveryCodesAsync(NorseUser user, int number)
+	{
+		ThrowIfDisposed();
+		var recoveryCodes = Store as IUserTwoFactorRecoveryCodeStore<NorseUser> ??
+			throw new NotSupportedException("The store does not implement IUserTwoFactorRecoveryCodeStore<NorseUser>.");
+		ArgumentNullException.ThrowIfNull(user);
+		HashSet<string> codes = new(number, StringComparer.Ordinal);
+		while (codes.Count < number)
+			codes.Add(CreateTwoFactorRecoveryCode());
+
+		await recoveryCodes.ReplaceCodesAsync(user, codes, CancellationToken).ConfigureAwait(false);
+		var result = await UpdateUserAsync(user).ConfigureAwait(false);
+		return (result, [.. codes]);
+	}
+
+	/// <summary>
+	///     Delegates to <see cref="ReplaceRecoveryCodesAsync" />, answering the framework's contract: the codes on
+	///     success, <see langword="null" /> otherwise. Kept for the framework's own callers; Norse code goes through
+	///     <c>.Outcome.ReplaceRecoveryCodesAsync</c>, and the IL scan bans this name.
+	/// </summary>
+	/// <inheritdoc />
+	public override async Task<IEnumerable<string>?> GenerateNewTwoFactorRecoveryCodesAsync(NorseUser user, int number)
+	{
+		var (result, codes) = await ReplaceRecoveryCodesAsync(user, number).ConfigureAwait(false);
+		return result.Succeeded ?
+			codes :
+			null;
 	}
 
 	/// <summary>

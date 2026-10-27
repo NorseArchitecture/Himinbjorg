@@ -5,14 +5,17 @@ using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
 using System.Reflection.PortableExecutable;
 using Norse.Identity.Migrations;
+using Norse.Identity.Outcomes;
 
 namespace Norse.Identity.Web.Server.Tests;
 
 /// <summary>
 ///     The Outcome surface's enforcement (2026-10-24 explicit-writes spec §4.12), standing in until banned-symbol
 ///     infrastructure exists: an IL scan of <c>Identity.Web.Server</c> and <c>Identity.Migrations</c> fails if any type
-///     calls a raw <c>IdentityResult</c>- or <c>SignInResult</c>-returning manager method, or any OpenIddict manager,
-///     instead of going through <c>.Outcome</c>.
+///     calls a raw <c>IdentityResult</c>- or <c>SignInResult</c>-returning manager method, a manager method banned by
+///     name, or any OpenIddict manager, instead of going through <c>.Outcome</c>. <see cref="IRecoveryCodeReplacement" />
+///     counts as a manager: a handler casting <c>UserManager&lt;NorseUser&gt;</c> to it would otherwise reach the raw
+///     <c>(IdentityResult, string[])</c> of <c>ReplaceRecoveryCodesAsync</c> past the name check.
 /// </summary>
 /// <remarks>
 ///     Exempt: the managers themselves (<see cref="NorseUserManager" /> and <see cref="NorseSignInManager" />, whose
@@ -38,13 +41,24 @@ public sealed class OutcomeSurfaceEnforcementTests
 		"Microsoft.AspNetCore.Identity.UserManager`1",
 		"Microsoft.AspNetCore.Identity.SignInManager`1",
 		typeof(NorseUserManager).FullName!,
-		typeof(NorseSignInManager).FullName!
+		typeof(NorseSignInManager).FullName!,
+		typeof(IRecoveryCodeReplacement).FullName!
 	];
 
 	static readonly ImmutableHashSet<string> _rawResults =
 	[
 		"Microsoft.AspNetCore.Identity.IdentityResult",
 		"Microsoft.AspNetCore.Identity.SignInResult"
+	];
+
+	/// <summary>
+	///     Manager methods banned whatever they return: <c>GenerateNewTwoFactorRecoveryCodesAsync</c> answers
+	///     <see langword="null" /> for every failure, losing an indeterminate commit; Norse callers replace codes through
+	///     <c>.Outcome.ReplaceRecoveryCodesAsync</c>.
+	/// </summary>
+	static readonly ImmutableHashSet<string> _bannedByName =
+	[
+		"GenerateNewTwoFactorRecoveryCodesAsync"
 	];
 
 	/// <summary>Every IL opcode, by value, for operand sizes.</summary>
@@ -140,7 +154,8 @@ public sealed class OutcomeSurfaceEnforcementTests
 			_ => (string.Empty, string.Empty, string.Empty)
 		};
 		var genericType = declaringType.Split('<')[0];
-		var banned = (_identityManagers.Contains(genericType) && _rawResults.Any(returnType.Contains))
+		var banned = (_identityManagers.Contains(genericType)
+				&& (_rawResults.Any(returnType.Contains) || _bannedByName.Contains(name)))
 			|| IsOpenIddictManager(genericType);
 		return banned ?
 			$"{declaringType}::{name} : {returnType}" :

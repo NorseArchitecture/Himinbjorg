@@ -48,4 +48,46 @@ public sealed class AuthenticationService(ISender sender) : IAuthenticationServi
 	public Task<Outcome<BoolResponse>> EmailExists(EmailExistsRequest request,
 		CancellationToken cancellationToken = default) =>
 		sender.Send(new EmailExistsCommand(request), cancellationToken).AsTask();
+
+	/// <inheritdoc />
+	[Authorize(Policy = AuthNPolicies.Public)]
+	public Task<Outcome<NavigationResult>> TwoFactorSignIn(TwoFactorSignInRequest request,
+		CancellationToken cancellationToken = default) =>
+		sender.Send(new TwoFactorSignInCommand(request), cancellationToken).AsTask();
+
+	/// <inheritdoc />
+	[Authorize(Policy = AuthNPolicies.Public)]
+	public Task<Outcome<NavigationResult>> RecoveryCodeSignIn(RecoveryCodeSignInRequest request,
+		CancellationToken cancellationToken = default) =>
+		sender.Send(new RecoveryCodeSignInCommand(request), cancellationToken).AsTask();
+
+	/// <inheritdoc />
+	[Authorize(Policy = AuthNPolicies.Public)]
+	public Task<Outcome<NavigationResult>> ForgotPassword(ForgotPasswordRequest request,
+		CancellationToken cancellationToken = default) =>
+		sender.Send(new ForgotPasswordCommand(request), cancellationToken).AsTask();
+
+	/// <inheritdoc />
+	[Authorize(Policy = AuthNPolicies.Public)]
+	public Task<Outcome<NavigationResult>> ResetPassword(ResetPasswordRequest request,
+		CancellationToken cancellationToken = default) =>
+		sender.Send(new ResetPasswordCommand(request), cancellationToken).AsTask();
+
+	/// <inheritdoc />
+	[Authorize(Policy = AuthNPolicies.Public)]
+	public Task<Outcome<BoolResponse>> ConfirmEmail(ConfirmEmailRequest request,
+		CancellationToken cancellationToken = default) =>
+		sender.Send(new ConfirmEmailCommand(request), cancellationToken).AsTask();
+
+	/// <inheritdoc />
+	[Authorize(Policy = AuthNPolicies.Public)]
+	public Task<Outcome<NavigationResult>> ConfirmEmailChange(ConfirmEmailChangeRequest request,
+		CancellationToken cancellationToken = default) =>
+		sender.Send(new ConfirmEmailChangeCommand(request), cancellationToken).AsTask();
+
+	/// <inheritdoc />
+	[Authorize(Policy = AuthNPolicies.Public)]
+	public Task<Outcome<BoolResponse>> ResendEmailConfirmation(ResendEmailConfirmationRequest request,
+		CancellationToken cancellationToken = default) =>
+		sender.Send(new ResendEmailConfirmationCommand(request), cancellationToken).AsTask();
 }

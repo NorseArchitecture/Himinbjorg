@@ -48,13 +48,18 @@ public static class ServiceCollectionExtensions
 		{
 			// Registered here, not by the host: IEmailSender<NorseUser> is closed over an entity the
 			// host has no business naming. A host wiring a real sender registers its own afterward and
-			// wins the resolution.
+			// wins the resolution. Links and codes are credentials, and service defaults export logs:
+			// only Development gets the logging sender, every other environment the silent no-op.
 			builder.Services
 				.AddNorseIdentityWebServerHandlers()
 				.AddScoped<IAuthenticationService, AuthenticationService>()
 				.AddScoped<IIdentityService, IdentityService>()
 				.AddScoped<ErasureService>()
-				.AddSingleton<IEmailSender<NorseUser>, IdentityNoOpEmailSender>()
+				.AddScoped<DeferredCompletion>()
+				.AddSingleton<IEmailSender<NorseUser>>(static sp =>
+					sp.GetRequiredService<IHostEnvironment>().IsDevelopment()
+						? ActivatorUtilities.CreateInstance<DevelopmentEmailSender>(sp)
+						: new IdentityNoOpEmailSender())
 				.AddNorseIdentity(signingCertificate, accessTokenLifetime)
 				.AddSignInManager<NorseSignInManager>();
 

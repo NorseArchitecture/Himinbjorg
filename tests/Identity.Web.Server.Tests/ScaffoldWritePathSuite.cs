@@ -7,9 +7,9 @@ using Norse.Identity.EntityFramework;
 namespace Norse.Identity.Web.Server.Tests;
 
 /// <summary>
-///     V6 (2026-10-24 explicit-writes spec §12, plan Task 4.10), once per provider: every write the <c>/Account</c> and
-///     <c>/Account/Manage</c> scaffold, <c>LoginHandler</c> and <c>RegisterHandler</c> make, driven the way the page
-///     drives it -- the instance obtained by the same read the page makes (<c>GetUserAsync</c> on the principal,
+///     V6 (2026-10-24 explicit-writes spec §12, plan Task 4.10), once per provider: every write the surviving scaffold
+///     (<c>ExternalLogin</c> and the <c>/Account/Manage</c> tree) and the account handlers make, driven the way the
+///     page or handler drives it -- the instance obtained by the same read it makes (<c>GetUserAsync</c> on the principal,
 ///     <c>FindByIdAsync</c>, <c>FindByEmailAsync</c>, or the sign-in manager's own lookup), then the same manager and
 ///     sign-in-manager calls. None may meet the store's no-baseline refusal: every <see cref="NorseUser" /> a write sees came from a store read or a create.
 /// </summary>
@@ -173,7 +173,7 @@ public abstract class ScaffoldWritePathSuite : IDisposable
 		result.Succeeded.ShouldBeTrue();
 	}
 
-	/// <summary><c>RegisterConfirmation.razor</c> mints the token; <c>ConfirmEmail.razor</c> reads by id and confirms.</summary>
+	/// <summary><c>ResendEmailConfirmationHandler</c> mints the token; <c>ConfirmEmailHandler</c> reads by id and confirms.</summary>
 	async Task ConfirmEmailAsync()
 	{
 		var seeded = await SeedAsync();
@@ -189,7 +189,7 @@ public abstract class ScaffoldWritePathSuite : IDisposable
 		(await RereadAsync(seeded.Id)).EmailConfirmed.ShouldBeTrue();
 	}
 
-	/// <summary><c>Manage/Email.razor</c> mints the token; <c>ConfirmEmailChange.razor</c> reads by id and changes.</summary>
+	/// <summary><c>Manage/Email.razor</c> mints the token; <c>ConfirmEmailChangeHandler</c> reads by id and changes.</summary>
 	async Task ConfirmEmailChangeAsync()
 	{
 		var seeded = await SeedAsync();
@@ -205,7 +205,7 @@ public abstract class ScaffoldWritePathSuite : IDisposable
 		(await RereadAsync(seeded.Id)).UserName.ShouldBe(newEmail);
 	}
 
-	/// <summary><c>ForgotPassword.razor</c> and <c>ResetPassword.razor</c> each read the user by email.</summary>
+	/// <summary><c>ForgotPasswordHandler</c> and <c>ResetPasswordHandler</c> each read the user by email.</summary>
 	async Task ResetPasswordAsync()
 	{
 		var seeded = await SeedAsync(withPassword: true);
@@ -221,8 +221,8 @@ public abstract class ScaffoldWritePathSuite : IDisposable
 	}
 
 	/// <summary>
-	///     <c>LoginWith2fa.razor</c>: the user the password step read, held by the sign-in manager, takes the failed
-	///     second factor's increment.
+	///     <c>TwoFactorSignInHandler</c>'s write over the challenge token: the user the token names, read afresh by the
+	///     second-factor step, takes the failed second factor's increment.
 	/// </summary>
 	async Task LoginWith2faAsync()
 	{
@@ -230,7 +230,7 @@ public abstract class ScaffoldWritePathSuite : IDisposable
 		var signIn = SignIn(_fixture.CreateUserManager());
 		(await signIn.PasswordSignInAsync(email, Password, false, lockoutOnFailure: true)).RequiresTwoFactor.ShouldBeTrue();
 
-		var result = await signIn.TwoFactorAuthenticatorSignInAsync("not-a-code", isPersistent: false, rememberClient: false);
+		var result = await signIn.TwoFactorChallengeSignInAsync(ChallengeToken(signIn), "not-a-code", rememberClient: false);
 
 		result.Succeeded.ShouldBeFalse();
 		(await RereadAsync((await _fixture.CreateUserManager().FindByEmailAsync(email)).ShouldNotBeNull().Id))
@@ -238,18 +238,18 @@ public abstract class ScaffoldWritePathSuite : IDisposable
 	}
 
 	/// <summary>
-	///     <c>LoginWithRecoveryCode.razor</c>: the held user redeems a code, then the sign-in resets the failure the
-	///     wrong code counted.
+	///     <c>RecoveryCodeSignInHandler</c>'s write over the challenge token: the user the token names redeems a
+	///     code, then the sign-in resets the failure the wrong code counted.
 	/// </summary>
 	async Task LoginWithRecoveryCodeAsync()
 	{
 		var (email, codes) = await SeedTwoFactorAsync();
 		var signIn = SignIn(_fixture.CreateUserManager());
 		(await signIn.PasswordSignInAsync(email, Password, false, lockoutOnFailure: true)).RequiresTwoFactor.ShouldBeTrue();
-		(await signIn.TwoFactorAuthenticatorSignInAsync("not-a-code", isPersistent: false, rememberClient: false)).Succeeded
-			.ShouldBeFalse();
+		var token = ChallengeToken(signIn);
+		(await signIn.TwoFactorChallengeSignInAsync(token, "not-a-code", rememberClient: false)).Succeeded.ShouldBeFalse();
 
-		(await signIn.TwoFactorRecoveryCodeSignInAsync(codes[0])).Succeeded.ShouldBeTrue();
+		(await signIn.RecoveryCodeChallengeSignInAsync(token, codes[0])).Succeeded.ShouldBeTrue();
 
 		var userManager = _fixture.CreateUserManager();
 		var reread = (await userManager.FindByEmailAsync(email)).ShouldNotBeNull();
@@ -462,6 +462,10 @@ public abstract class ScaffoldWritePathSuite : IDisposable
 		signIn.Context = new DefaultHttpContext { RequestServices = scope.ServiceProvider };
 		return signIn;
 	}
+
+	/// <summary>The challenge token the password step parked, as the handler carries it to the second-factor step.</summary>
+	static string ChallengeToken(NorseSignInManager signIn) =>
+		signIn.Context.Items[NorseSignInManager.TwoFactorChallengeItemName].ShouldBeOfType<string>();
 
 	/// <summary>A fresh read of the user through a new scope's store.</summary>
 	async Task<NorseUser> RereadAsync(Guid userId) =>

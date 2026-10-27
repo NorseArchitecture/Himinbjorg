@@ -15,7 +15,8 @@ public sealed class LogoutHandlerTests
 	{
 		var accessor = Substitute.For<IHttpContextAccessor>();
 		accessor.HttpContext.Returns(httpContext ?? new DefaultHttpContext());
-		return new LogoutHandler(signInManager, deferredSignIn ?? Substitute.For<IDeferredSignIn>(), accessor);
+		return new LogoutHandler(signInManager,
+			new DeferredCompletion(deferredSignIn ?? Substitute.For<IDeferredSignIn>(), accessor));
 	}
 
 	[Fact]
