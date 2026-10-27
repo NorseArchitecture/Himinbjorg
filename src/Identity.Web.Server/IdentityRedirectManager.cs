@@ -79,11 +79,14 @@ public sealed class IdentityRedirectManager(NavigationManager navigationManager)
 		RedirectToWithStatus(CurrentPath, message, context);
 
 	/// <summary>
-	///     Redirects to the invalid-user page with a status message identifying the missing user ID.
+	///     Redirects to Heimdall's <c>/Account/Logout</c> page with a status message identifying the missing user ID.
+	///     A valid cookie whose user cannot be loaded is a stale session, so signing out is the honest next step now
+	///     that <c>/Account/InvalidUser</c> no longer exists. The status cookie this writes is never rendered: Heimdall's
+	///     <c>/Account/Logout</c> click page does not read it (ruled acceptable; Train 3 retires this manager).
 	/// </summary>
 	/// <param name="userManager">The user manager used to resolve the current user's ID for the message.</param>
 	/// <param name="context">The current HTTP context, used to read the user principal and write the status cookie.</param>
 	public void RedirectToInvalidUser(UserManager<NorseUser> userManager, HttpContext context) =>
-		RedirectToWithStatus("Account/InvalidUser",
+		RedirectToWithStatus("Account/Logout",
 			$"Error: Unable to load user with ID '{userManager.GetUserId(context.User)}'.", context);
 }

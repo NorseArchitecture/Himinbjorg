@@ -59,8 +59,8 @@ public abstract class EmailIsUserNameSuite(IdentityFixture fixture)
 	[Fact(SkipUnless = nameof(IsTestable), Skip = UntestableReason)]
 	protected async Task ChangeEmail_through_the_confirmation_flow_writes_one_version_with_equal_hashes()
 	{
-		// The calls ConfirmEmailChange.razor makes: a change-email token minted for the new address, then
-		// ChangeEmailAsync alone -- the page's second, SetUserNameAsync call is gone.
+		// The calls ConfirmEmailChangeHandler makes: a change-email token minted for the new address, then
+		// ChangeEmailAsync alone -- the retired scaffold page's second, SetUserNameAsync call is gone.
 		fixture.SkipUnlessAvailable();
 		var user = await fixture.SeedUserAsync("change-email-before@example.com", "+15550130");
 		var userManager = fixture.CreateUserManager();
