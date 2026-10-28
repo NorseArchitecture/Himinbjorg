@@ -1,5 +1,10 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Norse.Abstractions.Contracts;
+using Norse.Abstractions.Web.Server.DeferredSignIn;
 using Norse.Identity.EntityFramework;
+using Norse.Identity.Web.Server.Account;
+using Norse.Primitives;
 
 namespace Norse.Identity.Web.Server.Tests;
 
@@ -85,6 +90,53 @@ public abstract class TemporalIdentityVersioningSuite(IdentityFixture fixture)
 		(await UserRoleVersionsAsync(context, user.Id)).ShouldBe(1,
 			"the revoke writes the grant's final closed version -- a role once held stays readable");
 		(await ClosedPositiveLengthUserRoleVersionsAsync(context, user.Id)).ShouldBe(1);
+	}
+
+	[Fact(SkipUnless = nameof(IsTestable), Skip = UntestableReason)]
+	protected async Task A_confirmed_phone_saved_unchanged_stays_confirmed_and_writes_no_users_history()
+	{
+		// Ruling 47: the stock SetPhoneNumberAsync unconfirms and rotates the stamp even for the same number, so the
+		// handler must not reach it. Counted relative to the standing history, so the confirmation's own version
+		// (written through the real manager, as a confirmation would be) cannot color the reading.
+		fixture.SkipUnlessAvailable();
+		const string Phone = "+15551230400";
+		var seeded = await fixture.SeedUserAsync($"unchanged-phone-{Guid.NewGuid():N}@example.com", Phone);
+		var confirming = fixture.CreateUserManager();
+		var confirmed = (await confirming.FindByIdAsync(seeded.Id.ToString()))!;
+		confirmed.PhoneNumberConfirmed = true;
+		(await confirming.UpdateAsync(confirmed)).Succeeded.ShouldBeTrue();
+		// A refresh only re-issues a cookie the request already carries, so the request is signed in first: the cookie
+		// the sign-in writes on one request rides the next, where a refresh would write its replacement. One scope per
+		// request, as the host gives: the scoped handler provider caches each handler bound to its first request.
+		var userManager = fixture.CreateUserManager();
+		using var signInScope = fixture.CreateOwnedScope();
+		DefaultHttpContext signedIn = new() { RequestServices = signInScope.ServiceProvider };
+		var signInManager = fixture.CreateSignInManager(userManager);
+		signInManager.Context = signedIn;
+		await signInManager.SignInAsync((await userManager.FindByIdAsync(seeded.Id.ToString()))!, isPersistent: false);
+		using var requestScope = fixture.CreateOwnedScope();
+		DefaultHttpContext http = new() { RequestServices = requestScope.ServiceProvider };
+		http.Request.Headers.Cookie = TwoFactorHarness.CookieOf(signedIn.Response.Headers.SetCookie.Single()!);
+		signInManager.Context = http;
+		var (context, _) = await fixture.CreateScopeAsync();
+		var before = await UserVersionsAsync(context, seeded.Id);
+		var stampBefore = (await fixture.CreateUserManager().FindByIdAsync(seeded.Id.ToString()))!.SecurityStamp;
+		var accessor = Substitute.For<IHttpContextAccessor>();
+		accessor.HttpContext.Returns(http);
+		SetPhoneNumberHandler handler = new(userManager, signInManager, FakePrincipal.For(seeded.Id),
+			new(Substitute.For<IDeferredSignIn>(), accessor), accessor);
+
+		var outcome = await handler.Handle(new(new() { PhoneInput = Phone }), Cancellation);
+
+		outcome.TryGetValue(out Success<NavigationResult> success).ShouldBeTrue();
+		success.Value.NextUrl.ShouldBe("/Account/Manage?status=phone-updated");
+		var reread = (await fixture.CreateUserManager().FindByIdAsync(seeded.Id.ToString()))!;
+		reread.ShouldSatisfyAllConditions(
+			() => reread.PhoneNumber.ShouldBe(Phone),
+			() => reread.PhoneNumberConfirmed.ShouldBeTrue("an unchanged number keeps its confirmation"),
+			() => reread.SecurityStamp.ShouldBe(stampBefore, "no stamp rotation, so no other session is signed out"));
+		(await UserVersionsAsync(context, seeded.Id)).ShouldBe(before, "nothing was written");
+		http.Response.Headers.SetCookie.ShouldBeEmpty("the sign-in is not refreshed");
 	}
 
 	/// <summary>How many superseded versions of one user row the history holds.</summary>
