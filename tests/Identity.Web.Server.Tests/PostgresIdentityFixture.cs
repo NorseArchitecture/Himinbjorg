@@ -3,6 +3,7 @@ using Norse.Identity.EntityFramework;
 using Norse.Identity.Migrations.PostgreSQL;
 using Norse.Persistence.EntityFramework;
 using Norse.Persistence.EntityFramework.PostgreSQL;
+using Npgsql;
 using Testcontainers.PostgreSql;
 
 namespace Norse.Identity.Web.Server.Tests;
@@ -31,6 +32,14 @@ public sealed class PostgresIdentityFixture : IdentityFixture
 		await _container.StartAsync();
 		return _container.GetConnectionString();
 	}
+
+	/// <inheritdoc />
+	protected override string ConnectionStringFor(string connectionString, string database) =>
+		new NpgsqlConnectionStringBuilder(connectionString) { Database = database }.ConnectionString;
+
+	/// <inheritdoc />
+	protected override string DropDatabaseSql(string database) =>
+		$"DROP DATABASE {database} WITH (FORCE)";
 
 	/// <inheritdoc />
 	protected override Task<string> ReadRawEmailAsync(NorseIdentityDbContext context, Guid userId) =>

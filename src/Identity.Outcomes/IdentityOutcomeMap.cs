@@ -52,6 +52,8 @@ public static class IdentityOutcomeMap
 		// A programming or configuration error: the platform enables lockout for every user.
 		[nameof(IdentityErrorDescriber.UserLockoutNotEnabled)] = ErrorCategory.Fault,
 		[nameof(IdentityErrorDescriber.DefaultError)] = ErrorCategory.Fault,
+		// A provisioning write that left no key stored: the store failed its contract.
+		[NorseIdentityErrorCodes.AuthenticatorKeyNotStored] = ErrorCategory.Fault,
 		// The commit may or may not have landed; re-read before acting (spec §4.10).
 		[NorseIdentityErrorCodes.IndeterminateOutcome] = ErrorCategory.Indeterminate
 	}.ToFrozenDictionary(StringComparer.Ordinal);

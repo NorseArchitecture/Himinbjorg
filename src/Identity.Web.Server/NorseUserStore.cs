@@ -417,6 +417,16 @@ public sealed class NorseUserStore(NorseIdentityDbContext context, IdentityError
 	public Task SetAuthenticatorKeyAsync(NorseUser user, string key, CancellationToken cancellationToken = default) =>
 		SetTokenAsync(user, InternalLoginProvider, AuthenticatorKeyTokenName, key, cancellationToken);
 
+	/// <summary>
+	///     Stages the authenticator key's insert-if-absent (<see cref="StagedIntent.InsertTokenIfAbsent" />): the first
+	///     provisioning's write, which never replaces a key a concurrent setup stored first. A reset still goes through
+	///     <see cref="SetAuthenticatorKeyAsync" />, whose upsert does replace.
+	/// </summary>
+	/// <param name="user">The user.</param>
+	/// <param name="key">The newly generated key.</param>
+	internal static void StageAuthenticatorKeyIfAbsent(NorseUser user, string key) =>
+		Stage(user, new StagedIntent.InsertTokenIfAbsent(InternalLoginProvider, AuthenticatorKeyTokenName, key));
+
 	/// <summary>Reads the database, not the instance (spec §4.5).</summary>
 	/// <inheritdoc />
 	public Task<string?> GetAuthenticatorKeyAsync(NorseUser user, CancellationToken cancellationToken = default) =>

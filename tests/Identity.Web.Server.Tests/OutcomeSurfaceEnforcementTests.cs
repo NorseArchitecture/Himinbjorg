@@ -4,6 +4,8 @@ using System.Reflection.Emit;
 using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
 using System.Reflection.PortableExecutable;
+using Microsoft.AspNetCore.Identity;
+using Norse.Identity.EntityFramework;
 using Norse.Identity.Migrations;
 using Norse.Identity.Outcomes;
 
@@ -12,17 +14,17 @@ namespace Norse.Identity.Web.Server.Tests;
 /// <summary>
 ///     The Outcome surface's enforcement (2026-10-24 explicit-writes spec §4.12), standing in until banned-symbol
 ///     infrastructure exists: an IL scan of <c>Identity.Web.Server</c> and <c>Identity.Migrations</c> fails if any type
-///     calls a raw <c>IdentityResult</c>- or <c>SignInResult</c>-returning manager method, a manager method banned by
-///     name, or any OpenIddict manager, instead of going through <c>.Outcome</c>. <see cref="IRecoveryCodeReplacement" />
-///     counts as a manager: a handler casting <c>UserManager&lt;NorseUser&gt;</c> to it would otherwise reach the raw
+///     calls a raw <c>IdentityResult</c>-, <c>SignInResult</c>- or <see cref="ChallengeSignInResult" />-returning manager
+///     method, a manager method banned by name, or any OpenIddict manager, instead of going through <c>.Outcome</c>.
+///     <see cref="IRecoveryCodeReplacement" /> counts as a manager: a handler casting <c>UserManager&lt;NorseUser&gt;</c> to it would otherwise reach the raw
 ///     <c>(IdentityResult, string[])</c> of <c>ReplaceRecoveryCodesAsync</c> past the name check.
 /// </summary>
 /// <remarks>
 ///     Exempt: the managers themselves (<see cref="NorseUserManager" /> and <see cref="NorseSignInManager" />, whose
 ///     overrides call their base), the framework-boundary adapters (<see cref="NorseSignInManager" /> again, and
-///     <see cref="IdentityRevalidatingAuthenticationStateProvider" />), the <c>SignInManager</c> view, and the scaffold
-///     pages under <c>Components/</c> until #48 retires them. Compiler-generated state machines and closures are judged
-///     by the type that declares them.
+///     <see cref="IdentityRevalidatingAuthenticationStateProvider" />) and the <c>SignInManager</c> view. Nothing else is
+///     exempt: the external-login callback page is scanned like any handler. Compiler-generated state machines and
+///     closures are judged by the type that declares them.
 /// </remarks>
 public sealed class OutcomeSurfaceEnforcementTests
 {
@@ -34,31 +36,38 @@ public sealed class OutcomeSurfaceEnforcementTests
 		typeof(SignInManagerOutcomeView).FullName!
 	];
 
-	const string ComponentsNamespace = "Norse.Identity.Web.Server.Components";
-
 	static readonly ImmutableHashSet<string> _identityManagers =
 	[
 		"Microsoft.AspNetCore.Identity.UserManager`1",
 		"Microsoft.AspNetCore.Identity.SignInManager`1",
 		typeof(NorseUserManager).FullName!,
 		typeof(NorseSignInManager).FullName!,
-		typeof(IRecoveryCodeReplacement).FullName!
+		typeof(IRecoveryCodeReplacement).FullName!,
+		typeof(IAuthenticatorKeyProvisioning).FullName!
 	];
 
 	static readonly ImmutableHashSet<string> _rawResults =
 	[
 		"Microsoft.AspNetCore.Identity.IdentityResult",
-		"Microsoft.AspNetCore.Identity.SignInResult"
+		"Microsoft.AspNetCore.Identity.SignInResult",
+		typeof(ChallengeSignInResult).FullName!
 	];
 
 	/// <summary>
 	///     Manager methods banned whatever they return: <c>GenerateNewTwoFactorRecoveryCodesAsync</c> answers
 	///     <see langword="null" /> for every failure, losing an indeterminate commit; Norse callers replace codes through
-	///     <c>.Outcome.ReplaceRecoveryCodesAsync</c>.
+	///     <c>.Outcome.ReplaceRecoveryCodesAsync</c>. The five base passkey members (T3-15) park the ceremony state in
+	///     the partial two-factor cookie, a write a circuit cannot make; Norse callers run the ceremonies through
+	///     <see cref="NorseSignInManager" />'s own, distinctly named members, via <c>.Outcome</c>.
 	/// </summary>
 	static readonly ImmutableHashSet<string> _bannedByName =
 	[
-		"GenerateNewTwoFactorRecoveryCodesAsync"
+		"GenerateNewTwoFactorRecoveryCodesAsync",
+		"MakePasskeyCreationOptionsAsync",
+		"PerformPasskeyAttestationAsync",
+		"MakePasskeyRequestOptionsAsync",
+		"PerformPasskeyAssertionAsync",
+		"PasskeySignInAsync"
 	];
 
 	/// <summary>Every IL opcode, by value, for operand sizes.</summary>
@@ -77,6 +86,47 @@ public sealed class OutcomeSurfaceEnforcementTests
 			$"Reach Identity and OpenIddict through .Outcome instead:{Environment.NewLine}{string.Join(Environment.NewLine, offenses)}");
 	}
 
+	/// <summary>
+	///     Every Norse seam a manager implements is a manager to the scan: a cast to one would otherwise reach its raw
+	///     <c>IdentityResult</c> past the declaring-type check (<see cref="IRecoveryCodeReplacement" />,
+	///     <see cref="IAuthenticatorKeyProvisioning" />).
+	/// </summary>
+	[Fact]
+	void The_manager_set_names_every_norse_identity_seam()
+	{
+		string[] seams =
+		[
+			.. typeof(NorseUserManager).GetInterfaces()
+				.Concat(typeof(NorseSignInManager).GetInterfaces())
+				.Where(static seam => seam.Namespace?.StartsWith("Norse.Identity", StringComparison.Ordinal) is true)
+				.Select(static seam => seam.FullName!)
+		];
+
+		seams.ShouldNotBeEmpty();
+		seams.ShouldBeSubsetOf(_identityManagers);
+		_identityManagers.ShouldContain(typeof(IAuthenticatorKeyProvisioning).FullName!);
+	}
+
+	/// <summary>
+	///     T3-15: the five base passkey members are banned by name, and each still names a real
+	///     <c>SignInManager&lt;TUser&gt;</c> member, so a framework rename cannot make the ban vacuous.
+	/// </summary>
+	[Fact]
+	void The_base_passkey_members_are_banned_by_name()
+	{
+		string[] passkeyMembers =
+		[
+			"MakePasskeyCreationOptionsAsync",
+			"PerformPasskeyAttestationAsync",
+			"MakePasskeyRequestOptionsAsync",
+			"PerformPasskeyAssertionAsync",
+			"PasskeySignInAsync"
+		];
+
+		passkeyMembers.ShouldAllBe(static name => typeof(SignInManager<NorseUser>).GetMethod(name) != null);
+		passkeyMembers.ShouldBeSubsetOf(_bannedByName);
+	}
+
 	static IEnumerable<string> Scan(string assemblyPath)
 	{
 		using var stream = File.OpenRead(assemblyPath);
@@ -89,7 +139,7 @@ public sealed class OutcomeSurfaceEnforcementTests
 			var type = reader.GetTypeDefinition(typeHandle);
 			var owner = Outermost(reader, type);
 			var ownerName = names.Of(owner);
-			if (_exempt.Contains(ownerName) || ownerName.StartsWith(ComponentsNamespace, StringComparison.Ordinal))
+			if (_exempt.Contains(ownerName))
 				continue;
 
 			foreach (var methodHandle in type.GetMethods())

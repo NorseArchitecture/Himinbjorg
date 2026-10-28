@@ -111,8 +111,8 @@ public sealed class ChangePasswordHandlerTests
 		context.Request.PathBase = "/base";
 		var accessor = Substitute.For<IHttpContextAccessor>();
 		accessor.HttpContext.Returns(context);
-		ChangePasswordHandler handler = new(_userManager, _signInManager, FakePrincipal.For(_user.Id),
-			new(Substitute.For<IDeferredSignIn>(), accessor), accessor);
+		ChangePasswordHandler handler = new(new AccountCaller(FakePrincipal.For(_user.Id), _userManager),
+			_userManager, _signInManager, new(Substitute.For<IDeferredSignIn>(), accessor), accessor);
 		return handler.Handle(new(new() { OldPassword = OldPassword, NewPassword = NewPassword }), Cancellation);
 	}
 

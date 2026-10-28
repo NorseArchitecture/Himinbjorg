@@ -152,7 +152,11 @@ sealed class FlushExecutor(NorseIdentityDbContext context, IdentityErrorDescribe
 				.Where(r => r.UserId == userId && r.RoleId == roleId)
 				.ExecuteDeleteAsync(cancellationToken)),
 			StagedIntent.UpsertToken(var loginProvider, var name, var value) =>
-				AppliedAsync(ProviderStatements.UpsertTokenAsync(context, (userId, loginProvider, name), value, cancellationToken)),
+				AppliedAsync(ProviderStatements.UpsertTokenAsync(context, (userId, loginProvider, name), value,
+					cancellationToken: cancellationToken)),
+			StagedIntent.InsertTokenIfAbsent(var loginProvider, var name, var value) =>
+				AppliedAsync(ProviderStatements.UpsertTokenAsync(context, (userId, loginProvider, name), value, onlyIfAbsent: true,
+					cancellationToken)),
 			StagedIntent.RemoveToken(var loginProvider, var name) => AppliedAsync(context.UserTokens
 				.Where(t => t.UserId == userId && t.LoginProvider == loginProvider && t.Name == name)
 				.ExecuteDeleteAsync(cancellationToken)),

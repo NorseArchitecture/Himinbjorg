@@ -101,8 +101,8 @@ public sealed class SetPasswordHandlerTests
 		var probe = await harness.RunAsync(manager =>
 		{
 			var accessor = harness.Services.GetRequiredService<IHttpContextAccessor>();
-			SetPasswordHandler handler = new(harness.UserManager, manager, FakePrincipal.For(harness.User.Id),
-				new(harness.DeferredSignIn, accessor), accessor);
+			SetPasswordHandler handler = new(new AccountCaller(FakePrincipal.For(harness.User.Id), harness.UserManager),
+				harness.UserManager, manager, new(harness.DeferredSignIn, accessor), accessor);
 			return handler.Handle(new(new() { NewPassword = NewPassword }), Cancellation).AsTask();
 		}, responseAlreadyStarted: true, cookie);
 
@@ -119,8 +119,8 @@ public sealed class SetPasswordHandlerTests
 		context.Request.PathBase = "/base";
 		var accessor = Substitute.For<IHttpContextAccessor>();
 		accessor.HttpContext.Returns(context);
-		SetPasswordHandler handler = new(_userManager, _signInManager, FakePrincipal.For(_user.Id),
-			new(Substitute.For<IDeferredSignIn>(), accessor), accessor);
+		SetPasswordHandler handler = new(new AccountCaller(FakePrincipal.For(_user.Id), _userManager),
+			_userManager, _signInManager, new(Substitute.For<IDeferredSignIn>(), accessor), accessor);
 		return handler.Handle(new(new() { NewPassword = NewPassword }), Cancellation);
 	}
 

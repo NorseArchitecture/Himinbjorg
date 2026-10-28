@@ -3,7 +3,6 @@ using Norse.Abstractions.Contracts;
 using Norse.Abstractions.Web.Server.Mediator;
 using Norse.AuthN.Services;
 using Norse.Identity.EntityFramework;
-using Norse.Identity.Outcomes;
 using Norse.Primitives;
 
 namespace Norse.Identity.Web.Server.Account;
@@ -14,21 +13,20 @@ namespace Norse.Identity.Web.Server.Account;
 ///     store refuses removing the last sign-in method regardless. Every call is a read-only manager call (raw by law,
 ///     §5.2). The fold's failures pass through unchanged.
 /// </summary>
-/// <param name="userManager">Loads the caller and reads the linked logins.</param>
+/// <param name="caller">Resolves the calling user from the principal.</param>
+/// <param name="userManager">Reads the linked logins.</param>
 /// <param name="signInManager">Reads the configured external authentication schemes.</param>
-/// <param name="principalAccessor">Reaches the caller's principal.</param>
 sealed class GetExternalLoginsHandler(
+	AccountCaller caller,
 	UserManager<NorseUser> userManager,
-	SignInManager<NorseUser> signInManager,
-	IPrincipalAccessor principalAccessor)
+	SignInManager<NorseUser> signInManager)
 	: IRequestHandler<GetExternalLoginsCommand, ExternalLoginsResponse>
 {
 	/// <inheritdoc />
 	public async ValueTask<Outcome<ExternalLoginsResponse>> Handle(GetExternalLoginsCommand request,
 		CancellationToken cancellationToken = default)
 	{
-		var principal = await principalAccessor.GetPrincipalAsync(cancellationToken).ConfigureAwait(false);
-		var found = await userManager.Outcome.GetUserAsync(principal, cancellationToken).ConfigureAwait(false);
+		var found = await caller.ResolveAsync(cancellationToken).ConfigureAwait(false);
 		if (found.TryGetValue(out Failed failed))
 			return new(failed);
 		found.TryGetValue(out Success<NorseUser> success);

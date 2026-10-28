@@ -52,6 +52,7 @@ public abstract class IdentityFixture : IAsyncLifetime
 	readonly List<IServiceScope> _scopes = [];
 	WebApplication? _app;
 	X509Certificate2? _certificate;
+	string? _connectionString;
 	string? _keysRoot;
 
 	/// <summary>
@@ -77,6 +78,7 @@ public abstract class IdentityFixture : IAsyncLifetime
 		var connectionString = await StartDatabaseAsync();
 		if (connectionString is null)
 			return;
+		_connectionString = connectionString;
 
 		DbContextOptionsBuilder<NorseIdentityDbContext> migrationOptions = new();
 		migrationOptions.ApplyNorseProviderOptions(Provider, connectionString, MigrationsAssemblyName);
@@ -93,6 +95,8 @@ public abstract class IdentityFixture : IAsyncLifetime
 		var builder = WebApplication.CreateBuilder();
 		builder.WebHost.UseTestServer();
 		builder.Configuration["ConnectionStrings:identity"] = connectionString;
+		// Required configuration (T3-27): the host is Production, where nothing supplies an issuer by default.
+		builder.Configuration["Identity:Authenticator:Issuer"] = "Norse";
 		builder.AddNorseAuthenticationService(Provider, "identity", _certificate);
 		builder.Services
 			// Neither AddNorseAuthenticationService nor AddNorseIdentity registers authorization
@@ -195,6 +199,39 @@ public abstract class IdentityFixture : IAsyncLifetime
 		return new(options);
 	}
 
+	/// <summary>
+	///     A new, empty database on the fixture's own container, migrated through the same checked-in
+	///     <c>InitialCreate</c> (<c>CREATE DATABASE</c>, then <c>Database.MigrateAsync()</c>), for a fact that must know
+	///     exactly what the database holds. Disposing the handle drops it; a failed migration drops it before throwing.
+	/// </summary>
+	public async Task<FreshDatabase> CreateFreshDatabaseAsync()
+	{
+		var name = $"norse_fresh_{Guid.NewGuid():N}";
+		var (context, _) = await CreateScopeAsync();
+		var create = $"CREATE DATABASE {name}";
+		await context.Database.ExecuteSqlRawAsync(create);
+
+		DbContextOptionsBuilder<NorseIdentityDbContext> options = new();
+		options.ApplyNorseProviderOptions(Provider,
+			ConnectionStringFor(_connectionString ?? throw new InvalidOperationException(UnavailableReason), name),
+			MigrationsAssemblyName);
+		var drop = DropDatabaseSql(name);
+		FreshDatabase fresh = new(options.Options, () => context.Database.ExecuteSqlRawAsync(drop));
+		try
+		{
+			await using var migration = fresh.CreateContext();
+			await migration.Database.MigrateAsync();
+		}
+		// A database that never finished migrating is dropped too: no fact holds a handle to it.
+		catch
+		{
+			await fresh.DisposeAsync();
+			throw;
+		}
+
+		return fresh;
+	}
+
 	/// <summary>Seeds a user through the real <c>NorseUserManager</c> chokepoint -- no manual <c>SubjectCryptoScope</c>.</summary>
 	/// <param name="email">The user's email -- also stands in as the username.</param>
 	/// <param name="phone">
@@ -245,7 +282,7 @@ public abstract class IdentityFixture : IAsyncLifetime
 
 	/// <summary>
 	///     Resolves the real <see cref="IUserStore{TUser}" /> from a new DI scope, for flows that set properties
-	///     through the store before <c>CreateAsync</c>, as <c>ExternalLogin.razor</c> does.
+	///     through the store before <c>CreateAsync</c>, as the retired <c>ExternalLogin.razor</c> scaffold did.
 	/// </summary>
 	public IUserStore<NorseUser> CreateUserStore() =>
 		Resolve<IUserStore<NorseUser>>(NewScope());
@@ -266,6 +303,15 @@ public abstract class IdentityFixture : IAsyncLifetime
 	///     <see cref="MarkUnavailable" /> when the host cannot run it.
 	/// </summary>
 	protected abstract Task<string?> StartDatabaseAsync();
+
+	/// <summary>The fixture's connection string, pointed at <paramref name="database" /> instead.</summary>
+	/// <param name="connectionString">The fixture's connection string.</param>
+	/// <param name="database">The database to connect to.</param>
+	protected abstract string ConnectionStringFor(string connectionString, string database);
+
+	/// <summary>The statement that drops <paramref name="database" />, closing any connection still open to it.</summary>
+	/// <param name="database">The database to drop.</param>
+	protected abstract string DropDatabaseSql(string database);
 
 	/// <summary>Provider-specific catalog checks run straight after the migration applies.</summary>
 	/// <param name="context">The migration context, still open.</param>
@@ -298,4 +344,19 @@ public abstract class IdentityFixture : IAsyncLifetime
 
 	static T Resolve<T>(IServiceScope scope) where T : notnull =>
 		scope.ServiceProvider.GetRequiredService<T>();
+
+	/// <summary>A database of the fact's own, from <see cref="CreateFreshDatabaseAsync" />; disposing it drops it.</summary>
+	/// <param name="options">Options on the fresh database.</param>
+	/// <param name="drop">Drops the database.</param>
+	public sealed class FreshDatabase(DbContextOptions<NorseIdentityDbContext> options, Func<Task<int>> drop) : IAsyncDisposable
+	{
+		/// <summary>A new context on the fresh database, plus <paramref name="interceptors" />. The caller disposes it.</summary>
+		/// <param name="interceptors">The interceptors to attach.</param>
+		public NorseIdentityDbContext CreateContext(params IInterceptor[] interceptors) =>
+			new(new DbContextOptionsBuilder<NorseIdentityDbContext>(options).AddInterceptors(interceptors).Options);
+
+		/// <inheritdoc />
+		public async ValueTask DisposeAsync() =>
+			await drop();
+	}
 }

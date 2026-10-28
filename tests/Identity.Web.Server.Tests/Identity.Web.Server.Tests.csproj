@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk.Razor">
 	<ItemGroup>
 		<NorseDesignRef Include="Persistence.EntityFramework.Design">
 			<Repo>Urdarbrunnr</Repo>
@@ -10,7 +10,7 @@
 			<Repo>Midgard</Repo>
 		</NorseRef>
 		<PackageReference Include="Microsoft.AspNetCore.TestHost" Version="11.*-*" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="11.0.0-rc.2.26504.105" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="11.*-*" />
 		<PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" Version="*" />
 		<PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="*" />
 		<PackageReference Include="OpenTelemetry.Exporter.InMemory" Version="*" />

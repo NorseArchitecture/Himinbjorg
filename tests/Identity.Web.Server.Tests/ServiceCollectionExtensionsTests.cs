@@ -7,6 +7,9 @@ using System.Diagnostics.Metrics;
 using Norse.AuthN.Services;
 using Norse.Identity.EntityFramework;
 using Norse.Identity.Web.Server.Account;
+using Norse.Identity.Web.Server.Passkeys;
+using Norse.Identity.Web.Server.SignInMethods;
+using Norse.Identity.Web.Server.TwoFactor;
 
 namespace Norse.Identity.Web.Server.Tests;
 
@@ -69,6 +72,24 @@ public sealed class ServiceCollectionExtensionsTests
 		var descriptor = builder.Services.LastOrDefault(static d => d.ServiceType == typeof(IAccountService));
 		descriptor.ShouldNotBeNull();
 		descriptor.ImplementationType.ShouldBe(typeof(AccountService));
+		descriptor.Lifetime.ShouldBe(ServiceLifetime.Scoped);
+	}
+
+	[Theory]
+	[InlineData(typeof(ITwoFactorService), typeof(TwoFactorService))]
+	[InlineData(typeof(IPasskeyService), typeof(PasskeyService))]
+	[InlineData(typeof(ISignInMethodsService), typeof(SignInMethodsService))]
+	[InlineData(typeof(AccountCaller), typeof(AccountCaller))]
+	void Registers_the_train_3_services_and_the_account_caller_as_scoped(Type service, Type implementation)
+	{
+		var builder = CreateBuilder();
+		using var certificate = IdentityTestCertificate.CreateFresh();
+
+		builder.AddNorseAuthenticationService("test", certificate);
+
+		var descriptor = builder.Services.LastOrDefault(d => d.ServiceType == service);
+		descriptor.ShouldNotBeNull();
+		descriptor.ImplementationType.ShouldBe(implementation);
 		descriptor.Lifetime.ShouldBe(ServiceLifetime.Scoped);
 	}
 

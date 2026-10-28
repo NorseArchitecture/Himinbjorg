@@ -9,7 +9,9 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging.Testing;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using Norse.Abstractions.Web.Server.DeferredSignIn;
@@ -25,7 +27,10 @@ namespace Norse.Identity.Web.Server.Tests;
 ///     cookie handlers and <see cref="SecurityStampValidatorOptions" />, and Midgard's real
 ///     <c>/_auth/complete</c> endpoint. The user manager is a substitute answering for one user with an
 ///     authenticator enrolled; <see cref="Stamp" /> is mutable so a test can rotate the security stamp
-///     between requests. Each <see cref="RunAsync{T}" /> is one genuine HTTP request; writing to the
+///     between requests, <see cref="PasskeyHandler" /> is a substitute the passkey ceremonies run through, and
+///     <see cref="Ledger" /> the in-memory one-shot ledger the passkey sign-in burns its assertion state in (this
+///     harness has no database; <c>PasskeyChallengeLedgerTests</c> and the container suites prove the real one).
+///     Each <see cref="RunAsync{T}" /> is one genuine HTTP request; writing to the
 ///     response body first flips <c>HasStarted</c> the way Kestrel does.
 /// </summary>
 sealed class TwoFactorHarness : IDisposable
@@ -61,6 +66,7 @@ sealed class TwoFactorHarness : IDisposable
 		UserManager.GetValidTwoFactorProvidersAsync(User)
 			.Returns((IList<string>)[TokenOptions.DefaultAuthenticatorProvider]);
 		UserManager.GetUserIdAsync(User).Returns(UserId);
+		UserManager.GetUserNameAsync(User).Returns(User.UserName);
 		UserManager.GetUserId(Arg.Any<ClaimsPrincipal>())
 			.Returns(call => call.Arg<ClaimsPrincipal>().FindFirstValue(ClaimTypes.NameIdentifier));
 		UserManager.GetSecurityStampAsync(User).Returns(_ => Stamp);
@@ -72,6 +78,7 @@ sealed class TwoFactorHarness : IDisposable
 		UserManager.AccessFailedAsync(User).Returns(IdentityResult.Success);
 		UserManager.ResetAccessFailedCountAsync(User).Returns(IdentityResult.Success);
 		UserManager.RedeemTwoFactorRecoveryCodeAsync(User, RecoveryCode).Returns(IdentityResult.Success);
+		UserManager.AddOrUpdatePasskeyAsync(User, Arg.Any<UserPasskeyInfo>()).Returns(IdentityResult.Success);
 
 		// A fresh principal per call: SignInWithClaimsAsync mutates the identity it is handed.
 		ClaimsFactory.CreateAsync(User)
@@ -84,6 +91,7 @@ sealed class TwoFactorHarness : IDisposable
 				.ConfigureServices(services =>
 				{
 					services.AddRouting();
+					services.AddLogging(logging => logging.AddFakeLogging());
 					services.AddHttpContextAccessor();
 					services.AddSingleton<TimeProvider>(Clock);
 					services.AddDataProtection().UseEphemeralDataProtectionProvider();
@@ -97,6 +105,8 @@ sealed class TwoFactorHarness : IDisposable
 					services
 						.AddSingleton(UserManager)
 						.AddSingleton(ClaimsFactory)
+						.AddSingleton(PasskeyHandler)
+						.AddSingleton<IPasskeyChallengeLedger>(Ledger)
 						.AddSingleton(Substitute.For<IUserConfirmation<NorseUser>>())
 						.AddScoped<NorseSignInManager>()
 						.AddScoped<SignInManager<NorseUser>>(static sp => sp.GetRequiredService<NorseSignInManager>())
@@ -134,6 +144,16 @@ sealed class TwoFactorHarness : IDisposable
 	public IUserClaimsPrincipalFactory<NorseUser> ClaimsFactory { get; } =
 		Substitute.For<IUserClaimsPrincipalFactory<NorseUser>>();
 
+	/// <summary>The WebAuthn handler <see cref="NorseSignInManager" /> runs the passkey ceremonies through.</summary>
+	public IPasskeyHandler<NorseUser> PasskeyHandler { get; } = Substitute.For<IPasskeyHandler<NorseUser>>();
+
+	/// <summary>The one-shot ledger the passkey sign-in consumes its assertion state in.</summary>
+	public InMemoryPasskeyChallengeLedger Ledger { get; } = new();
+
+	/// <summary>Every log record the host's components wrote.</summary>
+	public FakeLogCollector Logs =>
+		_host.Services.GetFakeLogCollector();
+
 	public FakeTimeProvider Clock { get; } = new(DateTimeOffset.UtcNow);
 
 	public IServiceProvider Services =>
@@ -148,6 +168,16 @@ sealed class TwoFactorHarness : IDisposable
 	public ITimeLimitedDataProtector ChallengeProtector =>
 		Services.GetRequiredService<IDataProtectionProvider>()
 			.CreateProtector(TwoFactorChallenge.Purpose)
+			.ToTimeLimitedDataProtector();
+
+	public ITimeLimitedDataProtector AttestationProtector =>
+		Services.GetRequiredService<IDataProtectionProvider>()
+			.CreateProtector(NorseSignInManager.PasskeyAttestationPurpose)
+			.ToTimeLimitedDataProtector();
+
+	public ITimeLimitedDataProtector AssertionProtector =>
+		Services.GetRequiredService<IDataProtectionProvider>()
+			.CreateProtector(NorseSignInManager.PasskeyAssertionPurpose)
 			.ToTimeLimitedDataProtector();
 
 	public static async Task<TwoFactorHarness> StartAsync(bool realDeferredSignIn = false)

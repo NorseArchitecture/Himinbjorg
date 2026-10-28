@@ -15,7 +15,16 @@ namespace Norse.Identity.Web.Server;
 /// <param name="SecurityStamp">The user's security stamp when the challenge was minted.</param>
 /// <param name="IsPersistent">Whether the completed sign-in should persist, as the first step asked.</param>
 /// <param name="LoginProvider">The external login provider that proved the first step, or <see langword="null" /> for a password.</param>
-sealed record TwoFactorChallenge(string UserId, string SecurityStamp, bool IsPersistent, string? LoginProvider)
+/// <param name="ReturnUrl">
+///     The landing the first step resolved (<see cref="ReturnUrls.Resolve" />), carried across the challenge (T3-21).
+///     It is the payload's last field, split off whole, so a <c>|</c> inside it survives.
+/// </param>
+sealed record TwoFactorChallenge(
+	string UserId,
+	string SecurityStamp,
+	bool IsPersistent,
+	string? LoginProvider,
+	string ReturnUrl)
 {
 	/// <summary>The data-protection purpose; a token protected under any other purpose is refused.</summary>
 	public const string Purpose = "Norse.Identity.TwoFactorChallenge.v1";
@@ -23,15 +32,17 @@ sealed record TwoFactorChallenge(string UserId, string SecurityStamp, bool IsPer
 	/// <summary>How long a minted challenge may be redeemed.</summary>
 	public static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(5);
 
-	const string Version = "v1";
+	// v2 added the landing (T3-21); a v1 token is refused like an expired one -- it lives five minutes at most.
+	const string Version = "v2";
 	const char Separator = '|';
+	const int FieldCount = 6;
 
 	/// <summary>Mints the opaque token for this challenge, valid for <see cref="Lifetime" />.</summary>
 	/// <param name="protector">The time-limited protector under <see cref="Purpose" />.</param>
 	/// <returns>The token the client hands back to complete the second factor.</returns>
 	public string Protect(ITimeLimitedDataProtector protector) =>
 		protector.Protect(
-			$"{Version}{Separator}{UserId}{Separator}{SecurityStamp}{Separator}{(IsPersistent ? "1" : "0")}{Separator}{LoginProvider}",
+			string.Join(Separator, Version, UserId, SecurityStamp, IsPersistent ? "1" : "0", LoginProvider, ReturnUrl),
 			Lifetime);
 
 	/// <summary>
@@ -57,10 +68,12 @@ sealed record TwoFactorChallenge(string UserId, string SecurityStamp, bool IsPer
 			return false;
 		}
 
-		if (payload.Split(Separator) is not [Version, var userId, var securityStamp, var isPersistent, var loginProvider])
+		if (payload.Split(Separator, FieldCount) is not
+			[Version, var userId, var securityStamp, var isPersistent, var loginProvider, var returnUrl])
 			return false;
 
-		challenge = new(userId, securityStamp, isPersistent == "1", loginProvider.Length == 0 ? null : loginProvider);
+		challenge = new(userId, securityStamp, isPersistent == "1", loginProvider.Length == 0 ? null : loginProvider,
+			returnUrl);
 		return true;
 	}
 }

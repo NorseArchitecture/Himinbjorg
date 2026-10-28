@@ -54,7 +54,8 @@ public sealed class GetExternalLoginsHandlerTests
 
 	ValueTask<Outcome<ExternalLoginsResponse>> HandleAsync()
 	{
-		GetExternalLoginsHandler handler = new(_userManager, _signInManager, FakePrincipal.For(_user.Id));
+		GetExternalLoginsHandler handler = new(new AccountCaller(FakePrincipal.For(_user.Id), _userManager),
+			_userManager, _signInManager);
 		return handler.Handle(new(Unit.Value), Cancellation);
 	}
 

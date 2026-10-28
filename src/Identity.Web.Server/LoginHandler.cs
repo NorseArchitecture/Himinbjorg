@@ -21,8 +21,7 @@ sealed class LoginHandler(
 	// (Blazor Server, WASM, MAUI) just navigates to it, with no route knowledge or default of its own.
 	//
 	// Root-relative, not path-relative, and combined with the live request's PathBase via
-	// UriHelper.BuildRelative at the use site (matching IdentityComponentsEndpointRouteBuilderExtensions'
-	// own PathBase-preserving pattern), like every other NextUrl this handler resolves: a genuine
+	// UriHelper.BuildRelative at the use site, the way the server authors every flow URL: a genuine
 	// origin-absolute URL that resolves identically wherever the client navigates from, correct under a
 	// non-root PathBase too -- BuildRelative is a no-op prefix when PathBase is empty.
 	const string TwoFactorChallengeRoute = "/Account/LoginWith2fa";
@@ -52,13 +51,22 @@ sealed class LoginHandler(
 		if (!wire.Email.TryGetValue(out Success<EmailAddress> email))
 			return new Outcome<NavigationResult>(_invalidCredentials);
 
+		// Only ReturnUrls.Resolve decides a landing (T3-2): the client's returnUrl when it is local, else the
+		// PathBase-qualified app root -- resolved here, not left for the client to supply, so NextUrl is never null.
+		var httpContext = httpContextAccessor.HttpContext!;
+		var landing = ReturnUrls.Resolve(wire.ReturnUrl, PathBase);
+
 		// SignInManager mints/clears the cookie itself via its own IHttpContextAccessor dependency —
 		// no manual HttpContext.SignInAsync call needed here (must register AddHttpContextAccessor()).
 		// WireValue is the deliberate plaintext egress — Identity's store speaks canonical strings.
 		// The .Outcome view maps the SignInResult (spec §4.12); this handler only routes and words it.
-		var outcome = await signInManager.Outcome.PasswordSignInAsync(
-				email.Value.WireValue, wire.Password, wire.RememberMe, lockoutOnFailure: true, cancellationToken)
-			.ConfigureAwait(false);
+		// The landing is parked only for the call, so a two-factor challenge carries it in its token, and the
+		// scope's finally removes it on every exit.
+		Outcome<SignInCompletion> outcome;
+		using (ParkedReturnUrl.Park(httpContext, landing))
+			outcome = await signInManager.Outcome.PasswordSignInAsync(
+					email.Value.WireValue, wire.Password, wire.RememberMe, lockoutOnFailure: true, cancellationToken)
+				.ConfigureAwait(false);
 		if (outcome.TryGetValue(out Failed failed))
 			return SignInRefusal.Collapse(failed, _invalidCredentials);
 
@@ -68,12 +76,12 @@ sealed class LoginHandler(
 		// side of the Outcome instead, distinguished from a completed login by NextUrl pointing at the
 		// 2FA challenge rather than a bare flag. NorseSignInManager writes no partial two-factor cookie
 		// (nor defers one): it parks a protected challenge token on HttpContext.Items, which carries the
-		// user, the stamp, and the caller's RememberMe choice, so the URL carries only that token -- and
+		// user, the stamp, the caller's RememberMe choice and the landing, so the URL carries only that token -- and
 		// with nothing stashed there is no deferred-completion detour on this branch.
 		if (outcome.TryGetValue(out Success<SignInCompletion> completion)
 			&& completion.Value is SignInCompletion.RequiresTwoFactor)
 		{
-			var token = httpContextAccessor.HttpContext!.Items[NorseSignInManager.TwoFactorChallengeItemName] as string
+			var token = httpContext.Items[NorseSignInManager.TwoFactorChallengeItemName] as string
 				?? throw new InvalidOperationException("RequiresTwoFactor without a parked challenge");
 			return Outcome<NavigationResult>.Ok(new NavigationResult
 			{
@@ -82,13 +90,10 @@ sealed class LoginHandler(
 			});
 		}
 
-		// The app root, PathBase-qualified, is the concrete default for a completed sign-in whose
-		// cookie was written directly -- resolved here, not left for the client to supply, so NextUrl
-		// is never null.
-		var appRoot = UriHelper.BuildRelative(PathBase, "/");
+		// A completed sign-in lands directly, or through the deferred-completion detour when a circuit stashed it.
 		return Outcome<NavigationResult>.Ok(new NavigationResult
 		{
-			NextUrl = deferredCompletion.TryBuildUrl(appRoot) ?? appRoot
+			NextUrl = deferredCompletion.TryBuildUrl(landing) ?? landing
 		});
 	}
 }

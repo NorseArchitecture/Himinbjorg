@@ -211,7 +211,7 @@ public sealed class LoginHandlerTests
 	// A leading-slash NextUrl is only origin-absolute-correct when the origin's root really is the
 	// app root -- under a non-root PathBase, a bare "/" or "/Account/LoginWith2fa" would escape the
 	// app entirely once a client actually navigates there. NextUrl must carry the live request's
-	// PathBase, the same way IdentityComponentsEndpointRouteBuilderExtensions already does for its
+	// PathBase, the same way ExternalLoginEndpointRouteBuilderExtensions already does for its
 	// own redirects (UriHelper.BuildRelative), not hardcode root hosting.
 	[Fact]
 	async Task NextUrl_carries_the_request_s_PathBase_for_a_completed_sign_in()
@@ -267,6 +267,73 @@ public sealed class LoginHandlerTests
 
 		outcome.TryGetValue(out Success<NavigationResult> success).ShouldBeTrue();
 		success.Value.NextUrl.ShouldContain("stashed-key");
+	}
+
+	[Fact]
+	async Task A_local_return_url_is_the_landing()
+	{
+		var nextUrl = await SignInWithReturnUrlAsync("/app/Account/Manage?x=1");
+
+		nextUrl.ShouldBe("/app/Account/Manage?x=1");
+	}
+
+	[Fact]
+	async Task A_foreign_return_url_lands_on_the_app_root()
+	{
+		var nextUrl = await SignInWithReturnUrlAsync("https://evil.example/");
+
+		nextUrl.ShouldBe("/app/");
+	}
+
+	// The resolved landing is parked for the challenge mint only while PasswordSignInAsync runs, on every exit.
+	[Theory]
+	[InlineData(true)]
+	[InlineData(false)]
+	async Task The_parked_item_is_removed_after_sign_in(bool succeeds)
+	{
+		var signInManager = MockSignInManager.Create();
+		DefaultHttpContext httpContext = new();
+		httpContext.Request.PathBase = "/app";
+		object? parkedDuringSignIn = null;
+		signInManager.PasswordSignInAsync("user@example.com", "correct-horse", false, true)
+			.Returns(_ =>
+			{
+				parkedDuringSignIn = httpContext.Items[NorseSignInManager.ReturnUrlItemName];
+				return succeeds ?
+					Microsoft.AspNetCore.Identity.SignInResult.Success :
+					Microsoft.AspNetCore.Identity.SignInResult.Failed;
+			});
+		var handler = CreateHandler(signInManager, httpContext: httpContext);
+
+		await handler.Handle(new(new LoginRequest
+		{
+			EmailInput = "user@example.com",
+			Password = "correct-horse",
+			ReturnUrl = "/app/Account/Manage"
+		}), TestContext.Current.CancellationToken);
+
+		parkedDuringSignIn.ShouldBe("/app/Account/Manage");
+		httpContext.Items.ContainsKey(NorseSignInManager.ReturnUrlItemName).ShouldBeFalse();
+	}
+
+	static async Task<string> SignInWithReturnUrlAsync(string returnUrl)
+	{
+		var signInManager = MockSignInManager.Create();
+		signInManager.PasswordSignInAsync("user@example.com", "correct-horse", false, true)
+			.Returns(Microsoft.AspNetCore.Identity.SignInResult.Success);
+		DefaultHttpContext httpContext = new();
+		httpContext.Request.PathBase = "/app";
+		var handler = CreateHandler(signInManager, httpContext: httpContext);
+
+		var outcome = await handler.Handle(new(new LoginRequest
+		{
+			EmailInput = "user@example.com",
+			Password = "correct-horse",
+			ReturnUrl = returnUrl
+		}), TestContext.Current.CancellationToken);
+
+		outcome.TryGetValue(out Success<NavigationResult> success).ShouldBeTrue();
+		return success.Value.NextUrl;
 	}
 
 	[Theory]

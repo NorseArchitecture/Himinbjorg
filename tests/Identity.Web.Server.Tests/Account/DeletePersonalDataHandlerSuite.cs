@@ -188,7 +188,7 @@ public abstract class DeletePersonalDataHandlerSuite(IdentityFixture fixture) : 
 		signInManager.Context = http;
 		var accessor = Substitute.For<IHttpContextAccessor>();
 		accessor.HttpContext.Returns(http);
-		return new(userManager, signInManager, FakePrincipal.For(userId), erasure,
+		return new(new AccountCaller(FakePrincipal.For(userId), userManager), userManager, signInManager, erasure,
 			new(Substitute.For<IDeferredSignIn>(), accessor), accessor, NullLogger<DeletePersonalDataHandler>.Instance);
 	}
 

@@ -17,7 +17,7 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261025054817_InitialCreate";
+    public override string LastMigrationId => "20261028091800_InitialCreate";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -27,6 +27,26 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
             .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
         NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+        modelBuilder.Entity("Norse.Identity.EntityFramework.ConsumedPasskeyChallenge", b =>
+            {
+                b.Property<byte[]>("ChallengeHash")
+                    .HasMaxLength(32)
+                    .HasColumnType("bytea")
+                    .HasColumnName("challenge_hash");
+
+                b.Property<DateTimeOffset>("ExpiresAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("expires_at");
+
+                b.HasKey("ChallengeHash")
+                    .HasName("pk_consumed_passkey_challenges");
+
+                b.HasIndex("ExpiresAt")
+                    .HasDatabaseName("ix_consumed_passkey_challenges_expires_at");
+
+                b.ToTable("consumed_passkey_challenges");
+            });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseOpenIddictApplication", b =>
             {
@@ -701,6 +721,31 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .HasName("pk_subject_keys");
 
                 b.ToTable("subject_keys");
+            });
+
+        modelBuilder.Entity("Norse.Identity.EntityFramework.VerificationCursor", b =>
+            {
+                b.Property<string>("Name")
+                    .HasMaxLength(64)
+                    .HasColumnType("character varying(64)")
+                    .HasColumnName("name");
+
+                b.Property<Guid?>("LastId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("last_id");
+
+                b.Property<DateTimeOffset>("UpdatedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("updated_at");
+
+                b.Property<long>("Version")
+                    .HasColumnType("bigint")
+                    .HasColumnName("version");
+
+                b.HasKey("Name")
+                    .HasName("pk_verification_cursors");
+
+                b.ToTable("verification_cursors");
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseOpenIddictAuthorization", b =>

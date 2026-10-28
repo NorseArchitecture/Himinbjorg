@@ -3,7 +3,6 @@ using Norse.Abstractions.Contracts;
 using Norse.Abstractions.Web.Server.Mediator;
 using Norse.AuthN.Services;
 using Norse.Identity.EntityFramework;
-using Norse.Identity.Outcomes;
 using Norse.Primitives;
 
 namespace Norse.Identity.Web.Server.Account;
@@ -14,21 +13,20 @@ namespace Norse.Identity.Web.Server.Account;
 ///     naming no user answers <see cref="ErrorCategory.NotFound" /> and an erased one
 ///     <see cref="ErrorCategory.Erased" />, both passed through unchanged.
 /// </summary>
-/// <param name="userManager">Loads the caller and reads the account facts.</param>
+/// <param name="caller">Resolves the calling user from the principal.</param>
+/// <param name="userManager">Reads the account facts.</param>
 /// <param name="signInManager">Reads whether the calling machine is remembered for two-factor purposes.</param>
-/// <param name="principalAccessor">Reaches the caller's principal.</param>
 sealed class GetAccountStatusHandler(
+	AccountCaller caller,
 	UserManager<NorseUser> userManager,
-	SignInManager<NorseUser> signInManager,
-	IPrincipalAccessor principalAccessor)
+	SignInManager<NorseUser> signInManager)
 	: IRequestHandler<GetAccountStatusCommand, AccountStatusResponse>
 {
 	/// <inheritdoc />
 	public async ValueTask<Outcome<AccountStatusResponse>> Handle(GetAccountStatusCommand request,
 		CancellationToken cancellationToken = default)
 	{
-		var principal = await principalAccessor.GetPrincipalAsync(cancellationToken).ConfigureAwait(false);
-		var found = await userManager.Outcome.GetUserAsync(principal, cancellationToken).ConfigureAwait(false);
+		var found = await caller.ResolveAsync(cancellationToken).ConfigureAwait(false);
 		if (found.TryGetValue(out Failed failed))
 			return new(failed);
 		found.TryGetValue(out Success<NorseUser> success);

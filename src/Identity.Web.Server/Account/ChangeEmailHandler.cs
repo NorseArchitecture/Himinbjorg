@@ -5,7 +5,6 @@ using Norse.Abstractions.Contracts;
 using Norse.Abstractions.Web.Server.Mediator;
 using Norse.AuthN.Services;
 using Norse.Identity.EntityFramework;
-using Norse.Identity.Outcomes;
 using Norse.Primitives;
 using Norse.Primitives.Pii;
 
@@ -18,14 +17,14 @@ namespace Norse.Identity.Web.Server.Account;
 ///     plain acknowledgment. The current address, in any case, is refused on the new-email field before any token is
 ///     minted. The fold's failures pass through unchanged.
 /// </summary>
-/// <param name="userManager">Loads the caller, reads the current email and mints the change token.</param>
+/// <param name="caller">Resolves the calling user from the principal.</param>
+/// <param name="userManager">Reads the current email and mints the change token.</param>
 /// <param name="emailSender">Sends the change-confirmation link.</param>
-/// <param name="principalAccessor">Reaches the caller's principal.</param>
 /// <param name="httpContextAccessor">Reaches the live request the link is built from.</param>
 sealed class ChangeEmailHandler(
+	AccountCaller caller,
 	UserManager<NorseUser> userManager,
 	IEmailSender<NorseUser> emailSender,
-	IPrincipalAccessor principalAccessor,
 	IHttpContextAccessor httpContextAccessor)
 	: IRequestHandler<ChangeEmailCommand, BoolResponse>
 {
@@ -42,8 +41,7 @@ sealed class ChangeEmailHandler(
 					[nameof(ChangeEmailRequest.NewEmail)] = ["Enter a valid email address (local@domain.tld)."]
 				});
 
-		var principal = await principalAccessor.GetPrincipalAsync(cancellationToken).ConfigureAwait(false);
-		var found = await userManager.Outcome.GetUserAsync(principal, cancellationToken).ConfigureAwait(false);
+		var found = await caller.ResolveAsync(cancellationToken).ConfigureAwait(false);
 		if (found.TryGetValue(out Failed lookupFailed))
 			return new(lookupFailed);
 		found.TryGetValue(out Success<NorseUser> user);

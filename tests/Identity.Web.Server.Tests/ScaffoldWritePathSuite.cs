@@ -8,7 +8,7 @@ namespace Norse.Identity.Web.Server.Tests;
 
 /// <summary>
 ///     V6 (2026-10-24 explicit-writes spec §12, plan Task 4.10), once per provider: every write the surviving scaffold
-///     (<c>ExternalLogin</c> and the <c>/Account/Manage</c> tree) and the account handlers make, driven the way the
+///     (the <c>/Account/Manage</c> tree), the external-login callback and the account handlers make, driven the way the
 ///     page or handler drives it -- the instance obtained by the same read it makes (<c>GetUserAsync</c> on the principal,
 ///     <c>FindByIdAsync</c>, <c>FindByEmailAsync</c>, or the sign-in manager's own lookup), then the same manager and
 ///     sign-in-manager calls. None may meet the store's no-baseline refusal: every <see cref="NorseUser" /> a write sees came from a store read or a create.
@@ -54,8 +54,8 @@ public abstract class ScaffoldWritePathSuite : IDisposable
 	[
 		"Login: PasswordSignInAsync, a wrong password then the right one",
 		"Register: CreateAsync with a password",
-		"ExternalLogin: store setters, CreateAsync, AddLoginAsync",
-		"ExternalLogin: ExternalLoginSignInAsync",
+		"ExternalLoginCallback: CreateAsync, AddLoginAsync",
+		"ExternalLoginCallback: ExternalLoginSignInAsync",
 		"ConfirmEmail: ConfirmEmailAsync",
 		"ConfirmEmailChange: ChangeEmailAsync",
 		"ResetPassword: ResetPasswordAsync",
@@ -95,8 +95,8 @@ public abstract class ScaffoldWritePathSuite : IDisposable
 		{
 			"Login: PasswordSignInAsync, a wrong password then the right one" => LoginAsync(),
 			"Register: CreateAsync with a password" => RegisterAsync(),
-			"ExternalLogin: store setters, CreateAsync, AddLoginAsync" => ExternalLoginRegistrationAsync(),
-			"ExternalLogin: ExternalLoginSignInAsync" => ExternalLoginSignInAsync(),
+			"ExternalLoginCallback: CreateAsync, AddLoginAsync" => ExternalLoginRegistrationAsync(),
+			"ExternalLoginCallback: ExternalLoginSignInAsync" => ExternalLoginSignInAsync(),
 			"ConfirmEmail: ConfirmEmailAsync" => ConfirmEmailAsync(),
 			"ConfirmEmailChange: ChangeEmailAsync" => ConfirmEmailChangeAsync(),
 			"ResetPassword: ResetPasswordAsync" => ResetPasswordAsync(),
@@ -142,14 +142,11 @@ public abstract class ScaffoldWritePathSuite : IDisposable
 		ShouldStillBeWritable(user);
 	}
 
-	/// <summary><c>ExternalLogin.razor</c>'s registration: store setters on a new instance, create, then the login.</summary>
+	/// <summary><c>ExternalLoginCallback</c>'s registration: a new instance, passwordless create, then the login.</summary>
 	async Task ExternalLoginRegistrationAsync()
 	{
 		var email = NewEmail();
-		var store = _fixture.CreateUserStore();
-		NorseUser user = new();
-		await store.SetUserNameAsync(user, email, Cancellation);
-		await ((IUserEmailStore<NorseUser>)store).SetEmailAsync(user, email, Cancellation);
+		NorseUser user = new() { UserName = email, Email = email };
 		var userManager = _fixture.CreateUserManager();
 
 		(await userManager.CreateAsync(user)).Succeeded.ShouldBeTrue();
@@ -158,7 +155,7 @@ public abstract class ScaffoldWritePathSuite : IDisposable
 		ShouldStillBeWritable(user);
 	}
 
-	/// <summary><c>ExternalLogin.razor</c>'s sign-in: the sign-in manager reads the user by login.</summary>
+	/// <summary><c>ExternalLoginCallback</c>'s sign-in: the sign-in manager reads the user by login, never bypassing two-factor.</summary>
 	async Task ExternalLoginSignInAsync()
 	{
 		var seeded = await SeedAsync();
@@ -168,7 +165,7 @@ public abstract class ScaffoldWritePathSuite : IDisposable
 			.Succeeded.ShouldBeTrue();
 
 		var result = await SignIn(_fixture.CreateUserManager())
-			.ExternalLoginSignInAsync("TestProvider", providerKey, isPersistent: false, bypassTwoFactor: true);
+			.ExternalLoginSignInAsync("TestProvider", providerKey, isPersistent: false, bypassTwoFactor: false);
 
 		result.Succeeded.ShouldBeTrue();
 	}
@@ -232,7 +229,7 @@ public abstract class ScaffoldWritePathSuite : IDisposable
 
 		var result = await signIn.TwoFactorChallengeSignInAsync(ChallengeToken(signIn), "not-a-code", rememberClient: false);
 
-		result.Succeeded.ShouldBeFalse();
+		result.Result.Succeeded.ShouldBeFalse();
 		(await RereadAsync((await _fixture.CreateUserManager().FindByEmailAsync(email)).ShouldNotBeNull().Id))
 			.AccessFailedCount.ShouldBe(1);
 	}
@@ -247,9 +244,10 @@ public abstract class ScaffoldWritePathSuite : IDisposable
 		var signIn = SignIn(_fixture.CreateUserManager());
 		(await signIn.PasswordSignInAsync(email, Password, false, lockoutOnFailure: true)).RequiresTwoFactor.ShouldBeTrue();
 		var token = ChallengeToken(signIn);
-		(await signIn.TwoFactorChallengeSignInAsync(token, "not-a-code", rememberClient: false)).Succeeded.ShouldBeFalse();
+		(await signIn.TwoFactorChallengeSignInAsync(token, "not-a-code", rememberClient: false)).Result.Succeeded
+			.ShouldBeFalse();
 
-		(await signIn.RecoveryCodeChallengeSignInAsync(token, codes[0])).Succeeded.ShouldBeTrue();
+		(await signIn.RecoveryCodeChallengeSignInAsync(token, codes[0])).Result.Succeeded.ShouldBeTrue();
 
 		var userManager = _fixture.CreateUserManager();
 		var reread = (await userManager.FindByEmailAsync(email)).ShouldNotBeNull();

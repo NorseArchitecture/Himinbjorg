@@ -83,6 +83,16 @@ abstract record StagedIntent
 	/// <param name="Value">The plaintext value, encrypted by the model's converter when the flush binds it.</param>
 	internal sealed record UpsertToken(string LoginProvider, string Name, string? Value) : StagedIntent;
 
+	/// <summary>
+	///     Insert-if-absent on <c>(user_id, login_provider, name)</c>: writes the value only where no value is stored,
+	///     so of two concurrent creators the first committed wins and the second writes nothing. The authenticator key's
+	///     first provisioning (Train 3 Task 4.4): the caller re-reads, and every racer answers the one key stored.
+	/// </summary>
+	/// <param name="LoginProvider">The token's provider.</param>
+	/// <param name="Name">The token's name.</param>
+	/// <param name="Value">The plaintext value, encrypted by the model's converter when the flush binds it.</param>
+	internal sealed record InsertTokenIfAbsent(string LoginProvider, string Name, string Value) : StagedIntent;
+
 	/// <summary>Deletes the token by its key.</summary>
 	/// <param name="LoginProvider">The token's provider.</param>
 	/// <param name="Name">The token's name.</param>

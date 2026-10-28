@@ -31,6 +31,7 @@ public sealed class LinkExternalLoginEndpointTests : IAsyncDisposable
 	const string StartPath = "/Account/Manage/LinkExternalLogin?provider=Google";
 	const string CallbackPath = "/Account/Manage/LinkExternalLoginCallback";
 	const string NotAddedUrl = "/Account/Manage/ExternalLogins?status=external-login-not-added";
+	const string FailedUrl = "/Account/Manage/ExternalLogins?status=external-login-failed";
 
 	readonly UserManager<NorseUser> _userManager = MockUserManager.Create();
 	readonly SignInManager<NorseUser> _signInManager = MockSignInManager.Create();
@@ -67,7 +68,7 @@ public sealed class LinkExternalLoginEndpointTests : IAsyncDisposable
 	{
 		using var client = await StartAsync();
 
-		using var response = await client.GetAsync(new Uri(StartPath, UriKind.Relative), Cancellation);
+		using var response = await GetStartAsync(client, StartPath, "same-origin");
 
 		response.StatusCode.ShouldBe(HttpStatusCode.OK);
 		_signInManager.Received(1).ConfigureExternalAuthenticationProperties(Provider,
@@ -77,17 +78,28 @@ public sealed class LinkExternalLoginEndpointTests : IAsyncDisposable
 	}
 
 	[Fact]
-	async Task An_unknown_provider_redirects_with_the_not_added_key_and_challenges_nothing()
+	async Task An_unknown_provider_redirects_with_the_failed_key_and_challenges_nothing()
 	{
 		using var client = await StartAsync();
 
-		using var response = await client.GetAsync(new Uri("/Account/Manage/LinkExternalLogin?provider=Cookies",
-			UriKind.Relative), Cancellation);
+		using var response = await GetStartAsync(client, "/Account/Manage/LinkExternalLogin?provider=Cookies",
+			"same-origin");
 
-		RedirectOf(response).ShouldBe(NotAddedUrl);
-		_signInManager.DidNotReceiveWithAnyArgs().ConfigureExternalAuthenticationProperties(default, default, default);
-		await _authentication.DidNotReceiveWithAnyArgs().ChallengeAsync(default!, default, default);
+		RedirectOf(response).ShouldBe(FailedUrl);
+		await AssertChallengedNothingAsync();
 	}
+
+	[Fact]
+	async Task A_cross_site_link_start_challenges_nothing() =>
+		await AssertLinkStartRefusedAsync("cross-site");
+
+	[Fact]
+	async Task A_same_site_link_start_challenges_nothing() =>
+		await AssertLinkStartRefusedAsync("same-site");
+
+	[Fact]
+	async Task A_link_start_without_fetch_metadata_challenges_nothing() =>
+		await AssertLinkStartRefusedAsync(null);
 
 	[Fact]
 	async Task No_POST_link_start_remains()
@@ -133,6 +145,20 @@ public sealed class LinkExternalLoginEndpointTests : IAsyncDisposable
 	}
 
 	[Fact]
+	async Task Any_other_definite_add_failure_redirects_with_the_failed_key()
+	{
+		_userManager.AddLoginAsync(_user, Arg.Any<UserLoginInfo>())
+			.Returns(IdentityResult.Failed(_describer.DefaultError()));
+		using var client = await StartAsync();
+
+		using var response = await GetCallbackAsync(client);
+
+		RedirectOf(response).ShouldBe(FailedUrl);
+		await AssertExternalCookieClearedAsync();
+		LinkLogs().ShouldHaveSingleItem().Message.ShouldContain(nameof(ErrorCategory.Fault));
+	}
+
+	[Fact]
 	async Task An_indeterminate_link_redirects_without_a_status_key()
 	{
 		_userManager.AddLoginAsync(_user, Arg.Any<UserLoginInfo>())
@@ -147,14 +173,14 @@ public sealed class LinkExternalLoginEndpointTests : IAsyncDisposable
 	}
 
 	[Fact]
-	async Task A_missing_external_cookie_redirects_with_the_not_added_key()
+	async Task A_missing_external_cookie_redirects_with_the_failed_key()
 	{
 		_signInManager.GetExternalLoginInfoAsync(Arg.Any<string?>()).Returns((ExternalLoginInfo?)null);
 		using var client = await StartAsync();
 
 		using var response = await GetCallbackAsync(client);
 
-		RedirectOf(response).ShouldBe(NotAddedUrl);
+		RedirectOf(response).ShouldBe(FailedUrl);
 		await _userManager.DidNotReceiveWithAnyArgs().AddLoginAsync(default!, default!);
 		await AssertExternalCookieClearedAsync();
 	}
@@ -162,7 +188,7 @@ public sealed class LinkExternalLoginEndpointTests : IAsyncDisposable
 	[Theory]
 	[InlineData(true)]
 	[InlineData(false)]
-	async Task A_callback_whose_caller_cannot_be_loaded_redirects_with_the_not_added_key(bool erased)
+	async Task A_callback_whose_caller_cannot_be_loaded_redirects_with_the_failed_key(bool erased)
 	{
 		if (erased)
 			_userManager.GetUserAsync(Arg.Any<ClaimsPrincipal>())
@@ -173,7 +199,7 @@ public sealed class LinkExternalLoginEndpointTests : IAsyncDisposable
 
 		using var response = await GetCallbackAsync(client);
 
-		RedirectOf(response).ShouldBe(NotAddedUrl);
+		RedirectOf(response).ShouldBe(FailedUrl);
 		await _signInManager.DidNotReceiveWithAnyArgs().GetExternalLoginInfoAsync(default);
 		await AssertExternalCookieClearedAsync();
 		LinkLogs().ShouldHaveSingleItem().Message
@@ -190,7 +216,7 @@ public sealed class LinkExternalLoginEndpointTests : IAsyncDisposable
 			"Test"));
 		using var client = await StartAsync();
 
-		using var response = await client.GetAsync(new Uri(path, UriKind.Relative), Cancellation);
+		using var response = await GetStartAsync(client, path, "same-origin");
 
 		response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
 		_signInManager.DidNotReceiveWithAnyArgs().ConfigureExternalAuthenticationProperties(default, default, default);
@@ -227,7 +253,7 @@ public sealed class LinkExternalLoginEndpointTests : IAsyncDisposable
 		});
 		_app.UseRouting();
 		_app.UseAuthorization();
-		_app.MapAdditionalIdentityEndpoints();
+		_app.MapNorseExternalLoginEndpoints();
 		await _app.StartAsync(Cancellation);
 		return _app.GetTestClient();
 	}
@@ -236,12 +262,36 @@ public sealed class LinkExternalLoginEndpointTests : IAsyncDisposable
 	FakeLogRecord[] LinkLogs() =>
 		[
 			.. _logs.Collector.GetSnapshot()
-				.Where(record => record.Category == typeof(IdentityComponentsEndpointRouteBuilderExtensions).FullName)
+				.Where(record => record.Category == typeof(ExternalLoginEndpointRouteBuilderExtensions).FullName)
 		];
+
+	async Task AssertLinkStartRefusedAsync(string? fetchSite)
+	{
+		using var client = await StartAsync();
+
+		using var response = await GetStartAsync(client, StartPath, fetchSite);
+
+		RedirectOf(response).ShouldBe(FailedUrl);
+		await AssertChallengedNothingAsync();
+	}
+
+	async Task AssertChallengedNothingAsync()
+	{
+		_signInManager.DidNotReceiveWithAnyArgs().ConfigureExternalAuthenticationProperties(default, default, default);
+		await _authentication.DidNotReceiveWithAnyArgs().ChallengeAsync(default!, default, default);
+	}
 
 	Task AssertExternalCookieClearedAsync() =>
 		_authentication.Received(1)
 			.SignOutAsync(Arg.Any<HttpContext>(), IdentityConstants.ExternalScheme, Arg.Any<AuthenticationProperties?>());
+
+	static async Task<HttpResponseMessage> GetStartAsync(HttpClient client, string path, string? fetchSite)
+	{
+		using HttpRequestMessage request = new(HttpMethod.Get, new Uri(path, UriKind.Relative));
+		if (fetchSite is not null)
+			request.Headers.Add("Sec-Fetch-Site", fetchSite);
+		return await client.SendAsync(request, Cancellation);
+	}
 
 	static Task<HttpResponseMessage> GetCallbackAsync(HttpClient client) =>
 		client.GetAsync(new Uri(CallbackPath, UriKind.Relative), Cancellation);

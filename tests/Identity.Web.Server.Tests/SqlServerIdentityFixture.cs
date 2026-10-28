@@ -100,6 +100,14 @@ public sealed class SqlServerIdentityFixture : IdentityFixture
 	}
 
 	/// <inheritdoc />
+	protected override string ConnectionStringFor(string connectionString, string database) =>
+		new SqlConnectionStringBuilder(connectionString) { InitialCatalog = database }.ConnectionString;
+
+	/// <inheritdoc />
+	protected override string DropDatabaseSql(string database) =>
+		$"ALTER DATABASE [{database}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{database}]";
+
+	/// <inheritdoc />
 	protected override Task<string> ReadRawEmailAsync(NorseIdentityDbContext context, Guid userId) =>
 		context.Database
 			.SqlQuery<string>($"SELECT Email AS Value FROM dbo.Users WHERE Id = {userId}")
