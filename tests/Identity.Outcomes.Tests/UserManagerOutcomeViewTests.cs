@@ -300,6 +300,164 @@ public sealed class UserManagerOutcomeViewTests
 		category.ShouldNotBe(ErrorCategory.Fault);
 	}
 
+	[Fact]
+	async Task Passwordless_CreateAsync_maps_the_IdentityResult_an_indeterminate_write_and_an_erased_user()
+	{
+		NorseUser created = new(), faulted = new(), unsure = new(), erased = new();
+		ErasureReceipt receipt = new(Guid.CreateVersion7(), DateTimeOffset.UnixEpoch);
+		_userManager.CreateAsync(created).Returns(IdentityResult.Success);
+		_userManager.CreateAsync(faulted).Returns(Unmapped);
+		_userManager.CreateAsync(unsure).Returns(Indeterminate);
+		_userManager.CreateAsync(erased).ThrowsAsync(new KeyDestroyedException(receipt));
+
+		(await _userManager.Outcome.CreateAsync(created, Cancellation)).TryGetValue(out Success<Unit> _).ShouldBeTrue();
+		Category(await _userManager.Outcome.CreateAsync(faulted, Cancellation)).ShouldBe(ErrorCategory.Fault);
+		Category(await _userManager.Outcome.CreateAsync(unsure, Cancellation)).ShouldBe(ErrorCategory.Indeterminate);
+		ShouldBeErased(await _userManager.Outcome.CreateAsync(erased, Cancellation), receipt);
+	}
+
+	[Fact]
+	async Task SetTwoFactorEnabledAsync_maps_the_IdentityResult_an_indeterminate_write_and_an_erased_user()
+	{
+		NorseUser enabled = new(), faulted = new(), unsure = new(), erased = new();
+		ErasureReceipt receipt = new(Guid.CreateVersion7(), DateTimeOffset.UnixEpoch);
+		_userManager.SetTwoFactorEnabledAsync(enabled, true).Returns(IdentityResult.Success);
+		_userManager.SetTwoFactorEnabledAsync(faulted, false).Returns(Unmapped);
+		_userManager.SetTwoFactorEnabledAsync(unsure, true).Returns(Indeterminate);
+		_userManager.SetTwoFactorEnabledAsync(erased, false).ThrowsAsync(new KeyDestroyedException(receipt));
+
+		(await _userManager.Outcome.SetTwoFactorEnabledAsync(enabled, true, Cancellation))
+			.TryGetValue(out Success<Unit> _).ShouldBeTrue();
+		Category(await _userManager.Outcome.SetTwoFactorEnabledAsync(faulted, false, Cancellation))
+			.ShouldBe(ErrorCategory.Fault);
+		Category(await _userManager.Outcome.SetTwoFactorEnabledAsync(unsure, true, Cancellation))
+			.ShouldBe(ErrorCategory.Indeterminate);
+		ShouldBeErased(await _userManager.Outcome.SetTwoFactorEnabledAsync(erased, false, Cancellation), receipt);
+		await _userManager.Received(1).SetTwoFactorEnabledAsync(enabled, true);
+	}
+
+	[Fact]
+	async Task ResetAuthenticatorKeyAsync_maps_the_IdentityResult_an_indeterminate_write_and_an_erased_user()
+	{
+		NorseUser reset = new(), faulted = new(), unsure = new(), erased = new();
+		ErasureReceipt receipt = new(Guid.CreateVersion7(), DateTimeOffset.UnixEpoch);
+		_userManager.ResetAuthenticatorKeyAsync(reset).Returns(IdentityResult.Success);
+		_userManager.ResetAuthenticatorKeyAsync(faulted).Returns(Unmapped);
+		_userManager.ResetAuthenticatorKeyAsync(unsure).Returns(Indeterminate);
+		_userManager.ResetAuthenticatorKeyAsync(erased).ThrowsAsync(new KeyDestroyedException(receipt));
+
+		(await _userManager.Outcome.ResetAuthenticatorKeyAsync(reset, Cancellation))
+			.TryGetValue(out Success<Unit> _).ShouldBeTrue();
+		Category(await _userManager.Outcome.ResetAuthenticatorKeyAsync(faulted, Cancellation))
+			.ShouldBe(ErrorCategory.Fault);
+		Category(await _userManager.Outcome.ResetAuthenticatorKeyAsync(unsure, Cancellation))
+			.ShouldBe(ErrorCategory.Indeterminate);
+		ShouldBeErased(await _userManager.Outcome.ResetAuthenticatorKeyAsync(erased, Cancellation), receipt);
+	}
+
+	[Fact]
+	async Task AddOrUpdatePasskeyAsync_maps_the_IdentityResult_an_indeterminate_write_and_an_erased_user()
+	{
+		NorseUser user = new();
+		ErasureReceipt receipt = new(Guid.CreateVersion7(), DateTimeOffset.UnixEpoch);
+		UserPasskeyInfo saved = Passkey(1), faulted = Passkey(2), unsure = Passkey(3), erased = Passkey(4);
+		_userManager.AddOrUpdatePasskeyAsync(user, saved).Returns(IdentityResult.Success);
+		_userManager.AddOrUpdatePasskeyAsync(user, faulted).Returns(Unmapped);
+		_userManager.AddOrUpdatePasskeyAsync(user, unsure).Returns(Indeterminate);
+		_userManager.AddOrUpdatePasskeyAsync(user, erased).ThrowsAsync(new KeyDestroyedException(receipt));
+
+		(await _userManager.Outcome.AddOrUpdatePasskeyAsync(user, saved, Cancellation))
+			.TryGetValue(out Success<Unit> _).ShouldBeTrue();
+		Category(await _userManager.Outcome.AddOrUpdatePasskeyAsync(user, faulted, Cancellation))
+			.ShouldBe(ErrorCategory.Fault);
+		Category(await _userManager.Outcome.AddOrUpdatePasskeyAsync(user, unsure, Cancellation))
+			.ShouldBe(ErrorCategory.Indeterminate);
+		ShouldBeErased(await _userManager.Outcome.AddOrUpdatePasskeyAsync(user, erased, Cancellation), receipt);
+	}
+
+	[Fact]
+	async Task RemovePasskeyAsync_maps_the_IdentityResult_an_indeterminate_write_and_an_erased_user()
+	{
+		NorseUser user = new();
+		ErasureReceipt receipt = new(Guid.CreateVersion7(), DateTimeOffset.UnixEpoch);
+		byte[] removed = [1], faulted = [2], unsure = [3], erased = [4];
+		_userManager.RemovePasskeyAsync(user, removed).Returns(IdentityResult.Success);
+		_userManager.RemovePasskeyAsync(user, faulted).Returns(Unmapped);
+		_userManager.RemovePasskeyAsync(user, unsure).Returns(Indeterminate);
+		_userManager.RemovePasskeyAsync(user, erased).ThrowsAsync(new KeyDestroyedException(receipt));
+
+		(await _userManager.Outcome.RemovePasskeyAsync(user, removed, Cancellation))
+			.TryGetValue(out Success<Unit> _).ShouldBeTrue();
+		Category(await _userManager.Outcome.RemovePasskeyAsync(user, faulted, Cancellation))
+			.ShouldBe(ErrorCategory.Fault);
+		Category(await _userManager.Outcome.RemovePasskeyAsync(user, unsure, Cancellation))
+			.ShouldBe(ErrorCategory.Indeterminate);
+		ShouldBeErased(await _userManager.Outcome.RemovePasskeyAsync(user, erased, Cancellation), receipt);
+	}
+
+	[Fact]
+	async Task ProvisionAuthenticatorKeyAsync_answers_the_key_a_fault_and_an_erased_user()
+	{
+		var manager = ProvisioningManager();
+		NorseUser provisioned = new(), faulted = new(), erased = new();
+		ErasureReceipt receipt = new(Guid.CreateVersion7(), DateTimeOffset.UnixEpoch);
+		var provisioning = (IAuthenticatorKeyProvisioning)manager;
+		provisioning.ProvisionAuthenticatorKeyAsync(provisioned).Returns((IdentityResult.Success, "key"));
+		provisioning.ProvisionAuthenticatorKeyAsync(faulted).Returns((Unmapped, "key"));
+		provisioning.ProvisionAuthenticatorKeyAsync(erased).ThrowsAsync(new KeyDestroyedException(receipt));
+
+		(await manager.Outcome.ProvisionAuthenticatorKeyAsync(provisioned, Cancellation))
+			.TryGetValue(out Success<string> success).ShouldBeTrue();
+		success.Value.ShouldBe("key");
+		Category(await manager.Outcome.ProvisionAuthenticatorKeyAsync(faulted, Cancellation))
+			.ShouldBe(ErrorCategory.Fault);
+		ShouldBeErased(await manager.Outcome.ProvisionAuthenticatorKeyAsync(erased, Cancellation), receipt);
+	}
+
+	[Fact]
+	async Task An_indeterminate_provisioning_answers_Indeterminate()
+	{
+		var manager = ProvisioningManager();
+		NorseUser returned = new(), thrown = new();
+		var provisioning = (IAuthenticatorKeyProvisioning)manager;
+		provisioning.ProvisionAuthenticatorKeyAsync(returned).Returns((Indeterminate, "key"));
+		provisioning.ProvisionAuthenticatorKeyAsync(thrown)
+			.ThrowsAsync(new IndeterminateWriteException("the key", new TimeoutException()));
+
+		Category(await manager.Outcome.ProvisionAuthenticatorKeyAsync(returned, Cancellation))
+			.ShouldBe(ErrorCategory.Indeterminate);
+		Category(await manager.Outcome.ProvisionAuthenticatorKeyAsync(thrown, Cancellation))
+			.ShouldBe(ErrorCategory.Indeterminate);
+	}
+
+	[Fact]
+	async Task A_stock_manager_fails_loud() =>
+		await Should.ThrowAsync<InvalidOperationException>(async () =>
+			await _userManager.Outcome.ProvisionAuthenticatorKeyAsync(new(), Cancellation));
+
+	static IdentityResult Unmapped => IdentityResult.Failed(new IdentityError { Code = "Unmapped" });
+
+	static IdentityResult Indeterminate =>
+		IdentityResult.Failed(new IdentityError { Code = NorseIdentityErrorCodes.IndeterminateOutcome });
+
+	static UserPasskeyInfo Passkey(byte id) =>
+		new([id], [id], DateTimeOffset.UnixEpoch, 0, null, false, false, false, [id], [id]);
+
+	static UserManager<NorseUser> ProvisioningManager() =>
+		Substitute.For<UserManager<NorseUser>, IAuthenticatorKeyProvisioning>(
+			Substitute.For<IUserStore<NorseUser>>(), null!, new PasswordHasher<NorseUser>(),
+			Array.Empty<IUserValidator<NorseUser>>(), Array.Empty<IPasswordValidator<NorseUser>>(),
+			new UpperInvariantLookupNormalizer(), new IdentityErrorDescriber(), null!,
+			NullLogger<UserManager<NorseUser>>.Instance);
+
+	static void ShouldBeErased<T>(Outcome<T> outcome, ErasureReceipt receipt)
+		where T : notnull
+	{
+		outcome.TryGetValue(out Failed failed).ShouldBeTrue();
+		failed.Problem.Category.ShouldBe(ErrorCategory.Erased);
+		failed.Problem.Receipt.ShouldBe(receipt);
+	}
+
 	static ClaimsPrincipal Principal(string id) =>
 		new(new ClaimsIdentity([new(ClaimTypes.NameIdentifier, id)], "Test"));
 

@@ -71,8 +71,8 @@ public sealed class RemoveExternalLoginHandlerTests
 		context.Request.PathBase = "/base";
 		var accessor = Substitute.For<IHttpContextAccessor>();
 		accessor.HttpContext.Returns(context);
-		RemoveExternalLoginHandler handler = new(_userManager, _signInManager, FakePrincipal.For(_user.Id),
-			new(Substitute.For<IDeferredSignIn>(), accessor), accessor);
+		RemoveExternalLoginHandler handler = new(new AccountCaller(FakePrincipal.For(_user.Id), _userManager),
+			_userManager, _signInManager, new(Substitute.For<IDeferredSignIn>(), accessor), accessor);
 		return handler.Handle(new(new() { LoginProvider = Provider, ProviderKey = ProviderKey }), Cancellation);
 	}
 

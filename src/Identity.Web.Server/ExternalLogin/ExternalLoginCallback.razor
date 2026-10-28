@@ -1,0 +1,247 @@
+@page "/Account/ExternalLogin"
+@using System.Text
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Http.Extensions
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.WebUtilities
+@using Norse.Abstractions.Contracts
+@using Norse.Identity.Outcomes
+@using Norse.Primitives
+@using Norse.Primitives.Pii
+@inject SignInManager<NorseUser> SignInManager
+@inject UserManager<NorseUser> UserManager
+@inject IEmailSender<NorseUser> EmailSender
+@inject ErasureService Erasure
+@inject DeferredCompletion DeferredCompletion
+@inject NavigationManager Navigation
+
+<PageTitle>Register</PageTitle>
+
+@if (_error is not null)
+{
+    <div class="alert alert-danger" role="alert">@_error</div>
+    <p><a href="@LoginUrl">Back to log in</a></p>
+    @* A refused post still finds its form: static SSR answers 400 to a post naming no rendered form, so this empty one
+       takes the submit (RegisterAsync declines without a vouched-for email) and the refusal renders in place. *@
+    <form @formname="@RegisterFormName" @onsubmit="RegisterAsync" method="post"></form>
+}
+else if (_registering && _info is not null)
+{
+    <h1>Register</h1>
+    <h2>Associate your @_info.ProviderDisplayName account.</h2>
+    <div class="alert alert-info">
+        You've successfully authenticated with <strong>@_info.ProviderDisplayName</strong>.
+        Click the Register button to create your account under the email address it verified and finish logging in.
+    </div>
+    @if (_formError is not null)
+    {
+        <div class="alert alert-danger" role="alert">@_formError</div>
+    }
+    <FluentGrid>
+        <FluentGridItem xs="8" sm="4">
+            @* The email is shown, never posted: the handler re-reads the external ticket's protected verified-email item. *@
+            <form @formname="@RegisterFormName" @onsubmit="RegisterAsync" method="post">
+                <AntiforgeryToken/>
+                <FluentTextInput Value="@_email" ReadOnly="true" Label="Email" Style="width: 100%;"/>
+                <FluentButton Type="ButtonType.Submit" Appearance="ButtonAppearance.Primary" Style="width: 100%;">Register</FluentButton>
+            </form>
+        </FluentGridItem>
+    </FluentGrid>
+}
+
+@code {
+    /// <summary>The <c>Action</c> query value the sign-in start sends the provider's return to.</summary>
+    public const string LoginCallbackAction = "LoginCallback";
+
+    const string RegisterFormName = "external-login-register";
+    const string TwoFactorChallengeRoute = "/Account/LoginWith2fa";
+    const string LockoutRoute = "/Account/Lockout";
+    const string MissingInfoMessage = "Error loading external login information.";
+    const string UnverifiedEmailMessage =
+        "Your sign-in provider did not share a verified email address. Register with a password, then link this provider from your account.";
+    const string RegistrationFailedMessage = "The account could not be created. Try again.";
+
+    // Every other sign-in refusal -- an erased account, a fault -- reads as one fixed line (SignInRefusal's fallback).
+    static readonly Failed _signInFailed =
+        new(Problem.ModelError(ErrorCategory.InvalidCredentials, "The external sign-in could not be completed. Try again."));
+
+    ExternalLoginInfo? _info;
+    // The provider's vouched-for email, re-read from the external ticket's protected properties on every request; never a
+    // posted value or a claim.
+    string? _email;
+    // Set only where the form belongs: a login no account has, and the form's own post. A navigation renders nothing.
+    bool _registering;
+    string? _error;
+    string? _formError;
+
+    [CascadingParameter] HttpContext HttpContext { get; set; } = null!;
+
+    [SupplyParameterFromQuery] string? RemoteError { get; set; }
+
+    [SupplyParameterFromQuery] string? ReturnUrl { get; set; }
+
+    [SupplyParameterFromQuery] string? Action { get; set; }
+
+    PathString PathBase =>
+        HttpContext.Request.PathBase;
+
+    string LoginUrl =>
+        UriHelper.BuildRelative(PathBase, "/Account/Login");
+
+    // Only ReturnUrls.Resolve decides a landing, here as at the start: the page URL is a plain redirect anyone can replay.
+    string Landing =>
+        ReturnUrls.Resolve(ReturnUrl, PathBase);
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        // T3-18: the provider's own text never renders, and neither does the query's.
+        if (RemoteError is not null)
+        {
+            _error = ExternalProviders.RemoteFailureMessage;
+            return;
+        }
+
+        _info = await SignInManager.GetExternalLoginInfoAsync();
+        if (_info is null)
+        {
+            _error = MissingInfoMessage;
+            return;
+        }
+
+        // A post is the registration form's; its handler runs next, and only over a vouched-for email.
+        if (!HttpMethods.IsGet(HttpContext.Request.Method))
+        {
+            await OfferRegistrationAsync(_info);
+            return;
+        }
+        if (Action != LoginCallbackAction)
+        {
+            Navigation.NavigateTo(LoginUrl);
+            return;
+        }
+
+        await SignInAsync(_info);
+    }
+
+    // The second factor is never bypassed (T3-18): the view always asks for it, and NorseSignInManager refuses a bypass.
+    async Task SignInAsync(ExternalLoginInfo info)
+    {
+        var landing = Landing;
+        Outcome<SignInCompletion> outcome;
+        using (ParkedReturnUrl.Park(HttpContext, landing))
+            outcome = await SignInManager.Outcome.ExternalLoginSignInAsync(info.LoginProvider, info.ProviderKey,
+                isPersistent: false);
+
+        if (outcome.TryGetValue(out Success<SignInCompletion> completion))
+        {
+            if (completion.Value is SignInCompletion.RequiresTwoFactor)
+            {
+                var token = HttpContext.Items[NorseSignInManager.TwoFactorChallengeItemName] as string
+                    ?? throw new InvalidOperationException("RequiresTwoFactor without a parked challenge");
+                // Cleared before the challenge: the token carries the provider, so nothing needs the cookie now.
+                await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+                Navigation.NavigateTo(UriHelper.BuildRelative(PathBase, TwoFactorChallengeRoute,
+                    QueryString.Create("challenge", token)));
+                return;
+            }
+
+            // The base's sign-in already cleared the external cookie.
+            Navigation.NavigateTo(DeferredCompletion.TryBuildUrl(landing) ?? landing);
+            return;
+        }
+
+        outcome.TryGetValue(out Failed failed);
+        // No account has this login (the only refusal the base answers as a plain failure): the registration form.
+        // The provider's email never links an existing account.
+        if (failed.Problem.Category is ErrorCategory.InvalidCredentials)
+        {
+            await OfferRegistrationAsync(info);
+            return;
+        }
+
+        await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+        if (failed.Problem.Category is ErrorCategory.LockedOut)
+        {
+            Navigation.NavigateTo(UriHelper.BuildRelative(PathBase, LockoutRoute));
+            return;
+        }
+
+        SignInRefusal.Collapse(failed, _signInFailed).TryGetValue(out Failed refusal);
+        _error = MessageOf(refusal.Problem, _signInFailed.Problem.Errors[""][0]);
+    }
+
+    // Registration is offered only under an email the provider vouched for (email_verified = true): a typed or posted
+    // address would let anyone register a victim's address under their own provider login, and that login would
+    // survive the victim's later confirmation or reset. Anything else renders the refusal, creates nothing and clears
+    // the external cookie.
+    async Task OfferRegistrationAsync(ExternalLoginInfo info)
+    {
+        _email = VerifiedEmailOf(info);
+        if (_email is not null)
+        {
+            _registering = true;
+            return;
+        }
+
+        await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+        _error = UnverifiedEmailMessage;
+    }
+
+    // The email the provider's id token vouched for, from the external ticket's protected properties only (never a
+    // claim: a claim name is the token issuer's to spell), when it parses as an EmailAddress; WireValue is the
+    // deliberate plaintext egress, since Identity's store speaks canonical strings.
+    static string? VerifiedEmailOf(ExternalLoginInfo info) =>
+        info.AuthenticationProperties?.Items.TryGetValue(ExternalProviders.VerifiedEmailItem, out var vouched) is true
+        && EmailAddress.Parse(vouched ?? "").TryGetValue(out Success<EmailAddress> email) ?
+            email.Value.WireValue :
+            null;
+
+    // A new, unconfirmed, passwordless account under the provider's verified email, then the login, then the
+    // confirmation link; a duplicate email fails the create. A failed add after the create erases the new account, so
+    // no credential-less user survives.
+    async Task RegisterAsync()
+    {
+        if (_info is null || _email is null)
+            return;
+
+        NorseUser user = new() { UserName = _email, Email = _email };
+        var created = await UserManager.Outcome.CreateAsync(user);
+        if (created.TryGetValue(out Failed createFailed))
+        {
+            _formError = MessageOf(createFailed.Problem, RegistrationFailedMessage);
+            return;
+        }
+
+        var added = await UserManager.Outcome.AddLoginAsync(user, _info);
+        if (added.TryGetValue(out Failed addFailed))
+        {
+            // ErasureService logs a shred that still fails; the page answers the add's own refusal either way.
+            await Erasure.ShredWithRetriesAsync(user.Id, attempts: 3);
+            _formError = MessageOf(addFailed.Problem, RegistrationFailedMessage);
+            return;
+        }
+
+        var token = await UserManager.GenerateEmailConfirmationTokenAsync(user);
+        var code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+        await EmailSender.SendConfirmationLinkAsync(user, _email,
+            AccountLinks.ConfirmEmail(HttpContext.Request, user.Id.ToString(), code));
+
+        // Signed in at once: the provider vouched for the email (and RequireConfirmedAccount stays off).
+        await SignInManager.SignInAsync(user, isPersistent: false, _info.LoginProvider);
+        _registering = false;
+        await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+        var landing = Landing;
+        Navigation.NavigateTo(DeferredCompletion.TryBuildUrl(landing) ?? landing);
+    }
+
+    // The problem's own lines, or the page's fallback when it carries none -- a failure never renders empty.
+    static string MessageOf(Problem problem, string fallback)
+    {
+        var messages = problem.Errors.Values.SelectMany(static lines => lines).ToArray();
+        return messages.Length > 0 ?
+            string.Join(" ", messages) :
+            fallback;
+    }
+
+}

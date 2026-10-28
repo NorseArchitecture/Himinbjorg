@@ -25,4 +25,10 @@ public static class NorseIdentityErrorCodes
 	///     external login (spec §5.9).
 	/// </summary>
 	public const string LastSignInMethod = "LastSignInMethod";
+
+	/// <summary>
+	///     An authenticator key provisioning whose write reported success but left no key stored: refused, never
+	///     answered with a key nobody stored.
+	/// </summary>
+	public const string AuthenticatorKeyNotStored = "AuthenticatorKeyNotStored";
 }

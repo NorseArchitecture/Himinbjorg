@@ -28,6 +28,18 @@ public sealed class UserManagerOutcomeView(UserManager<NorseUser> userManager)
 				Unit.Value));
 	}
 
+	/// <summary>Wraps <see cref="UserManager{TUser}.CreateAsync(TUser)" />: a user with no password.</summary>
+	/// <param name="user">The user to create.</param>
+	/// <param name="cancellationToken">
+	///     Checked before the call; the manager itself observes its own <c>CancellationToken</c>.
+	/// </param>
+	public ValueTask<Outcome<Unit>> CreateAsync(NorseUser user, CancellationToken cancellationToken = default)
+	{
+		cancellationToken.ThrowIfCancellationRequested();
+		return IdentityOutcomeMap.GuardAsync(async () =>
+			IdentityOutcomeMap.ToOutcome(await userManager.CreateAsync(user).ConfigureAwait(false), Unit.Value));
+	}
+
 	/// <summary>
 	///     Wraps <see cref="UserManager{TUser}.FindByEmailAsync" />: <see cref="ErrorCategory.NotFound" /> for no such
 	///     user, and <see cref="ErrorCategory.Erased" /> with the receipt for a user whose key is destroyed.
@@ -204,6 +216,93 @@ public sealed class UserManagerOutcomeView(UserManager<NorseUser> userManager)
 			IdentityOutcomeMap.ToOutcome(
 				await userManager.RemoveLoginAsync(user, loginProvider, providerKey).ConfigureAwait(false),
 				Unit.Value));
+	}
+
+	/// <summary>Wraps <see cref="UserManager{TUser}.SetTwoFactorEnabledAsync" />.</summary>
+	/// <param name="user">The user whose two-factor flag to set.</param>
+	/// <param name="enabled">Whether two-factor authentication is enabled.</param>
+	/// <param name="cancellationToken">
+	///     Checked before the call; the manager itself observes its own <c>CancellationToken</c>.
+	/// </param>
+	public ValueTask<Outcome<Unit>> SetTwoFactorEnabledAsync(NorseUser user, bool enabled,
+		CancellationToken cancellationToken = default)
+	{
+		cancellationToken.ThrowIfCancellationRequested();
+		return IdentityOutcomeMap.GuardAsync(async () =>
+			IdentityOutcomeMap.ToOutcome(
+				await userManager.SetTwoFactorEnabledAsync(user, enabled).ConfigureAwait(false), Unit.Value));
+	}
+
+	/// <summary>
+	///     Wraps <see cref="UserManager{TUser}.ResetAuthenticatorKeyAsync" />: a new key and a rotated security stamp.
+	/// </summary>
+	/// <param name="user">The user whose authenticator key to reset.</param>
+	/// <param name="cancellationToken">
+	///     Checked before the call; the manager itself observes its own <c>CancellationToken</c>.
+	/// </param>
+	public ValueTask<Outcome<Unit>> ResetAuthenticatorKeyAsync(NorseUser user,
+		CancellationToken cancellationToken = default)
+	{
+		cancellationToken.ThrowIfCancellationRequested();
+		return IdentityOutcomeMap.GuardAsync(async () =>
+			IdentityOutcomeMap.ToOutcome(await userManager.ResetAuthenticatorKeyAsync(user).ConfigureAwait(false),
+				Unit.Value));
+	}
+
+	/// <summary>Wraps <see cref="UserManager{TUser}.AddOrUpdatePasskeyAsync" />.</summary>
+	/// <param name="user">The user to save the passkey to.</param>
+	/// <param name="passkey">The passkey to add, or to update by its credential id.</param>
+	/// <param name="cancellationToken">
+	///     Checked before the call; the manager itself observes its own <c>CancellationToken</c>.
+	/// </param>
+	public ValueTask<Outcome<Unit>> AddOrUpdatePasskeyAsync(NorseUser user, UserPasskeyInfo passkey,
+		CancellationToken cancellationToken = default)
+	{
+		cancellationToken.ThrowIfCancellationRequested();
+		return IdentityOutcomeMap.GuardAsync(async () =>
+			IdentityOutcomeMap.ToOutcome(
+				await userManager.AddOrUpdatePasskeyAsync(user, passkey).ConfigureAwait(false), Unit.Value));
+	}
+
+	/// <summary>Wraps <see cref="UserManager{TUser}.RemovePasskeyAsync" />.</summary>
+	/// <param name="user">The user to remove the passkey from.</param>
+	/// <param name="credentialId">The passkey's credential id.</param>
+	/// <param name="cancellationToken">
+	///     Checked before the call; the manager itself observes its own <c>CancellationToken</c>.
+	/// </param>
+	public ValueTask<Outcome<Unit>> RemovePasskeyAsync(NorseUser user, byte[] credentialId,
+		CancellationToken cancellationToken = default)
+	{
+		cancellationToken.ThrowIfCancellationRequested();
+		return IdentityOutcomeMap.GuardAsync(async () =>
+			IdentityOutcomeMap.ToOutcome(
+				await userManager.RemovePasskeyAsync(user, credentialId).ConfigureAwait(false), Unit.Value));
+	}
+
+	/// <summary>
+	///     Wraps <see cref="IAuthenticatorKeyProvisioning.ProvisionAuthenticatorKeyAsync" />: the stored key, or a new
+	///     one written without rotating the security stamp, and the write's own failure otherwise, so an indeterminate
+	///     commit answers <see cref="ErrorCategory.Indeterminate" />.
+	/// </summary>
+	/// <param name="user">The user whose key to provision.</param>
+	/// <param name="cancellationToken">
+	///     Checked before the call; the manager itself observes its own <c>CancellationToken</c>.
+	/// </param>
+	/// <exception cref="InvalidOperationException">
+	///     The manager is not an <see cref="IAuthenticatorKeyProvisioning" /> (a stock <see cref="UserManager{TUser}" />).
+	/// </exception>
+	public ValueTask<Outcome<string>> ProvisionAuthenticatorKeyAsync(NorseUser user,
+		CancellationToken cancellationToken = default)
+	{
+		cancellationToken.ThrowIfCancellationRequested();
+		var lossless = userManager as IAuthenticatorKeyProvisioning ??
+			throw new InvalidOperationException(
+				"ProvisionAuthenticatorKeyAsync requires NorseUserManager: a stock UserManager cannot provision an authenticator key without rotating the security stamp.");
+		return IdentityOutcomeMap.GuardAsync(async () =>
+		{
+			var (result, key) = await lossless.ProvisionAuthenticatorKeyAsync(user).ConfigureAwait(false);
+			return IdentityOutcomeMap.ToOutcome(result, key);
+		});
 	}
 
 	/// <summary>

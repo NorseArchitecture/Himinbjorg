@@ -1,15 +1,15 @@
-using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Norse.Abstractions.Contracts;
 using Norse.Abstractions.Web.Server.Mediator;
 using Norse.Identity.EntityFramework;
+using Norse.Primitives;
 
 namespace Norse.Identity.Web.Server;
 
 /// <summary>
-///     Completes a parked two-factor challenge with an authenticator code. Success lands on the app root, through the
-///     deferred-completion detour when a circuit stashed the sign-in; every refusal but lockout and not-allowed
-///     collapses onto this handler's one static instance.
+///     Completes a parked two-factor challenge with an authenticator code. Success lands on the challenge's landing,
+///     re-resolved by <see cref="ReturnUrls.Resolve" />, through the deferred-completion detour when a circuit stashed
+///     the sign-in; every refusal but lockout and not-allowed collapses onto this handler's one static instance.
 /// </summary>
 /// <param name="signInManager">Redeems the challenge; must be a <see cref="NorseSignInManager" />.</param>
 /// <param name="deferredCompletion">Builds the completion detour for whatever this request stashed.</param>
@@ -35,10 +35,12 @@ sealed class TwoFactorSignInHandler(
 		if (outcome.TryGetValue(out Failed failed))
 			return SignInRefusal.Collapse(failed, _invalidCode);
 
-		var appRoot = UriHelper.BuildRelative(httpContextAccessor.HttpContext!.Request.PathBase, "/");
+		// The view answers the landing the challenge carried; only ReturnUrls.Resolve decides one, so it is re-resolved.
+		outcome.TryGetValue(out Success<string> landed);
+		var landing = ReturnUrls.Resolve(landed.Value, httpContextAccessor.HttpContext!.Request.PathBase);
 		return Outcome<NavigationResult>.Ok(new NavigationResult
 		{
-			NextUrl = deferredCompletion.TryBuildUrl(appRoot) ?? appRoot
+			NextUrl = deferredCompletion.TryBuildUrl(landing) ?? landing
 		});
 	}
 }

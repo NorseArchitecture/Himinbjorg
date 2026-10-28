@@ -69,7 +69,7 @@ public sealed class GetAccountStatusHandlerTests
 
 	ValueTask<Outcome<AccountStatusResponse>> HandleAsync(IPrincipalAccessor principal)
 	{
-		GetAccountStatusHandler handler = new(_userManager, _signInManager, principal);
+		GetAccountStatusHandler handler = new(new AccountCaller(principal, _userManager), _userManager, _signInManager);
 		return handler.Handle(new(Unit.Value), Cancellation);
 	}
 

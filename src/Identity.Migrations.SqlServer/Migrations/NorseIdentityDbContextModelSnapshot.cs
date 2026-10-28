@@ -17,7 +17,7 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261025131631_InitialCreate";
+    public override string LastMigrationId => "20261028091802_InitialCreate";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -27,6 +27,23 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
             .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
         SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+
+        modelBuilder.Entity("Norse.Identity.EntityFramework.ConsumedPasskeyChallenge", b =>
+            {
+                b.Property<byte[]>("ChallengeHash")
+                    .HasMaxLength(32)
+                    .HasColumnType("binary(32)")
+                    .IsFixedLength();
+
+                b.Property<DateTimeOffset>("ExpiresAt")
+                    .HasColumnType("datetimeoffset");
+
+                b.HasKey("ChallengeHash");
+
+                b.HasIndex("ExpiresAt");
+
+                b.ToTable("ConsumedPasskeyChallenges");
+            });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseOpenIddictApplication", b =>
             {
@@ -717,6 +734,26 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                 b.HasKey("SubjectId");
 
                 b.ToTable("SubjectKeys");
+            });
+
+        modelBuilder.Entity("Norse.Identity.EntityFramework.VerificationCursor", b =>
+            {
+                b.Property<string>("Name")
+                    .HasMaxLength(64)
+                    .HasColumnType("nvarchar(64)");
+
+                b.Property<Guid?>("LastId")
+                    .HasColumnType("uniqueidentifier");
+
+                b.Property<DateTimeOffset>("UpdatedAt")
+                    .HasColumnType("datetimeoffset");
+
+                b.Property<long>("Version")
+                    .HasColumnType("bigint");
+
+                b.HasKey("Name");
+
+                b.ToTable("VerificationCursors");
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseOpenIddictAuthorization", b =>

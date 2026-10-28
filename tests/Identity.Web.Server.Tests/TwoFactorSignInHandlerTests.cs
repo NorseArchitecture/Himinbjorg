@@ -65,6 +65,21 @@ public sealed class TwoFactorSignInHandlerTests
 		nextUrl.ShouldContain("%252F");
 	}
 
+	// The landing comes from the view, which carries it out of the challenge, and is re-resolved: the token is the
+	// server's own, but only ReturnUrls.Resolve decides a landing.
+	[Theory]
+	[InlineData("/Account/Manage?x=1", "/Account/Manage?x=1")]
+	[InlineData("https://evil.example/", "/")]
+	async Task The_landing_comes_from_the_view(string parked, string expected)
+	{
+		using var harness = await TwoFactorHarness.StartAsync();
+		var token = await ParkChallengeAsync(harness, parked);
+
+		var nextUrl = NextUrlOf((await SignInAsync(harness, token, TwoFactorHarness.AuthenticatorCode)).Value);
+
+		nextUrl.ShouldBe(expected);
+	}
+
 	[Fact]
 	async Task Every_refusal_collapses_onto_the_handlers_one_static_instance()
 	{
@@ -124,9 +139,18 @@ public sealed class TwoFactorSignInHandlerTests
 				$"/_auth/complete?key={call.ArgAt<string>(0)}&returnUrl={Uri.EscapeDataString(call.ArgAt<string>(1))}");
 	}
 
-	static async Task<string> ParkChallengeAsync(TwoFactorHarness harness) =>
-		(await harness.RunAsync(manager => manager.PasswordSignInAsync(harness.User, TwoFactorHarness.Password,
-			isPersistent: false, lockoutOnFailure: false))).Token.ShouldNotBeNull();
+	static async Task<string> ParkChallengeAsync(TwoFactorHarness harness, string? landing = null) =>
+		(await harness.RunAsync(async manager =>
+		{
+			if (landing is null)
+				return await SignInWithPasswordAsync(harness, manager);
+			using (ParkedReturnUrl.Park(manager.Context, landing))
+				return await SignInWithPasswordAsync(harness, manager);
+		})).Token.ShouldNotBeNull();
+
+	static Task<SignInResult> SignInWithPasswordAsync(TwoFactorHarness harness, NorseSignInManager manager) =>
+		manager.PasswordSignInAsync(harness.User, TwoFactorHarness.Password, isPersistent: false,
+			lockoutOnFailure: false);
 
 	static Task<TwoFactorHarness.Probe<Outcome<NavigationResult>>> SignInAsync(TwoFactorHarness harness, string token,
 		string code, bool rememberMachine = false, bool responseAlreadyStarted = false) =>

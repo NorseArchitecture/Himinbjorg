@@ -41,6 +41,7 @@ public sealed class IdentityOutcomeMapTests
 		[nameof(IdentityErrorDescriber.UserNotInRole)] = ErrorCategory.NotFound,
 		[nameof(IdentityErrorDescriber.UserLockoutNotEnabled)] = ErrorCategory.Fault,
 		[nameof(IdentityErrorDescriber.DefaultError)] = ErrorCategory.Fault,
+		[NorseIdentityErrorCodes.AuthenticatorKeyNotStored] = ErrorCategory.Fault,
 		[NorseIdentityErrorCodes.IndeterminateOutcome] = ErrorCategory.Indeterminate
 	};
 
@@ -67,7 +68,7 @@ public sealed class IdentityOutcomeMapTests
 				.Where(static f => f.IsLiteral)
 				.Select(static f => (string)f.GetRawConstantValue()!)
 		];
-		describerCodes.Length.ShouldBe(22, "the pinned describer (11.0.0-rc.2) answers 22 codes");
+		describerCodes.Length.ShouldBe(22, "the pinned describer (11.0.0-rc.3) answers 22 codes");
 
 		string[] everyCode = [.. describerCodes, .. norseCodes];
 		everyCode.ShouldBeUnique();

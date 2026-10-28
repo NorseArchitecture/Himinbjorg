@@ -50,6 +50,11 @@ static class IdentityBuilderExtensions
 				// explicit-writes spec §3.1).
 				o.User.RequireUniqueEmail = true;
 			});
+			// T3-33: a passkey is possession plus inherence. Without user verification a PIN-less key is possession only,
+			// so it is required, both in the options the browser gets and in the handler's own check of the
+			// authenticator's UV flag. Pinned explicitly: RC3's default agrees today, but a default is not a ruling. A
+			// PostConfigure, so a host's own later Configure cannot relax it.
+			services.PostConfigure<IdentityPasskeyOptions>(o => o.UserVerificationRequirement = "required");
 			services
 				.AddSingleton<IPersonalDataProtector, NorsePersonalDataProtector>()
 				.AddSingleton<ILookupProtector, NorseLookupProtector>()

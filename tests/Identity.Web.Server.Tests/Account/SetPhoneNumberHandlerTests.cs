@@ -178,8 +178,8 @@ public sealed class SetPhoneNumberHandlerTests
 		var probe = await harness.RunAsync(manager =>
 		{
 			var accessor = harness.Services.GetRequiredService<IHttpContextAccessor>();
-			SetPhoneNumberHandler handler = new(harness.UserManager, manager, FakePrincipal.For(harness.User.Id),
-				new(harness.DeferredSignIn, accessor), accessor);
+			SetPhoneNumberHandler handler = new(new AccountCaller(FakePrincipal.For(harness.User.Id), harness.UserManager),
+				harness.UserManager, manager, new(harness.DeferredSignIn, accessor), accessor);
 			return handler.Handle(new(new() { PhoneInput = Normalized }), Cancellation).AsTask();
 		}, responseAlreadyStarted: true, cookie);
 
@@ -202,8 +202,8 @@ public sealed class SetPhoneNumberHandlerTests
 		context.Request.PathBase = "/base";
 		var accessor = Substitute.For<IHttpContextAccessor>();
 		accessor.HttpContext.Returns(context);
-		SetPhoneNumberHandler handler = new(_userManager, _signInManager, principal ?? FakePrincipal.For(_user.Id),
-			new(Substitute.For<IDeferredSignIn>(), accessor), accessor);
+		SetPhoneNumberHandler handler = new(new AccountCaller(principal ?? FakePrincipal.For(_user.Id), _userManager),
+			_userManager, _signInManager, new(Substitute.For<IDeferredSignIn>(), accessor), accessor);
 		return handler.Handle(new(request), Cancellation);
 	}
 

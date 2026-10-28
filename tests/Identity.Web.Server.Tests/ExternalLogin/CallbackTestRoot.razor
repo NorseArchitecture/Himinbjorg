@@ -1,0 +1,17 @@
+@using Microsoft.AspNetCore.Components.Routing
+@using Norse.Identity.Web.Server.ExternalLogin
+
+@* The smallest static-SSR root that routes to the external-login callback page. *@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <base href="/"/>
+</head>
+<body>
+<Router AppAssembly="typeof(CallbackTestRoot).Assembly" AdditionalAssemblies="[typeof(ExternalLoginCallback).Assembly]">
+    <Found Context="route">
+        <RouteView RouteData="route"/>
+    </Found>
+</Router>
+</body>
+</html>

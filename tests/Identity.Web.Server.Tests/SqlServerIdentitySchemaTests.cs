@@ -27,11 +27,12 @@ public sealed class SqlServerIdentitySchemaTests(SqlServerIdentityFixture fixtur
 	static readonly string[] _temporalTables =
 		["Applications", "RoleClaims", "Roles", "Scopes", "UserClaims", "UserRoles", "Users"];
 
-	// Secret stores, counters, and prunable runtime state (spec §3.1), plus EF's own bookkeeping table.
+	// Secret stores, counters, and prunable runtime state (spec §3.1; the challenge ledger and the verification
+	// cursor, T3-32/T3-28), plus EF's own bookkeeping table.
 	static readonly string[] _plainTables =
 	[
-		"Authorizations", "SubjectKeys", "Tokens", "UserCredentials", "UserLogins", "UserPasskeys", "UserTokens",
-		"__EFMigrationsHistory"
+		"Authorizations", "ConsumedPasskeyChallenges", "SubjectKeys", "Tokens", "UserCredentials", "UserLogins",
+		"UserPasskeys", "UserTokens", "VerificationCursors", "__EFMigrationsHistory"
 	];
 
 	public static bool IsTestable => SqlServerIdentityFixture.IsTestable;

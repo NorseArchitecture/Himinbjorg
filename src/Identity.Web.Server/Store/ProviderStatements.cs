@@ -17,7 +17,8 @@ namespace Norse.Identity.Web.Server.Store;
 ///     <see cref="NorseIdentityDbContext" /> picks it, by <c>Database.ProviderName</c>. The immediate operations
 ///     (§4.5) live here too: the increment needs a value back from its <c>UPDATE</c>, which <c>ExecuteUpdate</c>
 ///     can't return, and the recovery-code swap must guard on the stored ciphertext, which a converted parameter
-///     never reproduces.
+///     never reproduces. The stranded-account verification's statements (T3-28) live here too: its cursor sits in
+///     <c>norse_identity</c> beside the accounts it walks and is written only by explicit statement, never tracked.
 /// </summary>
 /// <remarks>
 ///     Only identifiers and parameter names are ever interpolated into the text; every value travels as a
@@ -73,6 +74,19 @@ static class ProviderStatements
 			[nameof(NorseUserPasskey.UserId)] = "user_id",
 			[nameof(NorseUserPasskey.Data)] = "data"
 		}),
+		new("consumed_passkey_challenges", new Dictionary<string, string>
+		{
+			[nameof(ConsumedPasskeyChallenge.ChallengeHash)] = "challenge_hash",
+			[nameof(ConsumedPasskeyChallenge.ExpiresAt)] = "expires_at"
+		}),
+		new("users", new Dictionary<string, string> { [nameof(NorseUser.Id)] = "id" }),
+		new("verification_cursors", new Dictionary<string, string>
+		{
+			[nameof(VerificationCursor.Name)] = "name",
+			[nameof(VerificationCursor.LastId)] = "last_id",
+			[nameof(VerificationCursor.Version)] = "version",
+			[nameof(VerificationCursor.UpdatedAt)] = "updated_at"
+		}),
 		"\"Value\"",
 		"RETURNING {0}",
 		"",
@@ -84,7 +98,12 @@ static class ProviderStatements
 		"{0} || jsonb_build_object('Name', {1}, 'SignCount', {2}, 'IsUserVerified', {3}, 'IsBackedUp', {4})",
 		false,
 		"",
-		" FOR UPDATE");
+		" FOR UPDATE",
+		// The realm's naming convention maps a SqlQuery row type's properties as it maps an entity's.
+		"stranded",
+		"",
+		"\nLIMIT {0}",
+		"({0})");
 
 	static readonly Dialect _sqlServer = new(
 		new("[UserCredentials]", new Dictionary<string, string>
@@ -130,6 +149,19 @@ static class ProviderStatements
 			[nameof(NorseUserPasskey.UserId)] = "[UserId]",
 			[nameof(NorseUserPasskey.Data)] = "[Data]"
 		}),
+		new("[ConsumedPasskeyChallenges]", new Dictionary<string, string>
+		{
+			[nameof(ConsumedPasskeyChallenge.ChallengeHash)] = "[ChallengeHash]",
+			[nameof(ConsumedPasskeyChallenge.ExpiresAt)] = "[ExpiresAt]"
+		}),
+		new("[Users]", new Dictionary<string, string> { [nameof(NorseUser.Id)] = "[Id]" }),
+		new("[VerificationCursors]", new Dictionary<string, string>
+		{
+			[nameof(VerificationCursor.Name)] = "[Name]",
+			[nameof(VerificationCursor.LastId)] = "[LastId]",
+			[nameof(VerificationCursor.Version)] = "[Version]",
+			[nameof(VerificationCursor.UpdatedAt)] = "[UpdatedAt]"
+		}),
 		"[Value]",
 		"",
 		"OUTPUT inserted.{0}",
@@ -144,7 +176,12 @@ static class ProviderStatements
 		"JSON_MODIFY(JSON_MODIFY(JSON_MODIFY(JSON_MODIFY({0}, '$.Name', {1}), '$.SignCount', {2}), '$.IsUserVerified', {3}), '$.IsBackedUp', {4})",
 		true,
 		" WITH (UPDLOCK, HOLDLOCK)",
-		"");
+		"",
+		"[Stranded]",
+		" TOP ({0})",
+		"",
+		// SQL Server has no boolean expression in a select list.
+		"CAST(CASE WHEN {0} THEN 1 ELSE 0 END AS bit)");
 
 	/// <summary>
 	///     The credentials statement (spec §4.3 step 2, §4.4): one <c>UPDATE</c> of the user's
@@ -500,14 +537,18 @@ static class ProviderStatements
 	/// <summary>
 	///     The token upsert (spec §4.6, PoC G4): PostgreSQL <c>INSERT … ON CONFLICT … DO UPDATE</c>, SQL Server
 	///     <c>MERGE … WITH (HOLDLOCK)</c>, on <c>(user_id, login_provider, name)</c>. The value goes through the model's
-	///     converter, so it is encrypted under the caller's crypto scope.
+	///     converter, so it is encrypted under the caller's crypto scope. With <paramref name="onlyIfAbsent" /> the
+	///     matched arm only fills a row holding no value, so a stored value is never replaced: the conflicting insert
+	///     waits on the first creator's row lock (PostgreSQL) or the range lock (<c>HOLDLOCK</c>) and then writes nothing.
 	/// </summary>
 	/// <param name="context">The context, inside the flush's transaction.</param>
 	/// <param name="key">The token's key.</param>
 	/// <param name="value">The plaintext value.</param>
+	/// <param name="onlyIfAbsent">Write only where no value is stored (<see cref="StagedIntent.InsertTokenIfAbsent" />).</param>
 	/// <param name="cancellationToken">The cancellation token.</param>
+	/// <returns>The number of rows written: 1, or 0 when <paramref name="onlyIfAbsent" /> found a value stored.</returns>
 	public static Task<int> UpsertTokenAsync(NorseIdentityDbContext context, (Guid UserId, string LoginProvider, string Name) key,
-		string? value, CancellationToken cancellationToken = default)
+		string? value, bool onlyIfAbsent = false, CancellationToken cancellationToken = default)
 	{
 		var dialect = DialectOf(context);
 		var tokens = dialect.Tokens;
@@ -526,12 +567,12 @@ static class ProviderStatements
 			MERGE {tokens.Name} WITH (HOLDLOCK) AS t
 			USING (VALUES ({user}, {provider}, {name}, {stored})) AS s ({userColumn}, {providerColumn}, {nameColumn}, {valueColumn})
 			ON t.{userColumn} = s.{userColumn} AND t.{providerColumn} = s.{providerColumn} AND t.{nameColumn} = s.{nameColumn}
-			WHEN MATCHED THEN UPDATE SET {valueColumn} = s.{valueColumn}
+			WHEN MATCHED{(onlyIfAbsent ? $" AND t.{valueColumn} IS NULL" : string.Empty)} THEN UPDATE SET {valueColumn} = s.{valueColumn}
 			WHEN NOT MATCHED THEN INSERT ({userColumn}, {providerColumn}, {nameColumn}, {valueColumn}) VALUES (s.{userColumn}, s.{providerColumn}, s.{nameColumn}, s.{valueColumn});
 			""" :
 			$"""
-			INSERT INTO {tokens.Name} ({userColumn}, {providerColumn}, {nameColumn}, {valueColumn}) VALUES ({user}, {provider}, {name}, {stored})
-			ON CONFLICT ({userColumn}, {providerColumn}, {nameColumn}) DO UPDATE SET {valueColumn} = EXCLUDED.{valueColumn}
+			INSERT INTO {tokens.Name} AS t ({userColumn}, {providerColumn}, {nameColumn}, {valueColumn}) VALUES ({user}, {provider}, {name}, {stored})
+			ON CONFLICT ({userColumn}, {providerColumn}, {nameColumn}) DO UPDATE SET {valueColumn} = EXCLUDED.{valueColumn}{(onlyIfAbsent ? $" WHERE t.{valueColumn} IS NULL" : string.Empty)}
 			""";
 		return context.Database.ExecuteSqlRawAsync(sql, bind.Parameters, cancellationToken);
 	}
@@ -567,6 +608,212 @@ static class ProviderStatements
 			""";
 		return context.Database.ExecuteSqlRawAsync(sql, bind.Parameters, cancellationToken);
 	}
+
+	/// <summary>
+	///     The consume (T3-32): one set-based conditional insert of the state's hash into the consumed-challenge
+	///     ledger -- PostgreSQL <c>INSERT … ON CONFLICT (challenge_hash) DO NOTHING</c>, SQL Server
+	///     <c>INSERT … SELECT … WHERE NOT EXISTS</c> under <c>UPDLOCK, HOLDLOCK</c>, so of two concurrent consumers of
+	///     one state exactly one inserts. Nothing is tracked and no failure is classified: a replay is a zero row count,
+	///     never an exception.
+	/// </summary>
+	/// <param name="context">The context.</param>
+	/// <param name="challengeHash">The state's SHA-256.</param>
+	/// <param name="expiresAt">The state's own expiry, in UTC.</param>
+	/// <param name="cancellationToken">The cancellation token.</param>
+	/// <returns>The number of rows inserted: 1 for the first consumption, 0 for a replay.</returns>
+	public static Task<int> ConsumeChallengeAsync(NorseIdentityDbContext context, byte[] challengeHash, DateTimeOffset expiresAt,
+		CancellationToken cancellationToken = default)
+	{
+		var dialect = DialectOf(context);
+		var challenges = dialect.Challenges;
+		using Binder bind = new(context, context.Set<ConsumedPasskeyChallenge>().EntityType);
+		string
+			hashColumn = challenges.Columns[nameof(ConsumedPasskeyChallenge.ChallengeHash)],
+			expiresColumn = challenges.Columns[nameof(ConsumedPasskeyChallenge.ExpiresAt)],
+			hash = bind.Value(nameof(ConsumedPasskeyChallenge.ChallengeHash), challengeHash),
+			expires = bind.Value(nameof(ConsumedPasskeyChallenge.ExpiresAt), expiresAt);
+		var sql = dialect.Merges ?
+			$"""
+			INSERT INTO {challenges.Name} ({hashColumn}, {expiresColumn})
+			SELECT {hash}, {expires}
+			WHERE NOT EXISTS (SELECT 1 FROM {challenges.Name}{dialect.LockHint} WHERE {hashColumn} = {hash})
+			""" :
+			$"""
+			INSERT INTO {challenges.Name} ({hashColumn}, {expiresColumn}) VALUES ({hash}, {expires})
+			ON CONFLICT ({hashColumn}) DO NOTHING
+			""";
+		return context.Database.ExecuteSqlRawAsync(sql, bind.Parameters, cancellationToken);
+	}
+
+	/// <summary>
+	///     One keyset page of the stranded-account traversal (T3-28): the <c>users</c> ids after
+	///     <paramref name="after" /> in the database's own id order, at most <paramref name="take" />, each with whether
+	///     it is stranded (<see cref="StrandedPredicate" />). The comparison and the order are both the provider's, so
+	///     the keyset is consistent per provider; SQL Server's <c>uniqueidentifier</c> order differs from PostgreSQL's,
+	///     and neither matters. Two statement shapes, one per cursor state: the keyset predicate appears only when
+	///     there is a cursor, so each shape gets its own cached plan and the keyset shape can seek on the key (a single
+	///     <c>@after IS NULL OR id &gt; @after</c> plan can't).
+	/// </summary>
+	/// <param name="context">The context.</param>
+	/// <param name="after">The last id already visited, or <see langword="null" /> from the start.</param>
+	/// <param name="take">The most rows to read.</param>
+	/// <param name="cancellationToken">The cancellation token.</param>
+	/// <returns>The page's rows, in id order.</returns>
+	public static async Task<(Guid Id, bool Stranded)[]> ReadStrandedPageAsync(NorseIdentityDbContext context, Guid? after,
+		int take, CancellationToken cancellationToken = default)
+	{
+		var dialect = DialectOf(context);
+		using Binder bind = new(context, context.Set<VerificationCursor>().EntityType);
+		var id = $"u.{dialect.Users.Columns[nameof(NorseUser.Id)]}";
+		var limit = bind.Typed(take);
+		var keyset = after is { } last ?
+			$"\nWHERE {id} > {bind.Value(nameof(VerificationCursor.LastId), last)}" :
+			string.Empty;
+		var sql = $"""
+			SELECT{Format(dialect.Top, limit)} {id} AS {dialect.Users.Columns[nameof(NorseUser.Id)]}, {Format(dialect.Flag, StrandedPredicate(dialect))} AS {dialect.StrandedAlias}
+			{StrandedFrom(dialect)}{keyset}
+			ORDER BY {id}{Format(dialect.Limit, limit)}
+			""";
+		var rows = await context.Database
+			.SqlQueryRaw<StrandedRow>(sql, [.. bind.Parameters])
+			.ToListAsync(cancellationToken)
+			.ConfigureAwait(false);
+		return [.. rows.Select(static row => (row.Id, row.Stranded))];
+	}
+
+	/// <summary>
+	///     The recheck (T3-28): which of <paramref name="ids" /> are stranded now, by the same predicate as
+	///     <see cref="ReadStrandedPageAsync" />. An id no longer in <c>users</c> is not. Read in chunks, since SQL Server
+	///     caps a command at 2,100 parameters and a page may hold 10,000 ids.
+	/// </summary>
+	/// <param name="context">The context.</param>
+	/// <param name="ids">The ids to recheck.</param>
+	/// <param name="cancellationToken">The cancellation token.</param>
+	/// <returns>The ids still stranded.</returns>
+	public static async Task<Guid[]> ReadStillStrandedAsync(NorseIdentityDbContext context, IReadOnlyCollection<Guid> ids,
+		CancellationToken cancellationToken = default)
+	{
+		var dialect = DialectOf(context);
+		List<Guid> stranded = [];
+		foreach (var chunk in ids.Distinct().Chunk(1_000))
+		{
+			using Binder bind = new(context, context.Users.EntityType);
+			var id = $"u.{dialect.Users.Columns[nameof(NorseUser.Id)]}";
+			var list = string.Join(", ", chunk.Select(value => bind.Value(nameof(NorseUser.Id), value)));
+			var sql = $"""
+				SELECT {id} AS {dialect.ValueAlias}
+				{StrandedFrom(dialect)}
+				WHERE {id} IN ({list}) AND {StrandedPredicate(dialect)}
+				""";
+			stranded.AddRange(await context.Database
+				.SqlQueryRaw<Guid>(sql, [.. bind.Parameters])
+				.ToListAsync(cancellationToken)
+				.ConfigureAwait(false));
+		}
+
+		return [.. stranded];
+	}
+
+	/// <summary>
+	///     Creates the named cursor at the start of its traversal (<c>last_id NULL</c>, <c>version 0</c>) if it is
+	///     absent: PostgreSQL <c>INSERT … ON CONFLICT (name) DO NOTHING</c>, SQL Server <c>INSERT … SELECT … WHERE NOT
+	///     EXISTS</c> under <c>UPDLOCK, HOLDLOCK</c>, so two concurrent first runs create exactly one row.
+	/// </summary>
+	/// <param name="context">The context.</param>
+	/// <param name="name">The cursor's name.</param>
+	/// <param name="now">The write time.</param>
+	/// <param name="cancellationToken">The cancellation token.</param>
+	/// <returns>The number of rows inserted: 1 when this call created the cursor, 0 when it existed.</returns>
+	public static Task<int> EnsureVerificationCursorAsync(NorseIdentityDbContext context, string name, DateTimeOffset now,
+		CancellationToken cancellationToken = default)
+	{
+		var dialect = DialectOf(context);
+		var cursors = dialect.Cursors;
+		using Binder bind = new(context, context.Set<VerificationCursor>().EntityType);
+		var nameColumn = cursors.Columns[nameof(VerificationCursor.Name)];
+		var key = bind.Value(nameof(VerificationCursor.Name), name);
+		string[] properties =
+			[nameof(VerificationCursor.LastId), nameof(VerificationCursor.Version), nameof(VerificationCursor.UpdatedAt)];
+		object?[] values = [null, 0L, now];
+		var columns = string.Join(", ", [nameColumn, .. properties.Select(property => cursors.Columns[property])]);
+		var row = string.Join(", ", [key, .. properties.Zip(values, bind.Value)]);
+		var sql = dialect.Merges ?
+			$"""
+			INSERT INTO {cursors.Name} ({columns})
+			SELECT {row}
+			WHERE NOT EXISTS (SELECT 1 FROM {cursors.Name}{dialect.LockHint} WHERE {nameColumn} = {key})
+			""" :
+			$"""
+			INSERT INTO {cursors.Name} ({columns}) VALUES ({row})
+			ON CONFLICT ({nameColumn}) DO NOTHING
+			""";
+		return context.Database.ExecuteSqlRawAsync(sql, bind.Parameters, cancellationToken);
+	}
+
+	/// <summary>The named cursor's position and compare-and-set token.</summary>
+	/// <param name="context">The context.</param>
+	/// <param name="name">The cursor's name.</param>
+	/// <param name="cancellationToken">The cancellation token.</param>
+	/// <returns>The last id visited (<see langword="null" /> at the start) and the version.</returns>
+	/// <exception cref="InvalidOperationException">The cursor does not exist.</exception>
+	public static async Task<(Guid? LastId, long Version)> ReadVerificationCursorAsync(NorseIdentityDbContext context,
+		string name, CancellationToken cancellationToken = default)
+	{
+		var dialect = DialectOf(context);
+		var cursors = dialect.Cursors;
+		using Binder bind = new(context, context.Set<VerificationCursor>().EntityType);
+		var sql = $"""
+			SELECT {cursors.Columns[nameof(VerificationCursor.LastId)]}, {cursors.Columns[nameof(VerificationCursor.Version)]}
+			FROM {cursors.Name}
+			WHERE {cursors.Columns[nameof(VerificationCursor.Name)]} = {bind.Value(nameof(VerificationCursor.Name), name)}
+			""";
+		var rows = await context.Database
+			.SqlQueryRaw<CursorRow>(sql, [.. bind.Parameters])
+			.ToListAsync(cancellationToken)
+			.ConfigureAwait(false);
+		return rows is [var row] ?
+			(row.LastId, row.Version) :
+			throw new InvalidOperationException($"Verification cursor '{name}' does not exist.");
+	}
+
+	/// <summary>
+	///     The compare-and-set advance: moves the named cursor to <paramref name="next" /> and bumps its version, only
+	///     where the version is still <paramref name="read" />. One row means this run advanced; zero means another
+	///     replica advanced first, and this run's advance is discarded, so the cursor never moves backward within a
+	///     traversal.
+	/// </summary>
+	/// <param name="context">The context.</param>
+	/// <param name="name">The cursor's name.</param>
+	/// <param name="next">The new position, or <see langword="null" /> to wrap to the start.</param>
+	/// <param name="read">The version this run read.</param>
+	/// <param name="now">The write time.</param>
+	/// <param name="cancellationToken">The cancellation token.</param>
+	/// <returns>The number of rows matched: 1, or 0 when the compare-and-set lost.</returns>
+	public static Task<int> AdvanceVerificationCursorAsync(NorseIdentityDbContext context, string name, Guid? next, long read,
+		DateTimeOffset now, CancellationToken cancellationToken = default)
+	{
+		var cursors = DialectOf(context).Cursors;
+		using Binder bind = new(context, context.Set<VerificationCursor>().EntityType);
+		var version = cursors.Columns[nameof(VerificationCursor.Version)];
+		var sql = $"""
+			UPDATE {cursors.Name}
+			SET {cursors.Columns[nameof(VerificationCursor.LastId)]} = {bind.Value(nameof(VerificationCursor.LastId), next)}, {version} = {version} + 1, {cursors.Columns[nameof(VerificationCursor.UpdatedAt)]} = {bind.Value(nameof(VerificationCursor.UpdatedAt), now)}
+			WHERE {cursors.Columns[nameof(VerificationCursor.Name)]} = {bind.Value(nameof(VerificationCursor.Name), name)} AND {version} = {bind.Value(nameof(VerificationCursor.Version), read)}
+			""";
+		return context.Database.ExecuteSqlRawAsync(sql, bind.Parameters, cancellationToken);
+	}
+
+	/// <summary>
+	///     Stranded (T3-28): no password and no external login, over <see cref="StrandedFrom" />'s aliases. A passkey
+	///     deliberately does not count as a credential here: a passkey is never an account's sole credential, so a
+	///     passkey-only account is itself an invariant violation and is reported.
+	/// </summary>
+	static string StrandedPredicate(Dialect dialect) =>
+		$"c.{dialect.Credentials.Columns[nameof(NorseUser.PasswordHash)]} IS NULL AND NOT EXISTS (SELECT 1 FROM {dialect.Logins.Name} AS l WHERE l.{dialect.Logins.Columns[nameof(NorseUserLogin.UserId)]} = u.{dialect.Users.Columns[nameof(NorseUser.Id)]})";
+
+	/// <summary><c>users</c> as <c>u</c>, left-joined to its <c>user_credentials</c> fragment as <c>c</c>.</summary>
+	static string StrandedFrom(Dialect dialect) =>
+		$"FROM {dialect.Users.Name} AS u LEFT JOIN {dialect.Credentials.Name} AS c ON c.{dialect.Credentials.Columns[nameof(NorseUser.Id)]} = u.{dialect.Users.Columns[nameof(NorseUser.Id)]}";
 
 	static string ClaimKey(Dialect dialect, Binder bind, Guid userId, (string Type, string Value) claim, string qualifier = "") =>
 		string.Join(" AND ", [
@@ -662,6 +909,28 @@ static class ProviderStatements
 		}
 	}
 
+	/// <summary>
+	///     One row of <see cref="ReadStrandedPageAsync" />. Its columns are named as the naming convention names the
+	///     properties: the <c>users</c> id column's own spelling, and <see cref="Dialect.StrandedAlias" />.
+	/// </summary>
+	sealed class StrandedRow
+	{
+		public Guid Id { get; init; }
+
+		public bool Stranded { get; init; }
+	}
+
+	/// <summary>
+	///     The row <see cref="ReadVerificationCursorAsync" /> reads. Its properties share the cursor columns' names, so
+	///     the convention maps them to those very columns.
+	/// </summary>
+	sealed class CursorRow
+	{
+		public Guid? LastId { get; init; }
+
+		public long Version { get; init; }
+	}
+
 	/// <summary>One provider's spelling of a table: its delimited name and its delimited columns.</summary>
 	/// <param name="Name">The delimited table name.</param>
 	/// <param name="Columns">The delimited column name of each mapped property, by property name.</param>
@@ -678,6 +947,11 @@ static class ProviderStatements
 	/// <param name="Logins">The <c>user_logins</c> table, by <see cref="NorseUserLogin" /> property name.</param>
 	/// <param name="Roles">The <c>user_roles</c> table, by <see cref="NorseUserRole" /> property name.</param>
 	/// <param name="Passkeys">The <c>user_passkeys</c> table, by <see cref="NorseUserPasskey" /> property name.</param>
+	/// <param name="Challenges">
+	///     The <c>consumed_passkey_challenges</c> ledger, by <see cref="ConsumedPasskeyChallenge" /> property name.
+	/// </param>
+	/// <param name="Users">The <c>users</c> principal table, by <see cref="NorseUser" /> property name (its id only).</param>
+	/// <param name="Cursors">The <c>verification_cursors</c> table, by <see cref="VerificationCursor" /> property name.</param>
 	/// <param name="ClaimHash">A format over a claim-value expression that hashes it as the stored column does.</param>
 	/// <param name="PasskeySignCount">A format over the passkey document reading its sign count as a <c>bigint</c>.</param>
 	/// <param name="PasskeyAssertion">
@@ -693,7 +967,12 @@ static class ProviderStatements
 	///     The table hint after a table name that takes an update lock held to the end of the transaction (SQL Server).
 	/// </param>
 	/// <param name="LockSuffix">The trailing clause that does the same for a whole <c>SELECT</c> (PostgreSQL).</param>
+	/// <param name="StrandedAlias">The stranded flag's column alias, as the naming convention spells <c>Stranded</c>.</param>
+	/// <param name="Top">A format over the row limit, after <c>SELECT</c> (SQL Server).</param>
+	/// <param name="Limit">A format over the row limit, after <c>ORDER BY</c> (PostgreSQL).</param>
+	/// <param name="Flag">A format over a predicate that selects it as a boolean column.</param>
 	sealed record Dialect(Table Credentials, Table Tokens, Table Claims, Table Logins, Table Roles,
-		Table Passkeys, string ValueAlias, string Returning, string Output, string BinaryCollation, string ClaimHash,
-		string PasskeySignCount, string PasskeyAssertion, bool Merges, string LockHint, string LockSuffix);
+		Table Passkeys, Table Challenges, Table Users, Table Cursors, string ValueAlias, string Returning, string Output,
+		string BinaryCollation, string ClaimHash, string PasskeySignCount, string PasskeyAssertion, bool Merges,
+		string LockHint, string LockSuffix, string StrandedAlias, string Top, string Limit, string Flag);
 }

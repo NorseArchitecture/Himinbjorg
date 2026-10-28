@@ -116,6 +116,13 @@ UNION ALL
 SELECT "id", "application_type", "client_id", "client_secret", "client_type", "concurrency_token", "consent_type", "display_name", "display_names", "json_web_key_set", "permissions", "post_logout_redirect_uris", "properties", "redirect_uris", "requirements", "settings", system_period FROM "public"."applications_history";
 
 
+CREATE TABLE consumed_passkey_challenges (
+    challenge_hash bytea NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    CONSTRAINT pk_consumed_passkey_challenges PRIMARY KEY (challenge_hash)
+);
+
+
 CREATE TABLE roles (
     id uuid NOT NULL,
     name character varying(256) NOT NULL,
@@ -338,6 +345,15 @@ CREATE VIEW "public"."users_timeline" AS
 SELECT "id", "user_name", "email", "email_confirmed", "concurrency_stamp", "phone_number", "phone_number_confirmed", "two_factor_enabled", "lockout_enabled", system_period FROM "public"."users"
 UNION ALL
 SELECT "id", "user_name", "email", "email_confirmed", "concurrency_stamp", "phone_number", "phone_number_confirmed", "two_factor_enabled", "lockout_enabled", system_period FROM "public"."users_history";
+
+
+CREATE TABLE verification_cursors (
+    name character varying(64) NOT NULL,
+    last_id uuid,
+    version bigint NOT NULL,
+    updated_at timestamp with time zone NOT NULL,
+    CONSTRAINT pk_verification_cursors PRIMARY KEY (name)
+);
 
 
 CREATE TABLE authorizations (
@@ -621,6 +637,9 @@ CREATE UNIQUE INDEX ix_applications_client_id ON applications (client_id);
 
 
 CREATE INDEX ix_authorizations_application_id_status_subject_type ON authorizations (application_id, status, subject, type);
+
+
+CREATE INDEX ix_consumed_passkey_challenges_expires_at ON consumed_passkey_challenges (expires_at);
 
 
 CREATE INDEX ix_role_claims_role_id ON role_claims (role_id);

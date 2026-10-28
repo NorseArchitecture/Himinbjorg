@@ -29,7 +29,7 @@ public sealed class NorseUserManager(
 	IServiceProvider services,
 	ILogger<UserManager<NorseUser>> logger) :
 	UserManager<NorseUser>(store, optionsAccessor, passwordHasher, userValidators, passwordValidators,
-		keyNormalizer, errors, services, logger), IRecoveryCodeReplacement
+		keyNormalizer, errors, services, logger), IRecoveryCodeReplacement, IAuthenticatorKeyProvisioning
 {
 	/// <summary>The <see cref="IdentityError.Code" /> a refused <c>SetUserNameAsync</c> answers.</summary>
 	public const string UserNameIsDerivedErrorCode = NorseIdentityErrorCodes.UserNameIsDerived;
@@ -141,6 +141,50 @@ public sealed class NorseUserManager(
 		return result.Succeeded ?
 			codes :
 			null;
+	}
+
+	/// <summary>
+	///     Idempotent provisioning (the setup page loads twice, prerender then interactive): a stored key answers
+	///     <see cref="IdentityResult.Success" /> with no write; otherwise a new key is staged and flushed through
+	///     <see cref="UpdateUserAsync" />, which opens the subject's crypto scope, and the update's own result answers.
+	///     Over <see cref="NorseUserStore" /> the write is insert-if-absent and the key is re-read after it, so a
+	///     concurrent first setup that stored first wins and both answer its key (Train 3 Task 4.4).
+	///     Unlike <see cref="UserManager{TUser}.ResetAuthenticatorKeyAsync" />, the security stamp is not rotated: no
+	///     credential exists until the key is verified, so no session needs to die.
+	/// </summary>
+	/// <inheritdoc />
+	/// <exception cref="NotSupportedException">The store is not an <see cref="IUserAuthenticatorKeyStore{TUser}" />.</exception>
+	public async Task<(IdentityResult Result, string Key)> ProvisionAuthenticatorKeyAsync(NorseUser user)
+	{
+		ThrowIfDisposed();
+		var authenticatorKeys = Store as IUserAuthenticatorKeyStore<NorseUser> ??
+			throw new NotSupportedException("The store does not implement IUserAuthenticatorKeyStore<NorseUser>.");
+		ArgumentNullException.ThrowIfNull(user);
+		if (await authenticatorKeys.GetAuthenticatorKeyAsync(user, CancellationToken).ConfigureAwait(false) is
+			{ Length: > 0 } existing)
+			return (IdentityResult.Success, existing);
+
+		// Conditional on the explicit-writes store: a concurrent first setup that stored its key first wins, and this
+		// flush writes nothing. Any other store keeps the plain write.
+		var key = GenerateNewAuthenticatorKey();
+		if (Store is NorseUserStore)
+			NorseUserStore.StageAuthenticatorKeyIfAbsent(user, key);
+		else
+			await authenticatorKeys.SetAuthenticatorKeyAsync(user, key, CancellationToken).ConfigureAwait(false);
+		var result = await UpdateUserAsync(user).ConfigureAwait(false);
+		if (!result.Succeeded)
+			return (result, key);
+
+		// The key actually stored, which is this one or the racer's: the one every concurrent setup answers. A write
+		// that reported success yet left no key stored fails closed: a key nobody stored could never verify.
+		var stored = await authenticatorKeys.GetAuthenticatorKeyAsync(user, CancellationToken).ConfigureAwait(false);
+		return string.IsNullOrEmpty(stored) ?
+			(IdentityResult.Failed(new IdentityError
+			{
+				Code = NorseIdentityErrorCodes.AuthenticatorKeyNotStored,
+				Description = "The authenticator key was not stored."
+			}), string.Empty) :
+			(result, stored);
 	}
 
 	/// <summary>

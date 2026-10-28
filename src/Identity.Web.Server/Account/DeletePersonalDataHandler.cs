@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Identity;
 using Norse.Abstractions.Contracts;
 using Norse.Abstractions.Web.Server.Mediator;
 using Norse.Identity.EntityFramework;
-using Norse.Identity.Outcomes;
 using Norse.Primitives;
 
 namespace Norse.Identity.Web.Server.Account;
@@ -17,17 +16,17 @@ namespace Norse.Identity.Web.Server.Account;
 ///     the one user-facing line. Success signs the caller out and lands on the app root, through the
 ///     deferred-completion detour on a circuit. The fold's failures pass through unchanged.
 /// </summary>
-/// <param name="userManager">Loads the caller and checks the password.</param>
+/// <param name="caller">Resolves the calling user from the principal.</param>
+/// <param name="userManager">Checks the password.</param>
 /// <param name="signInManager">Signs the caller out once the account is gone.</param>
-/// <param name="principalAccessor">Reaches the caller's principal.</param>
 /// <param name="erasure">Crypto-shreds the account, key first.</param>
 /// <param name="deferredCompletion">Builds the completion detour for whatever the sign-out stashed.</param>
 /// <param name="httpContextAccessor">Reaches the live request's <c>PathBase</c>.</param>
 /// <param name="logger">Records every erasure and every shred that could not finish.</param>
 sealed partial class DeletePersonalDataHandler(
+	AccountCaller caller,
 	UserManager<NorseUser> userManager,
 	SignInManager<NorseUser> signInManager,
-	IPrincipalAccessor principalAccessor,
 	ErasureService erasure,
 	DeferredCompletion deferredCompletion,
 	IHttpContextAccessor httpContextAccessor,
@@ -51,8 +50,7 @@ sealed partial class DeletePersonalDataHandler(
 	public async ValueTask<Outcome<NavigationResult>> Handle(DeletePersonalDataCommand request,
 		CancellationToken cancellationToken = default)
 	{
-		var principal = await principalAccessor.GetPrincipalAsync(cancellationToken).ConfigureAwait(false);
-		var found = await userManager.Outcome.GetUserAsync(principal, cancellationToken).ConfigureAwait(false);
+		var found = await caller.ResolveAsync(cancellationToken).ConfigureAwait(false);
 		if (found.TryGetValue(out Failed lookupFailed))
 			return new(lookupFailed);
 		found.TryGetValue(out Success<NorseUser> user);

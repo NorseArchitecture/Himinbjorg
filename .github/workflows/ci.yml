@@ -13,4 +13,4 @@ jobs:
     uses: NorseArchitecture/.github/.github/workflows/ci-build-test.yml@master
     secrets: inherit
     with:
-      minimum_coverage: 0
+      minimum_coverage: 85

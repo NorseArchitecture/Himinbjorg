@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<ItemGroup>
-		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="11.0.0-rc.2.26504.105" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="11.0.0-rc.2.26504.105" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="11.*-*" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="11.*-*" />
 		<!-- The entity model itself is provider-neutral; these only exist so the model-building
 		     tests can materialize it against a real relational provider: Npgsql and SqlServer both,
 		     since NorseIdentityModelTests asserts the filtered-vs-unfiltered NormalizedUserName index

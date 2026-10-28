@@ -123,8 +123,8 @@ public abstract class TemporalIdentityVersioningSuite(IdentityFixture fixture)
 		var stampBefore = (await fixture.CreateUserManager().FindByIdAsync(seeded.Id.ToString()))!.SecurityStamp;
 		var accessor = Substitute.For<IHttpContextAccessor>();
 		accessor.HttpContext.Returns(http);
-		SetPhoneNumberHandler handler = new(userManager, signInManager, FakePrincipal.For(seeded.Id),
-			new(Substitute.For<IDeferredSignIn>(), accessor), accessor);
+		SetPhoneNumberHandler handler = new(new AccountCaller(FakePrincipal.For(seeded.Id), userManager),
+			userManager, signInManager, new(Substitute.For<IDeferredSignIn>(), accessor), accessor);
 
 		var outcome = await handler.Handle(new(new() { PhoneInput = Phone }), Cancellation);
 

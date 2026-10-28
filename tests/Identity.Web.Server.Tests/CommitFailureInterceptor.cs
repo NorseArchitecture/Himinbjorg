@@ -48,10 +48,15 @@ enum CommitFailure
 ///     Runs after the commit landed and before the acknowledgement is lost, for a concurrent writer that must commit in
 ///     that window. Only in <see cref="CommitFailure.AfterCommit" /> mode.
 /// </param>
-sealed class CommitFailureInterceptor(CommitFailure mode, Func<CancellationToken, Task>? afterCommit = null) :
+/// <param name="pass">
+///     How many commits go through untouched before the one that fails, for an operation whose later flush is the
+///     point (a handler that writes twice).
+/// </param>
+sealed class CommitFailureInterceptor(CommitFailure mode, Func<CancellationToken, Task>? afterCommit = null, int pass = 0) :
 	DbTransactionInterceptor, IDbCommandInterceptor
 {
 	int _armed = 1;
+	int _toPass = pass;
 	int _fired;
 	int _commits;
 	int _rollbacksAccepted;
@@ -125,7 +130,7 @@ sealed class CommitFailureInterceptor(CommitFailure mode, Func<CancellationToken
 
 	bool Fire()
 	{
-		if (Interlocked.Exchange(ref _armed, 0) is not 1)
+		if (Interlocked.Decrement(ref _toPass) >= 0 || Interlocked.Exchange(ref _armed, 0) is not 1)
 			return false;
 
 		Interlocked.Increment(ref _fired);

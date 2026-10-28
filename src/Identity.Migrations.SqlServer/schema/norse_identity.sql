@@ -29,6 +29,14 @@ EXEC(N'CREATE TABLE [Applications] (
 GO
 
 
+CREATE TABLE [ConsumedPasskeyChallenges] (
+    [ChallengeHash] binary(32) NOT NULL,
+    [ExpiresAt] datetimeoffset NOT NULL,
+    CONSTRAINT [PK_ConsumedPasskeyChallenges] PRIMARY KEY ([ChallengeHash])
+);
+GO
+
+
 DECLARE @historyTableSchema1 nvarchar(max) = QUOTENAME(SCHEMA_NAME())
 EXEC(N'CREATE TABLE [Roles] (
     [Id] uniqueidentifier NOT NULL,
@@ -88,6 +96,16 @@ CREATE TABLE [Users] (
     CONSTRAINT [PK_Users] PRIMARY KEY ([Id])
 )
 WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = [dbo].[UsersHistory]));
+GO
+
+
+CREATE TABLE [VerificationCursors] (
+    [Name] nvarchar(64) NOT NULL,
+    [LastId] uniqueidentifier NULL,
+    [Version] bigint NOT NULL,
+    [UpdatedAt] datetimeoffset NOT NULL,
+    CONSTRAINT [PK_VerificationCursors] PRIMARY KEY ([Name])
+);
 GO
 
 
@@ -224,6 +242,10 @@ GO
 
 
 CREATE INDEX [IX_Authorizations_ApplicationId_Status_Subject_Type] ON [Authorizations] ([ApplicationId], [Status], [Subject], [Type]);
+GO
+
+
+CREATE INDEX [IX_ConsumedPasskeyChallenges_ExpiresAt] ON [ConsumedPasskeyChallenges] ([ExpiresAt]);
 GO
 
 

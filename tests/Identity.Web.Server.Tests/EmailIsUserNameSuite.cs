@@ -101,7 +101,7 @@ public abstract class EmailIsUserNameSuite(IdentityFixture fixture)
 	[Fact(SkipUnless = nameof(IsTestable), Skip = UntestableReason)]
 	protected async Task External_login_registration_writes_equal_hashes()
 	{
-		// ExternalLogin.razor's OnValidSubmitAsync: both values set through the store's setters on a new
+		// The retired ExternalLogin.razor scaffold's shape: both values set through the store's setters on a new
 		// instance, then CreateAsync and AddLoginAsync through the manager.
 		fixture.SkipUnlessAvailable();
 		var email = "external-login@example.com";

@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Norse.Abstractions.Contracts;
 using Norse.Abstractions.Web.Server.Mediator;
@@ -26,15 +25,15 @@ namespace Norse.Identity.Web.Server.Account;
 ///     files each message under the field its key names, and the form binds only <c>Phone</c> and shows only the empty
 ///     key in its summary -- so a code-keyed failure, an indeterminate commit included, would render nowhere.
 /// </summary>
-/// <param name="userManager">Loads the caller and stores the number.</param>
+/// <param name="caller">Resolves the calling user from the principal.</param>
+/// <param name="userManager">Reads and stores the number.</param>
 /// <param name="signInManager">Refreshes the caller's sign-in after the stamp rotation.</param>
-/// <param name="principalAccessor">Reaches the caller's principal.</param>
 /// <param name="deferredCompletion">Builds the completion detour for whatever the refresh stashed.</param>
 /// <param name="httpContextAccessor">Reaches the live request's <c>PathBase</c>.</param>
 sealed class SetPhoneNumberHandler(
+	AccountCaller caller,
 	UserManager<NorseUser> userManager,
 	SignInManager<NorseUser> signInManager,
-	IPrincipalAccessor principalAccessor,
 	DeferredCompletion deferredCompletion,
 	IHttpContextAccessor httpContextAccessor)
 	: IRequestHandler<SetPhoneNumberCommand, NavigationResult>
@@ -60,14 +59,13 @@ sealed class SetPhoneNumberHandler(
 			phone = parsed.Value.WireValue;
 		}
 
-		var principal = await principalAccessor.GetPrincipalAsync(cancellationToken).ConfigureAwait(false);
-		var found = await userManager.Outcome.GetUserAsync(principal, cancellationToken).ConfigureAwait(false);
+		var found = await caller.ResolveAsync(cancellationToken).ConfigureAwait(false);
 		if (found.TryGetValue(out Failed lookupFailed))
 			return new(lookupFailed);
 		found.TryGetValue(out Success<NorseUser> user);
 
-		var url = UriHelper.BuildRelative(httpContextAccessor.HttpContext!.Request.PathBase, "/Account/Manage",
-			QueryString.Create("status", ManageStatus.PhoneUpdated));
+		var url = ManageUrls.Status(httpContextAccessor.HttpContext!.Request.PathBase, "/Account/Manage",
+			ManageStatus.PhoneUpdated);
 		// Ruling 47: the stock write unconfirms and rotates the stamp whatever the number, so an unchanged one never
 		// reaches it. The store decrypts on read, so the stored value compares as the E.164 string the write would store.
 		var stored = await userManager.GetPhoneNumberAsync(user.Value).ConfigureAwait(false);

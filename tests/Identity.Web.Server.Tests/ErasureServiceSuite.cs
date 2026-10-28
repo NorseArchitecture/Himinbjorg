@@ -157,6 +157,8 @@ public abstract class ErasureServiceSuite(IdentityFixture fixture)
 		signInManager.ShouldBeOfType<NorseSignInManager>();
 		var handler = scope.ServiceProvider.GetRequiredService<IRequestHandler<LoginCommand, NavigationResult>>();
 		handler.ShouldBeOfType<LoginHandler>();
+		// A login always runs on a request: the handler resolves its landing against the request's PathBase.
+		scope.ServiceProvider.GetRequiredService<IHttpContextAccessor>().HttpContext = new DefaultHttpContext();
 		// The anti-enumeration reference: an unknown email through the same real handler.
 		var unknown = await handler.Handle(new(new LoginRequest { EmailInput = "no-such-user@example.com", Password = Password }),
 			Cancellation);

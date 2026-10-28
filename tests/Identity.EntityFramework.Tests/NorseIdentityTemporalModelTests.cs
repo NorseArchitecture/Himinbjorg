@@ -79,6 +79,10 @@ public sealed class NorseIdentityTemporalModelTests
 	// Crypto-shred law: a temporal DELETE would preserve the wrapped DEK in history and make erasure
 	// reversible.
 	[InlineData(typeof(SubjectKey))]
+	// The consumed-challenge ledger (T3-32): a nonce ledger, pruned on expiry, never history.
+	[InlineData(typeof(ConsumedPasskeyChallenge))]
+	// The verification traversal's position (T3-28): runtime state, rewritten every advance, never history.
+	[InlineData(typeof(VerificationCursor))]
 	void Secret_stores_counters_and_prunable_runtime_state_stay_non_temporal(Type entityType)
 	{
 		foreach (var model in new[] { PostgresModel, SqlServerModel })

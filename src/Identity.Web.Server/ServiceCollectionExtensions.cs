@@ -1,9 +1,13 @@
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Norse.AuthN.Services;
 using Norse.Identity.EntityFramework;
 using Norse.Identity.Web.Server.Account;
 using Norse.Identity.Web.Server.Disclosure;
+using Norse.Identity.Web.Server.Passkeys;
+using Norse.Identity.Web.Server.SignInMethods;
+using Norse.Identity.Web.Server.TwoFactor;
 using Norse.Persistence.EntityFramework;
 using Norse.Persistence.EntityFramework.PostgreSQL;
 
@@ -21,8 +25,12 @@ public static class ServiceCollectionExtensions
 		///     mediator handler/dispatch/validator registration (<c>AddNorseIdentityWebServerHandlers()</c>,
 		///     emitted by Asgard's registration generator), and the code-first gRPC host with
 		///     <see cref="IAuthenticationService" />, <see cref="IIdentityService" /> (the disclosure
-		///     surface -- self full, second-party masked, erased honest) and <see cref="IAccountService" /> (the
-		///     self-service account surface). Also subscribes the
+		///     surface -- self full, second-party masked, erased honest), <see cref="IAccountService" /> (the
+		///     self-service account surface), <see cref="ITwoFactorService" />, <see cref="IPasskeyService" /> and
+		///     <see cref="ISignInMethodsService" />, plus <see cref="AccountCaller" />, the account handlers' one way to
+		///     the calling user. Binds <see cref="AuthenticatorOptions" /> from <c>Identity:Authenticator</c>, validated
+		///     at startup so a host with no issuer fails before serving (T3-27), and registers the one-shot
+		///     <see cref="IPasskeyChallengeLedger" /> (the scoped database ledger, <see cref="PasskeyChallengeLedger" />). Also subscribes the
 		///     <c>Microsoft.AspNetCore.Identity</c> meter — ASP.NET Core Identity ships its own metrics,
 		///     and Layer 0's <c>Norse.*</c> wildcard does not reach them.
 		/// </summary>
@@ -57,14 +65,26 @@ public static class ServiceCollectionExtensions
 				.AddScoped<IAuthenticationService, AuthenticationService>()
 				.AddScoped<IIdentityService, IdentityService>()
 				.AddScoped<IAccountService, AccountService>()
+				.AddScoped<ITwoFactorService, TwoFactorService>()
+				.AddScoped<IPasskeyService, PasskeyService>()
+				.AddScoped<ISignInMethodsService, SignInMethodsService>()
+				.AddScoped<AccountCaller>()
 				.AddScoped<ErasureService>()
 				.AddScoped<DeferredCompletion>()
+				.AddScoped<IPasskeyChallengeLedger, PasskeyChallengeLedger>()
 				.AddSingleton<IEmailSender<NorseUser>>(static sp =>
 					sp.GetRequiredService<IHostEnvironment>().IsDevelopment()
 						? ActivatorUtilities.CreateInstance<DevelopmentEmailSender>(sp)
 						: new IdentityNoOpEmailSender())
 				.AddNorseIdentity(signingCertificate, accessTokenLifetime)
 				.AddSignInManager<NorseSignInManager>();
+
+			// The ledger prunes by the clock; a host that registers its own clock keeps it.
+			builder.Services.TryAddSingleton(TimeProvider.System);
+			builder.Services.AddOptions<AuthenticatorOptions>()
+				.BindConfiguration(AuthenticatorOptions.Section)
+				.ValidateDataAnnotations()
+				.ValidateOnStart();
 
 			// The realm that brings the dependency declares its telemetry: this project is the only
 			// one on the platform referencing ASP.NET Core Identity, and its only consumer is

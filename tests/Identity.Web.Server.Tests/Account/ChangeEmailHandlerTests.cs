@@ -94,7 +94,8 @@ public sealed class ChangeEmailHandlerTests
 		context.Request.PathBase = "/base";
 		var accessor = Substitute.For<IHttpContextAccessor>();
 		accessor.HttpContext.Returns(context);
-		ChangeEmailHandler handler = new(_userManager, _emailSender, FakePrincipal.For(_user.Id), accessor);
+		ChangeEmailHandler handler = new(new AccountCaller(FakePrincipal.For(_user.Id), _userManager),
+			_userManager, _emailSender, accessor);
 		return handler.Handle(new(new() { NewEmailInput = newEmail }), Cancellation);
 	}
 

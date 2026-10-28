@@ -27,10 +27,12 @@ public sealed class NorseIdentityTemporalApparatusContainerTests(PostgresContain
 	];
 
 	// Secret stores, counters, and prunable runtime state -- user_credentials is the users fragment holding the
-	// credential churn and lookup hashes, and user_logins left the temporal set by the same spec.
+	// credential churn and lookup hashes, and user_logins left the temporal set by the same spec. The challenge ledger
+	// and the verification cursor (T3-32/T3-28) are runtime state, never history.
 	static readonly string[] _plainTables =
 	[
-		"authorizations", "subject_keys", "tokens", "user_credentials", "user_logins", "user_passkeys", "user_tokens"
+		"authorizations", "consumed_passkey_challenges", "subject_keys", "tokens", "user_credentials", "user_logins",
+		"user_passkeys", "user_tokens", "verification_cursors"
 	];
 
 	// EF's own bookkeeping table, under the naming convention.
