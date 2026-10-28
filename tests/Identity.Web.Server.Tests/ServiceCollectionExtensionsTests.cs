@@ -4,7 +4,9 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using OpenTelemetry.Metrics;
 using System.Diagnostics.Metrics;
+using Norse.AuthN.Services;
 using Norse.Identity.EntityFramework;
+using Norse.Identity.Web.Server.Account;
 
 namespace Norse.Identity.Web.Server.Tests;
 
@@ -54,6 +56,20 @@ public sealed class ServiceCollectionExtensionsTests
 		var descriptor = builder.Services.LastOrDefault(d => d.ServiceType == typeof(SignInManager<NorseUser>));
 		descriptor.ShouldNotBeNull();
 		descriptor.ImplementationType.ShouldBe(typeof(NorseSignInManager));
+	}
+
+	[Fact]
+	void Registers_the_account_service_as_scoped()
+	{
+		var builder = CreateBuilder();
+		using var certificate = IdentityTestCertificate.CreateFresh();
+
+		builder.AddNorseAuthenticationService("test", certificate);
+
+		var descriptor = builder.Services.LastOrDefault(static d => d.ServiceType == typeof(IAccountService));
+		descriptor.ShouldNotBeNull();
+		descriptor.ImplementationType.ShouldBe(typeof(AccountService));
+		descriptor.Lifetime.ShouldBe(ServiceLifetime.Scoped);
 	}
 
 	[Fact]

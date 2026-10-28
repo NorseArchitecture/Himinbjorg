@@ -1034,7 +1034,8 @@ public abstract class CommitOutcomeSuite : IDisposable
 	/// <summary>One of every child row the delete class removes: a claim, a role, a login, a token and a passkey.</summary>
 	async Task<(NorseUser User, NorseRole Role)> SeedChildRowsAsync(string email)
 	{
-		var seeded = await _fixture.SeedUserAsync(email);
+		// A password keeps the only login removable: the last sign-in method guard refuses it otherwise (§5.9).
+		var seeded = await SeedWithPasswordAsync(email);
 		var role = await SeedRoleAsync();
 		await SeedClaimAsync(seeded.Id, "department", "sales");
 		await SeedPasskeyAsync(seeded.Id, CredentialId(seeded.Id), [1, 2, 3], signCount: 1);

@@ -19,4 +19,10 @@ public static class NorseIdentityErrorCodes
 	///     key (spec §4.6).
 	/// </summary>
 	public const string PasskeyAlreadyRegistered = "PasskeyAlreadyRegistered";
+
+	/// <summary>
+	///     A refused <c>RemoveLoginAsync</c>: removing the login would leave the user with neither a password nor an
+	///     external login (spec §5.9).
+	/// </summary>
+	public const string LastSignInMethod = "LastSignInMethod";
 }

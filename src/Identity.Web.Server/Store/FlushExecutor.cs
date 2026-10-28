@@ -145,9 +145,7 @@ sealed class FlushExecutor(NorseIdentityDbContext context, IdentityErrorDescribe
 			StagedIntent.RemoveClaim(var type, var value) =>
 				AppliedAsync(ProviderStatements.DeleteClaimAsync(context, userId, (type, value), cancellationToken)),
 			StagedIntent.AddLogin login => AddLoginAsync(userId, login, transaction, cancellationToken),
-			StagedIntent.RemoveLogin(var loginProvider, var providerKey) => AppliedAsync(context.UserLogins
-				.Where(l => l.UserId == userId && l.LoginProvider == loginProvider && l.ProviderKey == providerKey)
-				.ExecuteDeleteAsync(cancellationToken)),
+			StagedIntent.RemoveLogin removal => RemoveLoginAsync(userId, removal, cancellationToken),
 			StagedIntent.AddRole(var roleId) =>
 				AppliedAsync(ProviderStatements.InsertRoleIfAbsentAsync(context, userId, roleId, cancellationToken)),
 			StagedIntent.RemoveRole(var roleId) => AppliedAsync(context.UserRoles
@@ -226,6 +224,39 @@ sealed class FlushExecutor(NorseIdentityDbContext context, IdentityErrorDescribe
 		return owner == userId ?
 			null :
 			describer.LoginAlreadyAssociated();
+	}
+
+	/// <summary>
+	///     Remove login, guarded by the last sign-in method rule (2026-10-26 account-lifecycle spec §5.9): a user keeps a
+	///     password or at least one external login. The user's credentials row is locked and its password read, the
+	///     logins that would remain counted, and a removal that would leave neither is refused; the caller rolls back.
+	///     Removing a login the user doesn't have leaves one remaining as before, so it stays a no-op.
+	/// </summary>
+	/// <remarks>
+	///     On the manager path the stamp CAS on <c>user_credentials</c> (step 2 of the flush) already serializes two
+	///     stale instances: the second's credentials statement blocks on the row and then matches zero rows
+	///     (<c>ConcurrencyFailure</c>). The lock here serializes any flush the CAS does not cover -- a store flush with
+	///     no stamp change -- so the count it reads is authoritative.
+	/// </remarks>
+	async Task<IdentityError?> RemoveLoginAsync(Guid userId, StagedIntent.RemoveLogin intent, CancellationToken cancellationToken)
+	{
+		var hasPassword = await ProviderStatements.HasPasswordForUpdateAsync(context, userId, cancellationToken).ConfigureAwait(false);
+		var (loginProvider, providerKey) = intent;
+		var remaining = await context.UserLogins
+			.CountAsync(l => l.UserId == userId && !(l.LoginProvider == loginProvider && l.ProviderKey == providerKey), cancellationToken)
+			.ConfigureAwait(false);
+		if (!hasPassword && remaining is 0)
+			return new()
+			{
+				Code = NorseUserStore.LastSignInMethodErrorCode,
+				Description = "This is the only way to sign in to your account."
+			};
+
+		await context.UserLogins
+			.Where(l => l.UserId == userId && l.LoginProvider == loginProvider && l.ProviderKey == providerKey)
+			.ExecuteDeleteAsync(cancellationToken)
+			.ConfigureAwait(false);
+		return null;
 	}
 
 	/// <summary>

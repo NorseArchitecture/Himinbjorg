@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Norse.Abstractions.Contracts;
 using Norse.Abstractions.Web.Server.Mediator;
+using Norse.AuthN.Components.Shared;
 using Norse.AuthN.Services;
 using Norse.Identity.EntityFramework;
 using Norse.Identity.Outcomes;
@@ -13,9 +14,9 @@ namespace Norse.Identity.Web.Server;
 /// <summary>
 ///     Confirms a pending email change with the emailed change code; <see cref="NorseUserManager" /> sets the email and
 ///     the username together (law). The change rotates the security stamp, so when the caller <em>is</em> that user the
-///     sign-in is refreshed and the answer is the app root, through the deferred-completion detour on a circuit;
-///     anyone else — another user, or nobody — is sent to sign in, and their own session is never touched. Failures
-///     pass through unchanged.
+///     sign-in is refreshed and the answer is the email page with the <see cref="ManageStatus.EmailChanged" /> key,
+///     through the deferred-completion detour on a circuit; anyone else — another user, or nobody — is sent to sign
+///     in, and their own session is never touched. Failures pass through unchanged.
 /// </summary>
 /// <param name="userManager">Finds the account and changes its email.</param>
 /// <param name="signInManager">Refreshes the caller's sign-in after the stamp rotation.</param>
@@ -71,10 +72,8 @@ sealed class ConfirmEmailChangeHandler(
 			});
 
 		await signInManager.RefreshSignInAsync(user.Value).ConfigureAwait(false);
-		var appRoot = UriHelper.BuildRelative(pathBase, "/");
-		return Outcome<NavigationResult>.Ok(new NavigationResult
-		{
-			NextUrl = deferredCompletion.TryBuildUrl(appRoot) ?? appRoot
-		});
+		var url = UriHelper.BuildRelative(pathBase, "/Account/Manage/Email",
+			QueryString.Create("status", ManageStatus.EmailChanged));
+		return Outcome<NavigationResult>.Ok(new NavigationResult { NextUrl = deferredCompletion.TryBuildUrl(url) ?? url });
 	}
 }

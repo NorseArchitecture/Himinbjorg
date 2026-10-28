@@ -24,6 +24,7 @@ public sealed class IdentityOutcomeMapTests
 		[nameof(IdentityErrorDescriber.UserAlreadyInRole)] = ErrorCategory.Conflict,
 		[nameof(IdentityErrorDescriber.DuplicateRoleName)] = ErrorCategory.Conflict,
 		[NorseIdentityErrorCodes.PasskeyAlreadyRegistered] = ErrorCategory.Conflict,
+		[NorseIdentityErrorCodes.LastSignInMethod] = ErrorCategory.Conflict,
 		[nameof(IdentityErrorDescriber.InvalidEmail)] = ErrorCategory.Validation,
 		[nameof(IdentityErrorDescriber.InvalidUserName)] = ErrorCategory.Validation,
 		[nameof(IdentityErrorDescriber.InvalidRoleName)] = ErrorCategory.Validation,
@@ -86,6 +87,13 @@ public sealed class IdentityOutcomeMapTests
 		var outcome = IdentityOutcomeMap.ToOutcome(Failed("SomethingUpstreamInventedLater"), Unit.Value);
 
 		CategoryOf(outcome).ShouldBe(ErrorCategory.Fault);
+	}
+
+	[Fact]
+	void Last_sign_in_method_maps_to_Conflict()
+	{
+		IdentityOutcomeMap.TryCategorize(NorseIdentityErrorCodes.LastSignInMethod, out var category).ShouldBeTrue();
+		category.ShouldBe(ErrorCategory.Conflict);
 	}
 
 	[Fact]

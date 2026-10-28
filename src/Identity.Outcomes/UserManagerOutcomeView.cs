@@ -127,6 +127,85 @@ public sealed class UserManagerOutcomeView(UserManager<NorseUser> userManager)
 				await userManager.ChangeEmailAsync(user, newEmail, token).ConfigureAwait(false), Unit.Value));
 	}
 
+	/// <summary>Wraps <see cref="UserManager{TUser}.SetPhoneNumberAsync" />.</summary>
+	/// <param name="user">The user whose phone number to set.</param>
+	/// <param name="phoneNumber">The new phone number, or <see langword="null" /> to clear it.</param>
+	/// <param name="cancellationToken">
+	///     Checked before the call; the manager itself observes its own <c>CancellationToken</c>.
+	/// </param>
+	public ValueTask<Outcome<Unit>> SetPhoneNumberAsync(NorseUser user, string? phoneNumber,
+		CancellationToken cancellationToken = default)
+	{
+		cancellationToken.ThrowIfCancellationRequested();
+		return IdentityOutcomeMap.GuardAsync(async () =>
+			IdentityOutcomeMap.ToOutcome(
+				await userManager.SetPhoneNumberAsync(user, phoneNumber).ConfigureAwait(false), Unit.Value));
+	}
+
+	/// <summary>Wraps <see cref="UserManager{TUser}.ChangePasswordAsync" />.</summary>
+	/// <param name="user">The user whose password to change.</param>
+	/// <param name="currentPassword">The user's current password.</param>
+	/// <param name="newPassword">The new password.</param>
+	/// <param name="cancellationToken">
+	///     Checked before the call; the manager itself observes its own <c>CancellationToken</c>.
+	/// </param>
+	public ValueTask<Outcome<Unit>> ChangePasswordAsync(NorseUser user, string currentPassword, string newPassword,
+		CancellationToken cancellationToken = default)
+	{
+		cancellationToken.ThrowIfCancellationRequested();
+		return IdentityOutcomeMap.GuardAsync(async () =>
+			IdentityOutcomeMap.ToOutcome(
+				await userManager.ChangePasswordAsync(user, currentPassword, newPassword).ConfigureAwait(false),
+				Unit.Value));
+	}
+
+	/// <summary>Wraps <see cref="UserManager{TUser}.AddPasswordAsync" />.</summary>
+	/// <param name="user">The user to give a password.</param>
+	/// <param name="password">The password to add.</param>
+	/// <param name="cancellationToken">
+	///     Checked before the call; the manager itself observes its own <c>CancellationToken</c>.
+	/// </param>
+	public ValueTask<Outcome<Unit>> AddPasswordAsync(NorseUser user, string password,
+		CancellationToken cancellationToken = default)
+	{
+		cancellationToken.ThrowIfCancellationRequested();
+		return IdentityOutcomeMap.GuardAsync(async () =>
+			IdentityOutcomeMap.ToOutcome(await userManager.AddPasswordAsync(user, password).ConfigureAwait(false),
+				Unit.Value));
+	}
+
+	/// <summary>Wraps <see cref="UserManager{TUser}.AddLoginAsync" />.</summary>
+	/// <param name="user">The user to link the login to.</param>
+	/// <param name="login">The external login to link.</param>
+	/// <param name="cancellationToken">
+	///     Checked before the call; the manager itself observes its own <c>CancellationToken</c>.
+	/// </param>
+	public ValueTask<Outcome<Unit>> AddLoginAsync(NorseUser user, UserLoginInfo login,
+		CancellationToken cancellationToken = default)
+	{
+		cancellationToken.ThrowIfCancellationRequested();
+		return IdentityOutcomeMap.GuardAsync(async () =>
+			IdentityOutcomeMap.ToOutcome(await userManager.AddLoginAsync(user, login).ConfigureAwait(false),
+				Unit.Value));
+	}
+
+	/// <summary>Wraps <see cref="UserManager{TUser}.RemoveLoginAsync" />.</summary>
+	/// <param name="user">The user to unlink the login from.</param>
+	/// <param name="loginProvider">The external login's provider.</param>
+	/// <param name="providerKey">The external login's provider key.</param>
+	/// <param name="cancellationToken">
+	///     Checked before the call; the manager itself observes its own <c>CancellationToken</c>.
+	/// </param>
+	public ValueTask<Outcome<Unit>> RemoveLoginAsync(NorseUser user, string loginProvider, string providerKey,
+		CancellationToken cancellationToken = default)
+	{
+		cancellationToken.ThrowIfCancellationRequested();
+		return IdentityOutcomeMap.GuardAsync(async () =>
+			IdentityOutcomeMap.ToOutcome(
+				await userManager.RemoveLoginAsync(user, loginProvider, providerKey).ConfigureAwait(false),
+				Unit.Value));
+	}
+
 	/// <summary>
 	///     Wraps <see cref="IRecoveryCodeReplacement.ReplaceRecoveryCodesAsync" />: the new codes on success, and the
 	///     update's own failure otherwise, so an indeterminate commit answers <see cref="ErrorCategory.Indeterminate" />

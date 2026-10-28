@@ -32,6 +32,7 @@ public static class IdentityOutcomeMap
 		[nameof(IdentityErrorDescriber.UserAlreadyInRole)] = ErrorCategory.Conflict,
 		[nameof(IdentityErrorDescriber.DuplicateRoleName)] = ErrorCategory.Conflict,
 		[NorseIdentityErrorCodes.PasskeyAlreadyRegistered] = ErrorCategory.Conflict,
+		[NorseIdentityErrorCodes.LastSignInMethod] = ErrorCategory.Conflict,
 		// Password, username, email and role-name validators, and the refused username set (spec §3.1).
 		[nameof(IdentityErrorDescriber.InvalidEmail)] = ErrorCategory.Validation,
 		[nameof(IdentityErrorDescriber.InvalidUserName)] = ErrorCategory.Validation,

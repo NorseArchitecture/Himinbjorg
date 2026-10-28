@@ -37,11 +37,11 @@ public sealed class ConfirmEmailChangeHandlerTests
 	static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
 	[Fact]
-	async Task A_confirmed_change_by_the_same_user_refreshes_the_sign_in_and_answers_the_root()
+	async Task A_confirmed_change_by_the_same_user_refreshes_the_sign_in_and_answers_the_email_page_with_its_status()
 	{
 		var outcome = await HandleAsync(FakePrincipal.For(_user.Id));
 
-		NextUrlOf(outcome).ShouldBe("/base/");
+		NextUrlOf(outcome).ShouldBe("/base/Account/Manage/Email?status=email-changed");
 		await _userManager.Received(1).ChangeEmailAsync(_user, NewEmail, Token);
 		await _signInManager.Received(1).RefreshSignInAsync(_user);
 	}
@@ -113,7 +113,8 @@ public sealed class ConfirmEmailChangeHandlerTests
 
 		probe.Exception.ShouldBeNull();
 		probe.IdentityKey.ShouldBe(StashedSignInKey);
-		NextUrlOf(probe.Value.ShouldNotBeNull()).ShouldBe(harness.DeferredSignIn.BuildCompletionUrl(StashedSignInKey, "/"));
+		NextUrlOf(probe.Value.ShouldNotBeNull())
+			.ShouldBe(harness.DeferredSignIn.BuildCompletionUrl(StashedSignInKey, "/Account/Manage/Email?status=email-changed"));
 	}
 
 	static ConfirmEmailChangeRequest Request(string userId, string? code = null) =>

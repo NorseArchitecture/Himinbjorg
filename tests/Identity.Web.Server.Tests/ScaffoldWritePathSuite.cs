@@ -354,7 +354,8 @@ public abstract class ScaffoldWritePathSuite : IDisposable
 	/// <summary>Linking and unlinking are separate submits, so separate requests and instances.</summary>
 	async Task ExternalLoginsAsync()
 	{
-		var seeded = await SeedAsync();
+		// A password keeps the only login removable: the last sign-in method guard refuses it otherwise (§5.9).
+		var seeded = await SeedAsync(withPassword: true);
 		UserLoginInfo login = new("TestProvider", $"manage-{seeded.Id:N}", "Test");
 		var linking = _fixture.CreateUserManager();
 		var linked = await PageUserAsync(linking, seeded.Id);

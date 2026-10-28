@@ -62,6 +62,12 @@ public sealed class NorseUserStore(NorseIdentityDbContext context, IdentityError
 	/// </summary>
 	public const string IndeterminateOutcomeErrorCode = NorseIdentityErrorCodes.IndeterminateOutcome;
 
+	/// <summary>
+	///     The <see cref="IdentityError.Code" /> a flush answers when a staged login removal would leave the user with no
+	///     password and no external login (2026-10-26 account-lifecycle spec §5.9). Nothing is written.
+	/// </summary>
+	public const string LastSignInMethodErrorCode = NorseIdentityErrorCodes.LastSignInMethod;
+
 	/// <summary>Stock Identity's login provider for the tokens it keeps itself (<c>UserStoreBase</c>).</summary>
 	const string InternalLoginProvider = "[AspNetUserStore]";
 

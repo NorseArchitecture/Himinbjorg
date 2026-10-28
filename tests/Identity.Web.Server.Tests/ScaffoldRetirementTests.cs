@@ -8,9 +8,9 @@ namespace Norse.Identity.Web.Server.Tests;
 public sealed class ScaffoldRetirementTests
 {
 	[Fact]
-	void The_train_one_routes_no_longer_exist_in_this_assembly()
+	void The_retired_scaffold_routes_no_longer_exist_in_this_assembly()
 	{
-		string[] retired = ["/Account/ForgotPassword", "/Account/ResetPassword", "/Account/LoginWith2fa", "/Account/LoginWithRecoveryCode", "/Account/ConfirmEmail", "/Account/ConfirmEmailChange", "/Account/ResendEmailConfirmation", "/Account/RegisterConfirmation", "/Account/InvalidUser"];
+		string[] retired = ["/Account/ForgotPassword", "/Account/ResetPassword", "/Account/LoginWith2fa", "/Account/LoginWithRecoveryCode", "/Account/ConfirmEmail", "/Account/ConfirmEmailChange", "/Account/ResendEmailConfirmation", "/Account/RegisterConfirmation", "/Account/InvalidUser", "/Account/Manage", "/Account/Manage/Email", "/Account/Manage/ChangePassword", "/Account/Manage/SetPassword", "/Account/Manage/ExternalLogins", "/Account/Manage/DeletePersonalData"];
 		var routes = typeof(LoginHandler).Assembly.GetTypes()
 			.SelectMany(t => t.GetCustomAttributes<RouteAttribute>())
 			.Select(r => r.Template);

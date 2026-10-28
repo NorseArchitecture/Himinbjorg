@@ -82,7 +82,9 @@ static class ProviderStatements
 		"({0} ->> 'SignCount')::bigint",
 		// jsonb || object replaces exactly the named keys; typed parameters, so a null name is a JSON null.
 		"{0} || jsonb_build_object('Name', {1}, 'SignCount', {2}, 'IsUserVerified', {3}, 'IsBackedUp', {4})",
-		false);
+		false,
+		"",
+		" FOR UPDATE");
 
 	static readonly Dialect _sqlServer = new(
 		new("[UserCredentials]", new Dictionary<string, string>
@@ -140,7 +142,9 @@ static class ProviderStatements
 		// EF's own spelling of a JSON property update on SQL Server 2025; a null name drops the key, which reads back
 		// as null.
 		"JSON_MODIFY(JSON_MODIFY(JSON_MODIFY(JSON_MODIFY({0}, '$.Name', {1}), '$.SignCount', {2}), '$.IsUserVerified', {3}), '$.IsBackedUp', {4})",
-		true);
+		true,
+		" WITH (UPDLOCK, HOLDLOCK)",
+		"");
 
 	/// <summary>
 	///     The credentials statement (spec §4.3 step 2, §4.4): one <c>UPDATE</c> of the user's
@@ -218,6 +222,36 @@ static class ProviderStatements
 		return counts is [var newCount] ?
 			newCount :
 			throw new InvalidOperationException($"User {userId} has no credentials row to count a failed attempt against.");
+	}
+
+	/// <summary>
+	///     Whether the user has a password (2026-10-26 account-lifecycle spec §5.9), read under an update lock on the
+	///     user's <c>user_credentials</c> row that is held to the end of the transaction (<c>FOR UPDATE</c> /
+	///     <c>WITH (UPDLOCK, HOLDLOCK)</c>), so a concurrent flush for the same user waits for this one.
+	/// </summary>
+	/// <param name="context">The context, inside the flush's transaction.</param>
+	/// <param name="userId">The user.</param>
+	/// <param name="cancellationToken">The cancellation token.</param>
+	/// <returns>Whether the stored password hash is non-null.</returns>
+	/// <exception cref="InvalidOperationException">The user has no credentials row.</exception>
+	public static async Task<bool> HasPasswordForUpdateAsync(NorseIdentityDbContext context, Guid userId,
+		CancellationToken cancellationToken = default)
+	{
+		var dialect = DialectOf(context);
+		var credentials = dialect.Credentials;
+		using Binder bind = new(context, context.Users.EntityType);
+		var sql = $"""
+			SELECT CASE WHEN {credentials.Columns[nameof(NorseUser.PasswordHash)]} IS NULL THEN 0 ELSE 1 END AS {dialect.ValueAlias}
+			FROM {credentials.Name}{dialect.LockHint}
+			WHERE {credentials.Columns[nameof(NorseUser.Id)]} = {bind.Value(nameof(NorseUser.Id), userId)}{dialect.LockSuffix}
+			""";
+		var values = await context.Database
+			.SqlQueryRaw<int>(sql, [.. bind.Parameters])
+			.ToListAsync(cancellationToken)
+			.ConfigureAwait(false);
+		return values is [var value] ?
+			value is 1 :
+			throw new InvalidOperationException($"User {userId} has no credentials row to read a password from.");
 	}
 
 	/// <summary>
@@ -655,7 +689,11 @@ static class ProviderStatements
 	///     than <c>INSERT … ON CONFLICT</c> (PostgreSQL). PoC G4: both hold under concurrent writers; the naive forms
 	///     do not.
 	/// </param>
+	/// <param name="LockHint">
+	///     The table hint after a table name that takes an update lock held to the end of the transaction (SQL Server).
+	/// </param>
+	/// <param name="LockSuffix">The trailing clause that does the same for a whole <c>SELECT</c> (PostgreSQL).</param>
 	sealed record Dialect(Table Credentials, Table Tokens, Table Claims, Table Logins, Table Roles,
 		Table Passkeys, string ValueAlias, string Returning, string Output, string BinaryCollation, string ClaimHash,
-		string PasskeySignCount, string PasskeyAssertion, bool Merges);
+		string PasskeySignCount, string PasskeyAssertion, bool Merges, string LockHint, string LockSuffix);
 }

@@ -22,4 +22,9 @@ public sealed class AccountLinksTests
 	void The_confirm_email_link_is_absolute_and_keeps_the_PathBase() =>
 		AccountLinks.ConfirmEmail(Request(), "the-user", "the-code")
 			.ShouldBe("https://example.test/base/Account/ConfirmEmail?userId=the-user&code=the-code");
+
+	[Fact]
+	void ConfirmEmailChange_builds_the_absolute_link_with_user_email_and_code() =>
+		AccountLinks.ConfirmEmailChange(Request(), "u", "new@example.com", "c")
+			.ShouldBe("https://example.test/base/Account/ConfirmEmailChange?userId=u&email=new@example.com&code=c");
 }

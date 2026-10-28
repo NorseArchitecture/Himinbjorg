@@ -152,6 +152,127 @@ public sealed class UserManagerOutcomeViewTests
 	}
 
 	[Fact]
+	async Task SetPhoneNumberAsync_maps_the_IdentityResult_an_indeterminate_write_and_an_erased_user()
+	{
+		NorseUser user = new();
+		ErasureReceipt receipt = new(Guid.CreateVersion7(), DateTimeOffset.UnixEpoch);
+		_userManager.SetPhoneNumberAsync(user, "+15551234567").Returns(IdentityResult.Success);
+		_userManager.SetPhoneNumberAsync(user, "+15550000001")
+			.Returns(IdentityResult.Failed(new IdentityErrorDescriber().ConcurrencyFailure()));
+		_userManager.SetPhoneNumberAsync(user, "+15550000002")
+			.Returns(IdentityResult.Failed(new IdentityError { Code = NorseIdentityErrorCodes.IndeterminateOutcome }));
+		_userManager.SetPhoneNumberAsync(user, "+15550000003").ThrowsAsync(new KeyDestroyedException(receipt));
+
+		(await _userManager.Outcome.SetPhoneNumberAsync(user, "+15551234567", Cancellation))
+			.TryGetValue(out Success<Unit> _).ShouldBeTrue();
+		Category(await _userManager.Outcome.SetPhoneNumberAsync(user, "+15550000001", Cancellation))
+			.ShouldBe(ErrorCategory.Conflict);
+		Category(await _userManager.Outcome.SetPhoneNumberAsync(user, "+15550000002", Cancellation))
+			.ShouldBe(ErrorCategory.Indeterminate);
+		(await _userManager.Outcome.SetPhoneNumberAsync(user, "+15550000003", Cancellation))
+			.TryGetValue(out Failed failed).ShouldBeTrue();
+		failed.Problem.Category.ShouldBe(ErrorCategory.Erased);
+		failed.Problem.Receipt.ShouldBe(receipt);
+	}
+
+	[Fact]
+	async Task ChangePasswordAsync_maps_PasswordMismatch_to_InvalidCredentials_an_indeterminate_write_and_an_erased_user()
+	{
+		NorseUser user = new();
+		ErasureReceipt receipt = new(Guid.CreateVersion7(), DateTimeOffset.UnixEpoch);
+		_userManager.ChangePasswordAsync(user, "current", "Strong-1!").Returns(IdentityResult.Success);
+		_userManager.ChangePasswordAsync(user, "wrong", "Strong-1!")
+			.Returns(IdentityResult.Failed(new IdentityErrorDescriber().PasswordMismatch()));
+		_userManager.ChangePasswordAsync(user, "unsure", "Strong-1!")
+			.Returns(IdentityResult.Failed(new IdentityError { Code = NorseIdentityErrorCodes.IndeterminateOutcome }));
+		_userManager.ChangePasswordAsync(user, "erased", "Strong-1!").ThrowsAsync(new KeyDestroyedException(receipt));
+
+		(await _userManager.Outcome.ChangePasswordAsync(user, "current", "Strong-1!", Cancellation))
+			.TryGetValue(out Success<Unit> _).ShouldBeTrue();
+		Category(await _userManager.Outcome.ChangePasswordAsync(user, "wrong", "Strong-1!", Cancellation))
+			.ShouldBe(ErrorCategory.InvalidCredentials);
+		Category(await _userManager.Outcome.ChangePasswordAsync(user, "unsure", "Strong-1!", Cancellation))
+			.ShouldBe(ErrorCategory.Indeterminate);
+		(await _userManager.Outcome.ChangePasswordAsync(user, "erased", "Strong-1!", Cancellation))
+			.TryGetValue(out Failed failed).ShouldBeTrue();
+		failed.Problem.Category.ShouldBe(ErrorCategory.Erased);
+		failed.Problem.Receipt.ShouldBe(receipt);
+	}
+
+	[Fact]
+	async Task AddPasswordAsync_maps_UserAlreadyHasPassword_to_Conflict_an_indeterminate_write_and_an_erased_user()
+	{
+		NorseUser user = new();
+		ErasureReceipt receipt = new(Guid.CreateVersion7(), DateTimeOffset.UnixEpoch);
+		_userManager.AddPasswordAsync(user, "Strong-1!").Returns(IdentityResult.Success);
+		_userManager.AddPasswordAsync(user, "Already-1!")
+			.Returns(IdentityResult.Failed(new IdentityErrorDescriber().UserAlreadyHasPassword()));
+		_userManager.AddPasswordAsync(user, "Unsure-1!")
+			.Returns(IdentityResult.Failed(new IdentityError { Code = NorseIdentityErrorCodes.IndeterminateOutcome }));
+		_userManager.AddPasswordAsync(user, "Erased-1!").ThrowsAsync(new KeyDestroyedException(receipt));
+
+		(await _userManager.Outcome.AddPasswordAsync(user, "Strong-1!", Cancellation))
+			.TryGetValue(out Success<Unit> _).ShouldBeTrue();
+		Category(await _userManager.Outcome.AddPasswordAsync(user, "Already-1!", Cancellation))
+			.ShouldBe(ErrorCategory.Conflict);
+		Category(await _userManager.Outcome.AddPasswordAsync(user, "Unsure-1!", Cancellation))
+			.ShouldBe(ErrorCategory.Indeterminate);
+		(await _userManager.Outcome.AddPasswordAsync(user, "Erased-1!", Cancellation))
+			.TryGetValue(out Failed failed).ShouldBeTrue();
+		failed.Problem.Category.ShouldBe(ErrorCategory.Erased);
+		failed.Problem.Receipt.ShouldBe(receipt);
+	}
+
+	[Fact]
+	async Task AddLoginAsync_maps_LoginAlreadyAssociated_to_Conflict_an_indeterminate_write_and_an_erased_user()
+	{
+		NorseUser user = new();
+		ErasureReceipt receipt = new(Guid.CreateVersion7(), DateTimeOffset.UnixEpoch);
+		UserLoginInfo linked = new("Provider", "linked", "Provider"), taken = new("Provider", "taken", "Provider"),
+			unsure = new("Provider", "unsure", "Provider"), erased = new("Provider", "erased", "Provider");
+		_userManager.AddLoginAsync(user, linked).Returns(IdentityResult.Success);
+		_userManager.AddLoginAsync(user, taken)
+			.Returns(IdentityResult.Failed(new IdentityErrorDescriber().LoginAlreadyAssociated()));
+		_userManager.AddLoginAsync(user, unsure)
+			.Returns(IdentityResult.Failed(new IdentityError { Code = NorseIdentityErrorCodes.IndeterminateOutcome }));
+		_userManager.AddLoginAsync(user, erased).ThrowsAsync(new KeyDestroyedException(receipt));
+
+		(await _userManager.Outcome.AddLoginAsync(user, linked, Cancellation))
+			.TryGetValue(out Success<Unit> _).ShouldBeTrue();
+		Category(await _userManager.Outcome.AddLoginAsync(user, taken, Cancellation)).ShouldBe(ErrorCategory.Conflict);
+		Category(await _userManager.Outcome.AddLoginAsync(user, unsure, Cancellation))
+			.ShouldBe(ErrorCategory.Indeterminate);
+		(await _userManager.Outcome.AddLoginAsync(user, erased, Cancellation))
+			.TryGetValue(out Failed failed).ShouldBeTrue();
+		failed.Problem.Category.ShouldBe(ErrorCategory.Erased);
+		failed.Problem.Receipt.ShouldBe(receipt);
+	}
+
+	[Fact]
+	async Task RemoveLoginAsync_maps_LastSignInMethod_to_Conflict_an_indeterminate_write_and_an_erased_user()
+	{
+		NorseUser user = new();
+		ErasureReceipt receipt = new(Guid.CreateVersion7(), DateTimeOffset.UnixEpoch);
+		_userManager.RemoveLoginAsync(user, "Provider", "removed").Returns(IdentityResult.Success);
+		_userManager.RemoveLoginAsync(user, "Provider", "last")
+			.Returns(IdentityResult.Failed(new IdentityError { Code = NorseIdentityErrorCodes.LastSignInMethod }));
+		_userManager.RemoveLoginAsync(user, "Provider", "unsure")
+			.Returns(IdentityResult.Failed(new IdentityError { Code = NorseIdentityErrorCodes.IndeterminateOutcome }));
+		_userManager.RemoveLoginAsync(user, "Provider", "erased").ThrowsAsync(new KeyDestroyedException(receipt));
+
+		(await _userManager.Outcome.RemoveLoginAsync(user, "Provider", "removed", Cancellation))
+			.TryGetValue(out Success<Unit> _).ShouldBeTrue();
+		Category(await _userManager.Outcome.RemoveLoginAsync(user, "Provider", "last", Cancellation))
+			.ShouldBe(ErrorCategory.Conflict);
+		Category(await _userManager.Outcome.RemoveLoginAsync(user, "Provider", "unsure", Cancellation))
+			.ShouldBe(ErrorCategory.Indeterminate);
+		(await _userManager.Outcome.RemoveLoginAsync(user, "Provider", "erased", Cancellation))
+			.TryGetValue(out Failed failed).ShouldBeTrue();
+		failed.Problem.Category.ShouldBe(ErrorCategory.Erased);
+		failed.Problem.Receipt.ShouldBe(receipt);
+	}
+
+	[Fact]
 	async Task ReplaceRecoveryCodesAsync_throws_loudly_on_a_stock_manager() =>
 		await Should.ThrowAsync<InvalidOperationException>(async () =>
 			await _userManager.Outcome.ReplaceRecoveryCodesAsync(new(), 10, Cancellation));

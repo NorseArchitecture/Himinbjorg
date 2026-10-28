@@ -24,4 +24,14 @@ static class AccountLinks
 	public static string ConfirmEmail(HttpRequest request, string userId, string code) =>
 		UriHelper.BuildAbsolute(request.Scheme, request.Host, request.PathBase, "/Account/ConfirmEmail",
 			QueryString.Create("userId", userId).Add("code", code));
+
+	/// <summary>The email-change confirmation link: <c>/Account/ConfirmEmailChange?userId=…&amp;email=…&amp;code=…</c>.</summary>
+	/// <param name="request">The live request.</param>
+	/// <param name="userId">The user's id.</param>
+	/// <param name="email">The new email address the change confirms.</param>
+	/// <param name="code">The Base64Url-encoded change token.</param>
+	/// <returns>The absolute link.</returns>
+	public static string ConfirmEmailChange(HttpRequest request, string userId, string email, string code) =>
+		UriHelper.BuildAbsolute(request.Scheme, request.Host, request.PathBase, "/Account/ConfirmEmailChange",
+			QueryString.Create("userId", userId).Add("email", email).Add("code", code));
 }

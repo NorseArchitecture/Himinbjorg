@@ -3,6 +3,7 @@ using FluentValidation;
 using Microsoft.Extensions.Hosting;
 using Norse.Abstractions.Web.Server.Mediator;
 using Norse.AuthN.Services;
+using Norse.Identity.Web.Server.Account;
 using Norse.Identity.Web.Server.Disclosure;
 
 namespace Norse.Identity.Web.Server.Tests;
@@ -35,7 +36,15 @@ public sealed class RegistrationCompositionTests
 		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<ConfirmEmailCommand, Norse.Abstractions.Contracts.BoolResponse>));
 		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<ConfirmEmailChangeCommand, NavigationResult>));
 		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<ResendEmailConfirmationCommand, Norse.Abstractions.Contracts.BoolResponse>));
-		services.Count(d => d.ServiceType == typeof(ISenderDispatch)).ShouldBe(13);
+		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<GetAccountStatusCommand, AccountStatusResponse>));
+		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<SetPhoneNumberCommand, NavigationResult>));
+		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<ChangePasswordCommand, NavigationResult>));
+		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<SetPasswordCommand, NavigationResult>));
+		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<ChangeEmailCommand, Norse.Abstractions.Contracts.BoolResponse>));
+		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<GetExternalLoginsCommand, ExternalLoginsResponse>));
+		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<RemoveExternalLoginCommand, NavigationResult>));
+		services.ShouldContain(d => d.ServiceType == typeof(IRequestHandler<DeletePersonalDataCommand, NavigationResult>));
+		services.Count(d => d.ServiceType == typeof(ISenderDispatch)).ShouldBe(21);
 
 		// The generated CommandRequestValidator<TCommand,TWire,TResponse> adapters — emitted
 		// uniformly for every wrapper command, LogoutCommand/GetMyPersonalDataCommand/
