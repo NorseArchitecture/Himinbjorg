@@ -16,10 +16,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.FluentUI.AspNetCore.Components;
+using Norse.Abstractions.Components.Authorization;
 using Norse.Abstractions.Web.Server.DeferredSignIn;
 using Norse.AuthN.Services;
 using Norse.Identity.EntityFramework;
 using Norse.Identity.Web.Server.ExternalLogin;
+using Norse.Identity.Web.Server.OpenIddict;
 
 namespace Norse.Identity.Web.Server.Tests.ExternalLogin;
 
@@ -498,7 +500,13 @@ public abstract partial class ExternalLoginCallbackSuite : IAsyncDisposable
 			.AddRouting()
 			.AddAntiforgery()
 			.AddHttpContextAccessor()
-			.AddAuthorization(options => options.AddPolicy(AuthNPolicies.Account, AuthNPolicies.ConfigureAccount))
+			.AddAuthorization(options =>
+			{
+				options.AddPolicy(AuthNPolicies.Account, AuthNPolicies.ConfigureAccount);
+				// The link start's freshness is FreshnessSuite's to prove over Midgard's real requirement; this host, whose
+				// caller has just signed in, stands the policy in so the link it walks gets past the gate.
+				options.AddPolicy(NorsePolicies.RecentAuthentication, static policy => policy.RequireAuthenticatedUser());
+			})
 			.AddDataProtection().UseEphemeralDataProtectionProvider();
 		services.AddRazorComponents();
 		services.AddFluentUIComponents();
@@ -521,7 +529,8 @@ public abstract partial class ExternalLoginCallbackSuite : IAsyncDisposable
 					fixtureScope.Get<IUserConfirmation<NorseUser>>(),
 					fixtureScope.Get<IPasskeyHandler<NorseUser>>(),
 					fixtureScope.Get<IOptions<IdentityPasskeyOptions>>(),
-					fixtureScope.Get<IPasskeyChallengeLedger>());
+					fixtureScope.Get<IPasskeyChallengeLedger>(),
+					fixtureScope.Get<ReauthMarkers>());
 			})
 			.AddScoped<SignInManager<NorseUser>>(static sp => sp.GetRequiredService<NorseSignInManager>())
 			.AddScoped<ISecurityStampValidator, SecurityStampValidator<NorseUser>>()

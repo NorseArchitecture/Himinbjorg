@@ -1,0 +1,17 @@
+@using Microsoft.AspNetCore.Components.Routing
+@using Norse.AuthN.Components.FluentUI
+
+@* The smallest static-SSR root that routes to Heimdall's login page (§6.4). *@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <base href="/"/>
+</head>
+<body>
+<Router AppAssembly="typeof(LoginTestRoot).Assembly" AdditionalAssemblies="[typeof(Login).Assembly]">
+    <Found Context="route">
+        <RouteView RouteData="route"/>
+    </Found>
+</Router>
+</body>
+</html>

@@ -12,7 +12,10 @@ namespace Norse.Identity.Web.Server.TwoFactor;
 ///     through Midgard's pipeline via Asgard's <see cref="ISender" />; the command's <c>TResponse</c> <em>is</em> the
 ///     wire result type, so egress is pure passthrough. <c>[Authorize]</c> is mirrored from the command wrappers onto
 ///     every method here deliberately: ASP.NET Core's gRPC endpoint metadata is gathered by reflecting on this
-///     concrete type, never the interface. Public: Yggdrasil's composition root maps this type directly.
+///     concrete type, never the interface. Only the operation policy is mirrored: the gated commands' freshness
+///     (<c>NorsePolicies.RecentAuthentication</c>) rides the command alone, because an endpoint-edge freshness check would
+///     refuse a stale caller with a bare 403 before the mediator could author the re-authentication hop (T4-3). Public:
+///     Yggdrasil's composition root maps this type directly.
 /// </summary>
 /// <param name="sender">Sends each command through the mediator pipeline.</param>
 public sealed class TwoFactorService(ISender sender) : ITwoFactorService

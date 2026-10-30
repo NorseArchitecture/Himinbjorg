@@ -15,7 +15,7 @@ namespace Norse.Identity.Web.Server;
 ///     Erasure as a hard delete, key first (2026-10-24 explicit-writes spec §7, superseding the 2026-08-03 PII
 ///     spec's darken-in-place ceremony). Every run that returns <c>Ok</c> performs every step, and every step is
 ///     idempotent: probe the subject's key; destroy it unconditionally unless it is <c>Missing</c>; then, in one
-///     database transaction, delete the subject's OpenIddict tokens and authorizations and the <c>users</c> row,
+///     database transaction, delete the subject's OpenIddict tokens, sessions and authorizations and the <c>users</c> row,
 ///     whose cascade removes every child table. Whether the row exists proves nothing about completion, so no
 ///     step is skipped because a previous run got further.
 /// </summary>
@@ -131,9 +131,11 @@ public sealed partial class ErasureService(
 	}
 
 	/// <summary>
-	///     The transaction (spec §7.2): the subject's OpenIddict tokens, including any under one of its
-	///     authorizations, then its authorizations, then the <c>users</c> row. No foreign key reaches the
-	///     OpenIddict rows from <c>users</c>, so they are deleted by subject; both deletes are idempotent.
+	///     The transaction (spec §7.2; 2026-10-29 OpenIddict spec §5.5): the subject's OpenIddict tokens, including any
+	///     under one of its authorizations or sessions, then its sessions, including any under one of its authorizations,
+	///     then its authorizations, then the <c>users</c> row. The order is the foreign keys' (tokens reference sessions and
+	///     authorizations, sessions reference authorizations, none cascades). No foreign key reaches the OpenIddict rows
+	///     from <c>users</c>, so they are deleted by subject; every delete is idempotent.
 	/// </summary>
 	async Task DeleteSubjectRowsAsync(Guid subjectId, CancellationToken cancellationToken)
 	{
@@ -144,8 +146,14 @@ public sealed partial class ErasureService(
 			var authorizationIds = context.Set<NorseOpenIddictAuthorization>()
 				.Where(a => a.Subject == subject)
 				.Select(a => (Guid?)a.Id);
+			var sessions = context.Set<NorseOpenIddictSession>()
+				.Where(s => s.Subject == subject || authorizationIds.Contains(s.AuthorizationId));
+			var sessionIds = sessions.Select(s => (Guid?)s.Id);
 			await context.Set<NorseOpenIddictToken>()
-				.Where(t => t.Subject == subject || authorizationIds.Contains(t.AuthorizationId))
+				.Where(t => t.Subject == subject || authorizationIds.Contains(t.AuthorizationId) || sessionIds.Contains(t.SessionId))
+				.ExecuteDeleteAsync(cancellationToken)
+				.ConfigureAwait(false);
+			await sessions
 				.ExecuteDeleteAsync(cancellationToken)
 				.ConfigureAwait(false);
 			await context.Set<NorseOpenIddictAuthorization>()

@@ -16,6 +16,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using Norse.Abstractions.Web.Server.DeferredSignIn;
 using Norse.Identity.EntityFramework;
+using Norse.Identity.Web.Server.OpenIddict;
 using Norse.Infrastructure.Web.Server.DeferredSignIn;
 
 namespace Norse.Identity.Web.Server.Tests;
@@ -107,6 +108,7 @@ sealed class TwoFactorHarness : IDisposable
 						.AddSingleton(ClaimsFactory)
 						.AddSingleton(PasskeyHandler)
 						.AddSingleton<IPasskeyChallengeLedger>(Ledger)
+						.AddSingleton<ReauthMarkers>()
 						.AddSingleton(Substitute.For<IUserConfirmation<NorseUser>>())
 						.AddScoped<NorseSignInManager>()
 						.AddScoped<SignInManager<NorseUser>>(static sp => sp.GetRequiredService<NorseSignInManager>())

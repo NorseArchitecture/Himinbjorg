@@ -92,22 +92,7 @@ public abstract class IdentityFixture : IAsyncLifetime
 		_keysRoot = Path.Combine(Path.GetTempPath(), $"norse-identity-keys-{Guid.NewGuid():N}");
 		_certificate = IdentityTestCertificate.CreateFresh();
 
-		var builder = WebApplication.CreateBuilder();
-		builder.WebHost.UseTestServer();
-		builder.Configuration["ConnectionStrings:identity"] = connectionString;
-		// Required configuration (T3-27): the host is Production, where nothing supplies an issuer by default.
-		builder.Configuration["Identity:Authenticator:Issuer"] = "Norse";
-		builder.AddNorseAuthenticationService(Provider, "identity", _certificate);
-		builder.Services
-			// Neither AddNorseAuthenticationService nor AddNorseIdentity registers authorization
-			// services -- that's host-composition-root responsibility in production (Yggdrasil), and
-			// this fixture stands in for that root by also calling UseAuthorization() below, so it
-			// must supply the matching AddAuthorization() the middleware requires at startup.
-			.AddAuthorization()
-			.AddNorseDevelopmentKeys(_keysRoot)
-			.AddSingleton<IDeferredSignIn>(Substitute.For<IDeferredSignIn>())
-			.AddSingleton<IHttpContextAccessor>(new HttpContextAccessor { HttpContext = new DefaultHttpContext() });
-
+		var builder = Compose(_certificate);
 		_app = builder.Build();
 		_app.UseAuthentication();
 		_app.UseAuthorization();
@@ -135,13 +120,50 @@ public abstract class IdentityFixture : IAsyncLifetime
 		foreach (var scope in _scopes)
 			scope.Dispose();
 		if (_app is not null)
+		{
+			// Stopped first, so the hosted services (the OpenIddict pruner) end as a host stop ends them, not faulted by
+			// disposal.
+			await _app.StopAsync(CancellationToken.None);
 			await _app.DisposeAsync(); // WebApplication implements IAsyncDisposable directly -- no switch needed.
+		}
 		_certificate?.Dispose();
 
 		await DisposeDatabaseAsync();
 		if (_keysRoot is not null && Directory.Exists(_keysRoot))
 			Directory.Delete(_keysRoot, recursive: true);
 		GC.SuppressFinalize(this);
+	}
+
+	/// <summary>
+	///     A <see cref="TestServer" />-backed builder carrying the fixture's own production composition, over its
+	///     database and its key store, signing with <paramref name="certificate" />. The fixture builds its host from it,
+	///     and so does any fact that needs a second host on the same database with more configured on top, such as
+	///     <c>OpenIddictTestHost</c>. The second host shares the fixture's compiled EF model (see the class remark), which
+	///     is safe here because its key store is the fixture's own.
+	/// </summary>
+	/// <param name="certificate">The OpenIddict signing/encryption certificate; the caller owns it.</param>
+	public WebApplicationBuilder Compose(X509Certificate2 certificate)
+	{
+		var builder = WebApplication.CreateBuilder();
+		builder.WebHost.UseTestServer();
+		builder.Configuration["ConnectionStrings:identity"] = _connectionString ??
+			throw new InvalidOperationException(UnavailableReason ?? "The fixture never started.");
+		// Required configuration (T3-27): the host is Production, where nothing supplies an issuer by default.
+		builder.Configuration["Identity:Authenticator:Issuer"] = "Norse";
+		// The production pruner stays off over the collection's shared database: a fact seeding old prunable rows must not
+		// lose them to a host's startup run. PruningSuite proves the pruner with instances of its own.
+		builder.Configuration["Identity:OpenIddict:Pruning:Enabled"] = "false";
+		builder.AddNorseAuthenticationService(Provider, "identity", certificate);
+		builder.Services
+			// Neither AddNorseAuthenticationService nor AddNorseIdentity registers authorization
+			// services -- that's host-composition-root responsibility in production (Yggdrasil), and
+			// this fixture stands in for that root by also calling UseAuthorization() below, so it
+			// must supply the matching AddAuthorization() the middleware requires at startup.
+			.AddAuthorization()
+			.AddNorseDevelopmentKeys(KeysRoot)
+			.AddSingleton<IDeferredSignIn>(Substitute.For<IDeferredSignIn>())
+			.AddSingleton<IHttpContextAccessor>(new HttpContextAccessor { HttpContext = new DefaultHttpContext() });
+		return builder;
 	}
 
 	/// <summary>Skips the calling test, by name, when the database never came up.</summary>

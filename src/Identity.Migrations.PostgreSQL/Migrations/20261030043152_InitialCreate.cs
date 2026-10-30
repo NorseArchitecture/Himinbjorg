@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Norse.Identity.Migrations.PostgreSQL.Migrations;
 
 /// <inheritdoc />
-public partial class _20261028091800_InitialCreate : Migration
+public partial class _20261030043152_InitialCreate : Migration
 {
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder)
@@ -26,11 +26,11 @@ public partial class _20261028091800_InitialCreate : Migration
                 display_name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
                 display_names = table.Column<string>(type: "text", maxLength: -1, nullable: true),
                 json_web_key_set = table.Column<string>(type: "text", maxLength: -1, nullable: true),
-                permissions = table.Column<string>(type: "text", maxLength: -1, nullable: true),
-                post_logout_redirect_uris = table.Column<string>(type: "text", maxLength: -1, nullable: true),
+                permissions = table.Column<string[]>(type: "text[]", nullable: true),
+                post_logout_redirect_uris = table.Column<string[]>(type: "text[]", nullable: true),
                 properties = table.Column<string>(type: "text", maxLength: -1, nullable: true),
-                redirect_uris = table.Column<string>(type: "text", maxLength: -1, nullable: true),
-                requirements = table.Column<string>(type: "text", maxLength: -1, nullable: true),
+                redirect_uris = table.Column<string[]>(type: "text[]", nullable: true),
+                requirements = table.Column<string[]>(type: "text[]", nullable: true),
                 settings = table.Column<string>(type: "text", maxLength: -1, nullable: true)
             },
             constraints: table =>
@@ -50,6 +50,25 @@ public partial class _20261028091800_InitialCreate : Migration
             {
                 table.PrimaryKey("pk_consumed_passkey_challenges", x => x.challenge_hash);
             });
+
+        migrationBuilder.CreateTable(
+            name: "resources",
+            columns: table => new
+            {
+                id = table.Column<Guid>(type: "uuid", nullable: false),
+                concurrency_token = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                description = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true),
+                descriptions = table.Column<string>(type: "text", maxLength: -1, nullable: true),
+                display_name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
+                display_names = table.Column<string>(type: "text", maxLength: -1, nullable: true),
+                name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
+                properties = table.Column<string>(type: "text", maxLength: -1, nullable: true)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("pk_resources", x => x.id);
+            })
+            .Annotation("Norse:Temporal", true);
 
         migrationBuilder.CreateTable(
             name: "roles",
@@ -78,7 +97,7 @@ public partial class _20261028091800_InitialCreate : Migration
                 display_names = table.Column<string>(type: "text", maxLength: -1, nullable: true),
                 name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
                 properties = table.Column<string>(type: "text", maxLength: -1, nullable: true),
-                resources = table.Column<string>(type: "text", maxLength: -1, nullable: true)
+                resources = table.Column<string[]>(type: "text[]", nullable: true)
             },
             constraints: table =>
             {
@@ -143,7 +162,7 @@ public partial class _20261028091800_InitialCreate : Migration
                 concurrency_token = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
                 creation_date = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                 properties = table.Column<string>(type: "text", maxLength: -1, nullable: true),
-                scopes = table.Column<string>(type: "text", maxLength: -1, nullable: true),
+                scopes = table.Column<string[]>(type: "text[]", nullable: true),
                 status = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
                 subject = table.Column<string>(type: "character varying(400)", maxLength: 400, nullable: true),
                 type = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true)
@@ -312,12 +331,42 @@ public partial class _20261028091800_InitialCreate : Migration
             });
 
         migrationBuilder.CreateTable(
+            name: "sessions",
+            columns: table => new
+            {
+                id = table.Column<Guid>(type: "uuid", nullable: false),
+                application_id = table.Column<Guid>(type: "uuid", nullable: true),
+                authorization_id = table.Column<Guid>(type: "uuid", nullable: true),
+                concurrency_token = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                creation_date = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                login_id = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                properties = table.Column<string>(type: "text", maxLength: -1, nullable: true),
+                status = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                subject = table.Column<string>(type: "character varying(400)", maxLength: 400, nullable: true)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("pk_sessions", x => x.id);
+                table.ForeignKey(
+                    name: "fk_sessions_applications_application_id",
+                    column: x => x.application_id,
+                    principalTable: "applications",
+                    principalColumn: "id");
+                table.ForeignKey(
+                    name: "fk_sessions_authorizations_authorization_id",
+                    column: x => x.authorization_id,
+                    principalTable: "authorizations",
+                    principalColumn: "id");
+            });
+
+        migrationBuilder.CreateTable(
             name: "tokens",
             columns: table => new
             {
                 id = table.Column<Guid>(type: "uuid", nullable: false),
                 application_id = table.Column<Guid>(type: "uuid", nullable: true),
                 authorization_id = table.Column<Guid>(type: "uuid", nullable: true),
+                session_id = table.Column<Guid>(type: "uuid", nullable: true),
                 concurrency_token = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
                 creation_date = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                 expiration_date = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
@@ -342,6 +391,11 @@ public partial class _20261028091800_InitialCreate : Migration
                     column: x => x.authorization_id,
                     principalTable: "authorizations",
                     principalColumn: "id");
+                table.ForeignKey(
+                    name: "fk_tokens_sessions_session_id",
+                    column: x => x.session_id,
+                    principalTable: "sessions",
+                    principalColumn: "id");
             });
 
         migrationBuilder.CreateIndex(
@@ -361,6 +415,12 @@ public partial class _20261028091800_InitialCreate : Migration
             column: "expires_at");
 
         migrationBuilder.CreateIndex(
+            name: "ix_resources_name",
+            table: "resources",
+            column: "name",
+            unique: true);
+
+        migrationBuilder.CreateIndex(
             name: "ix_role_claims_role_id",
             table: "role_claims",
             column: "role_id");
@@ -378,6 +438,21 @@ public partial class _20261028091800_InitialCreate : Migration
             unique: true);
 
         migrationBuilder.CreateIndex(
+            name: "ix_sessions_application_id",
+            table: "sessions",
+            column: "application_id");
+
+        migrationBuilder.CreateIndex(
+            name: "ix_sessions_authorization_id",
+            table: "sessions",
+            column: "authorization_id");
+
+        migrationBuilder.CreateIndex(
+            name: "ix_sessions_login_id",
+            table: "sessions",
+            column: "login_id");
+
+        migrationBuilder.CreateIndex(
             name: "ix_tokens_application_id_status_subject_type",
             table: "tokens",
             columns: new[] { "application_id", "status", "subject", "type" });
@@ -392,6 +467,11 @@ public partial class _20261028091800_InitialCreate : Migration
             table: "tokens",
             column: "reference_id",
             unique: true);
+
+        migrationBuilder.CreateIndex(
+            name: "ix_tokens_session_id",
+            table: "tokens",
+            column: "session_id");
 
         migrationBuilder.CreateIndex(
             name: "ix_user_claims_user_id_claim_type_claim_value_hash",
@@ -433,6 +513,10 @@ public partial class _20261028091800_InitialCreate : Migration
             name: "consumed_passkey_challenges");
 
         migrationBuilder.DropTable(
+            name: "resources")
+            .Annotation("Norse:Temporal", true);
+
+        migrationBuilder.DropTable(
             name: "role_claims")
             .Annotation("Norse:Temporal", true);
 
@@ -470,7 +554,7 @@ public partial class _20261028091800_InitialCreate : Migration
             name: "verification_cursors");
 
         migrationBuilder.DropTable(
-            name: "authorizations");
+            name: "sessions");
 
         migrationBuilder.DropTable(
             name: "roles")
@@ -479,6 +563,9 @@ public partial class _20261028091800_InitialCreate : Migration
         migrationBuilder.DropTable(
             name: "users")
             .Annotation("Norse:Temporal", true);
+
+        migrationBuilder.DropTable(
+            name: "authorizations");
 
         migrationBuilder.DropTable(
             name: "applications")

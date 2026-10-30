@@ -17,11 +17,11 @@ EXEC(N'CREATE TABLE [Applications] (
     [DisplayName] nvarchar(200) NULL,
     [DisplayNames] nvarchar(max) NULL,
     [JsonWebKeySet] nvarchar(max) NULL,
-    [Permissions] nvarchar(max) NULL,
-    [PostLogoutRedirectUris] nvarchar(max) NULL,
+    [Permissions] json NULL,
+    [PostLogoutRedirectUris] json NULL,
     [Properties] nvarchar(max) NULL,
-    [RedirectUris] nvarchar(max) NULL,
-    [Requirements] nvarchar(max) NULL,
+    [RedirectUris] json NULL,
+    [Requirements] json NULL,
     [Settings] nvarchar(max) NULL,
     CONSTRAINT [PK_Applications] PRIMARY KEY ([Id]),
     PERIOD FOR SYSTEM_TIME([SystemPeriodStart], [SystemPeriodEnd])
@@ -38,6 +38,24 @@ GO
 
 
 DECLARE @historyTableSchema1 nvarchar(max) = QUOTENAME(SCHEMA_NAME())
+EXEC(N'CREATE TABLE [Resources] (
+    [Id] uniqueidentifier NOT NULL,
+    [SystemPeriodEnd] datetime2 GENERATED ALWAYS AS ROW END HIDDEN NOT NULL,
+    [SystemPeriodStart] datetime2 GENERATED ALWAYS AS ROW START HIDDEN NOT NULL,
+    [ConcurrencyToken] nvarchar(50) NULL,
+    [Description] nvarchar(1000) NULL,
+    [Descriptions] nvarchar(max) NULL,
+    [DisplayName] nvarchar(200) NULL,
+    [DisplayNames] nvarchar(max) NULL,
+    [Name] nvarchar(200) NULL,
+    [Properties] nvarchar(max) NULL,
+    CONSTRAINT [PK_Resources] PRIMARY KEY ([Id]),
+    PERIOD FOR SYSTEM_TIME([SystemPeriodStart], [SystemPeriodEnd])
+) WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = ' + @historyTableSchema1 + N'.[ResourcesHistory]))');
+GO
+
+
+DECLARE @historyTableSchema2 nvarchar(max) = QUOTENAME(SCHEMA_NAME())
 EXEC(N'CREATE TABLE [Roles] (
     [Id] uniqueidentifier NOT NULL,
     [SystemPeriodEnd] datetime2 GENERATED ALWAYS AS ROW END HIDDEN NOT NULL,
@@ -47,11 +65,11 @@ EXEC(N'CREATE TABLE [Roles] (
     [ConcurrencyStamp] uniqueidentifier NOT NULL,
     CONSTRAINT [PK_Roles] PRIMARY KEY ([Id]),
     PERIOD FOR SYSTEM_TIME([SystemPeriodStart], [SystemPeriodEnd])
-) WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = ' + @historyTableSchema1 + N'.[RolesHistory]))');
+) WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = ' + @historyTableSchema2 + N'.[RolesHistory]))');
 GO
 
 
-DECLARE @historyTableSchema2 nvarchar(max) = QUOTENAME(SCHEMA_NAME())
+DECLARE @historyTableSchema3 nvarchar(max) = QUOTENAME(SCHEMA_NAME())
 EXEC(N'CREATE TABLE [Scopes] (
     [Id] uniqueidentifier NOT NULL,
     [SystemPeriodEnd] datetime2 GENERATED ALWAYS AS ROW END HIDDEN NOT NULL,
@@ -63,10 +81,10 @@ EXEC(N'CREATE TABLE [Scopes] (
     [DisplayNames] nvarchar(max) NULL,
     [Name] nvarchar(200) NULL,
     [Properties] nvarchar(max) NULL,
-    [Resources] nvarchar(max) NULL,
+    [Resources] json NULL,
     CONSTRAINT [PK_Scopes] PRIMARY KEY ([Id]),
     PERIOD FOR SYSTEM_TIME([SystemPeriodStart], [SystemPeriodEnd])
-) WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = ' + @historyTableSchema2 + N'.[ScopesHistory]))');
+) WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = ' + @historyTableSchema3 + N'.[ScopesHistory]))');
 GO
 
 
@@ -115,7 +133,7 @@ CREATE TABLE [Authorizations] (
     [ConcurrencyToken] nvarchar(50) NULL,
     [CreationDate] datetime2 NULL,
     [Properties] nvarchar(max) NULL,
-    [Scopes] nvarchar(max) NULL,
+    [Scopes] json NULL,
     [Status] nvarchar(50) NULL,
     [Subject] nvarchar(400) NULL,
     [Type] nvarchar(50) NULL,
@@ -125,7 +143,7 @@ CREATE TABLE [Authorizations] (
 GO
 
 
-DECLARE @historyTableSchema3 nvarchar(max) = QUOTENAME(SCHEMA_NAME())
+DECLARE @historyTableSchema4 nvarchar(max) = QUOTENAME(SCHEMA_NAME())
 EXEC(N'CREATE TABLE [RoleClaims] (
     [Id] int NOT NULL IDENTITY,
     [SystemPeriodEnd] datetime2 GENERATED ALWAYS AS ROW END HIDDEN NOT NULL,
@@ -136,11 +154,11 @@ EXEC(N'CREATE TABLE [RoleClaims] (
     CONSTRAINT [PK_RoleClaims] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_RoleClaims_Roles_RoleId] FOREIGN KEY ([RoleId]) REFERENCES [Roles] ([Id]) ON DELETE CASCADE,
     PERIOD FOR SYSTEM_TIME([SystemPeriodStart], [SystemPeriodEnd])
-) WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = ' + @historyTableSchema3 + N'.[RoleClaimsHistory]))');
+) WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = ' + @historyTableSchema4 + N'.[RoleClaimsHistory]))');
 GO
 
 
-DECLARE @historyTableSchema4 nvarchar(max) = QUOTENAME(SCHEMA_NAME())
+DECLARE @historyTableSchema5 nvarchar(max) = QUOTENAME(SCHEMA_NAME())
 EXEC(N'CREATE TABLE [UserClaims] (
     [Id] int NOT NULL IDENTITY,
     [ClaimValueHash] AS ISNULL(CAST(HASHBYTES(''SHA2_256'', [ClaimValue]) AS binary(32)), 0x) PERSISTED,
@@ -152,7 +170,7 @@ EXEC(N'CREATE TABLE [UserClaims] (
     CONSTRAINT [PK_UserClaims] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_UserClaims_Users_UserId] FOREIGN KEY ([UserId]) REFERENCES [Users] ([Id]) ON DELETE CASCADE,
     PERIOD FOR SYSTEM_TIME([SystemPeriodStart], [SystemPeriodEnd])
-) WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = ' + @historyTableSchema4 + N'.[UserClaimsHistory]))');
+) WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = ' + @historyTableSchema5 + N'.[UserClaimsHistory]))');
 GO
 
 
@@ -191,7 +209,7 @@ CREATE TABLE [UserPasskeys] (
 GO
 
 
-DECLARE @historyTableSchema5 nvarchar(max) = QUOTENAME(SCHEMA_NAME())
+DECLARE @historyTableSchema6 nvarchar(max) = QUOTENAME(SCHEMA_NAME())
 EXEC(N'CREATE TABLE [UserRoles] (
     [UserId] uniqueidentifier NOT NULL,
     [RoleId] uniqueidentifier NOT NULL,
@@ -201,7 +219,7 @@ EXEC(N'CREATE TABLE [UserRoles] (
     CONSTRAINT [FK_UserRoles_Roles_RoleId] FOREIGN KEY ([RoleId]) REFERENCES [Roles] ([Id]) ON DELETE CASCADE,
     CONSTRAINT [FK_UserRoles_Users_UserId] FOREIGN KEY ([UserId]) REFERENCES [Users] ([Id]) ON DELETE CASCADE,
     PERIOD FOR SYSTEM_TIME([SystemPeriodStart], [SystemPeriodEnd])
-) WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = ' + @historyTableSchema5 + N'.[UserRolesHistory]))');
+) WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = ' + @historyTableSchema6 + N'.[UserRolesHistory]))');
 GO
 
 
@@ -216,10 +234,28 @@ CREATE TABLE [UserTokens] (
 GO
 
 
+CREATE TABLE [Sessions] (
+    [Id] uniqueidentifier NOT NULL,
+    [ApplicationId] uniqueidentifier NULL,
+    [AuthorizationId] uniqueidentifier NULL,
+    [ConcurrencyToken] nvarchar(50) NULL,
+    [CreationDate] datetime2 NULL,
+    [LoginId] nvarchar(100) NULL,
+    [Properties] nvarchar(max) NULL,
+    [Status] nvarchar(50) NULL,
+    [Subject] nvarchar(400) NULL,
+    CONSTRAINT [PK_Sessions] PRIMARY KEY ([Id]),
+    CONSTRAINT [FK_Sessions_Applications_ApplicationId] FOREIGN KEY ([ApplicationId]) REFERENCES [Applications] ([Id]),
+    CONSTRAINT [FK_Sessions_Authorizations_AuthorizationId] FOREIGN KEY ([AuthorizationId]) REFERENCES [Authorizations] ([Id])
+);
+GO
+
+
 CREATE TABLE [Tokens] (
     [Id] uniqueidentifier NOT NULL,
     [ApplicationId] uniqueidentifier NULL,
     [AuthorizationId] uniqueidentifier NULL,
+    [SessionId] uniqueidentifier NULL,
     [ConcurrencyToken] nvarchar(50) NULL,
     [CreationDate] datetime2 NULL,
     [ExpirationDate] datetime2 NULL,
@@ -232,7 +268,8 @@ CREATE TABLE [Tokens] (
     [Type] nvarchar(150) NULL,
     CONSTRAINT [PK_Tokens] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_Tokens_Applications_ApplicationId] FOREIGN KEY ([ApplicationId]) REFERENCES [Applications] ([Id]),
-    CONSTRAINT [FK_Tokens_Authorizations_AuthorizationId] FOREIGN KEY ([AuthorizationId]) REFERENCES [Authorizations] ([Id])
+    CONSTRAINT [FK_Tokens_Authorizations_AuthorizationId] FOREIGN KEY ([AuthorizationId]) REFERENCES [Authorizations] ([Id]),
+    CONSTRAINT [FK_Tokens_Sessions_SessionId] FOREIGN KEY ([SessionId]) REFERENCES [Sessions] ([Id])
 );
 GO
 
@@ -249,6 +286,10 @@ CREATE INDEX [IX_ConsumedPasskeyChallenges_ExpiresAt] ON [ConsumedPasskeyChallen
 GO
 
 
+CREATE UNIQUE INDEX [IX_Resources_Name] ON [Resources] ([Name]) WHERE [Name] IS NOT NULL;
+GO
+
+
 CREATE INDEX [IX_RoleClaims_RoleId] ON [RoleClaims] ([RoleId]);
 GO
 
@@ -261,6 +302,18 @@ CREATE UNIQUE INDEX [IX_Scopes_Name] ON [Scopes] ([Name]) WHERE [Name] IS NOT NU
 GO
 
 
+CREATE INDEX [IX_Sessions_ApplicationId] ON [Sessions] ([ApplicationId]);
+GO
+
+
+CREATE INDEX [IX_Sessions_AuthorizationId] ON [Sessions] ([AuthorizationId]);
+GO
+
+
+CREATE INDEX [IX_Sessions_LoginId] ON [Sessions] ([LoginId]);
+GO
+
+
 CREATE INDEX [IX_Tokens_ApplicationId_Status_Subject_Type] ON [Tokens] ([ApplicationId], [Status], [Subject], [Type]);
 GO
 
@@ -270,6 +323,10 @@ GO
 
 
 CREATE UNIQUE INDEX [IX_Tokens_ReferenceId] ON [Tokens] ([ReferenceId]) WHERE [ReferenceId] IS NOT NULL;
+GO
+
+
+CREATE INDEX [IX_Tokens_SessionId] ON [Tokens] ([SessionId]);
 GO
 
 

@@ -7,8 +7,8 @@ using Norse.Identity.Web.Server.Account;
 namespace Norse.Identity.Web.Server.Tests.Account;
 
 /// <summary>
-///     <see cref="AccountService" /> is pure hydrate-and-send: every method carries the account policy (gRPC endpoint
-///     metadata reflects on the concrete type), and every method sends its own command around the wire request.
+///     <see cref="AccountService" /> is pure hydrate-and-send: every method carries the account policy, the status read
+///     <see cref="AuthNPolicies.AccountRead" /> (gRPC endpoint metadata reflects on the concrete type), and every method sends its own command around the wire request.
 /// </summary>
 public sealed class AccountServiceTests
 {
@@ -33,14 +33,16 @@ public sealed class AccountServiceTests
 		methods.Length.ShouldBe(8);
 		methods.ShouldAllBe(static method =>
 			method.GetCustomAttribute<AuthorizeAttribute>() != null &&
-			method.GetCustomAttribute<AuthorizeAttribute>()!.Policy == AuthNPolicies.Account);
+			method.GetCustomAttribute<AuthorizeAttribute>()!.Policy ==
+			(method.Name == nameof(AccountService.GetAccountStatus) ? AuthNPolicies.AccountRead : AuthNPolicies.Account));
 	}
 
 	[Fact]
 	void Every_command_carries_the_account_policy() =>
 		_commands.ShouldAllBe(static command =>
 			command.GetCustomAttribute<AuthorizeAttribute>() != null &&
-			command.GetCustomAttribute<AuthorizeAttribute>()!.Policy == AuthNPolicies.Account);
+			command.GetCustomAttribute<AuthorizeAttribute>()!.Policy ==
+			(command == typeof(GetAccountStatusCommand) ? AuthNPolicies.AccountRead : AuthNPolicies.Account));
 
 	[Theory]
 	[MemberData(nameof(Methods))]

@@ -73,6 +73,49 @@ public abstract class ErasureServiceSuite(IdentityFixture fixture)
 		(await StoredReceiptAsync(keyStore, user.Id)).ShouldBe(receipt);
 	}
 
+	// 2026-10-29 OpenIddict spec §5.5: the transaction deletes the subject's OpenIddict sessions too, whether a session
+	// names the subject or reaches it only through one of its authorizations, and every token under them, before the
+	// authorizations (the sessions' foreign key, no cascade); another subject's session and token are untouched.
+	[Fact(SkipUnless = nameof(IsTestable), Skip = UntestableReason)]
+	protected async Task An_erased_subjects_sessions_are_gone()
+	{
+		fixture.SkipUnlessAvailable();
+		var user = await fixture.SeedUserAsync("erase-sessions@example.com");
+		var (context, keyStore) = await fixture.CreateScopeAsync();
+		var subject = user.Id.ToString();
+		var other = Guid.NewGuid().ToString();
+		NorseOpenIddictAuthorization authorization = new()
+		{
+			Id = Guid.CreateVersion7(),
+			Subject = subject,
+			Status = "valid",
+			Type = "permanent",
+			CreationDate = DateTime.UtcNow
+		};
+		NorseOpenIddictSession named = new() { Id = Guid.CreateVersion7(), Subject = subject, AuthorizationId = authorization.Id, Status = "valid" },
+			bound = new() { Id = Guid.CreateVersion7(), AuthorizationId = authorization.Id, Status = "valid" },
+			unbound = new() { Id = Guid.CreateVersion7(), Subject = subject, Status = "valid" },
+			kept = new() { Id = Guid.CreateVersion7(), Subject = other, Status = "valid" };
+		NorseOpenIddictToken underSession = new() { Id = Guid.CreateVersion7(), SessionId = unbound.Id, Status = "valid", Type = "refresh_token" },
+			keptToken = new() { Id = Guid.CreateVersion7(), Subject = other, SessionId = kept.Id, Status = "valid", Type = "refresh_token" },
+			bare = new() { Id = Guid.CreateVersion7(), Subject = subject, Status = "valid", Type = "access_token" };
+		context.AddRange(authorization, named, bound, unbound, kept, underSession, keptToken, bare);
+		await context.SaveChangesAsync(Cancellation);
+
+		Receipt(await NewService(context, keyStore).ShredAsync(user.Id, Cancellation));
+
+		Guid[] sessions = [named.Id, bound.Id, unbound.Id, kept.Id], tokens = [underSession.Id, keptToken.Id];
+		(await context.Set<NorseOpenIddictSession>().Where(s => sessions.Contains(s.Id)).Select(static s => s.Id)
+			.ToListAsync(Cancellation)).ShouldBe([kept.Id]);
+		(await context.Set<NorseOpenIddictToken>().Where(t => tokens.Contains(t.Id)).Select(static t => t.Id)
+			.ToListAsync(Cancellation)).ShouldBe([keptToken.Id]);
+		(await context.Set<NorseOpenIddictAuthorization>().AnyAsync(a => a.Id == authorization.Id, Cancellation)).ShouldBeFalse();
+		// By subject, not by seeded id: nothing that names the subject survives, a token linked to nothing included.
+		(await OpenIddictRowsAsync(context, user.Id)).ShouldBe(0);
+		(await context.Set<NorseOpenIddictSession>().CountAsync(s => s.Subject == subject, Cancellation)).ShouldBe(0);
+		(await RowExistsAsync(context, user.Id)).ShouldBeFalse();
+	}
+
 	[Fact(SkipUnless = nameof(IsTestable), Skip = UntestableReason)]
 	protected async Task Session_authenticated_before_shred_dies_at_the_next_revalidation()
 	{

@@ -62,6 +62,14 @@ public sealed class OpenIddictApplicationManagerOutcomeView(IOpenIddictApplicati
 		IdentityOutcomeMap.GuardAsync(async () =>
 			Found(await manager.GetClientTypeAsync(application, cancellationToken).ConfigureAwait(false)));
 
+	/// <summary>Wraps <see cref="IOpenIddictApplicationManager.GetConsentTypeAsync" />.</summary>
+	/// <param name="application">The application.</param>
+	/// <param name="cancellationToken">Propagated to the manager.</param>
+	public ValueTask<Outcome<string>> GetConsentTypeAsync(object application,
+		CancellationToken cancellationToken = default) =>
+		IdentityOutcomeMap.GuardAsync(async () =>
+			Found(await manager.GetConsentTypeAsync(application, cancellationToken).ConfigureAwait(false)));
+
 	/// <summary>Wraps <see cref="IOpenIddictApplicationManager.GetDisplayNameAsync" />.</summary>
 	/// <param name="application">The application.</param>
 	/// <param name="cancellationToken">Propagated to the manager.</param>

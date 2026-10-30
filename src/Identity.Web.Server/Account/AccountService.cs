@@ -12,13 +12,15 @@ namespace Norse.Identity.Web.Server.Account;
 ///     Midgard's pipeline via Asgard's <see cref="ISender" />; the command's <c>TResponse</c> <em>is</em> the wire
 ///     result type, so egress is pure passthrough. <c>[Authorize]</c> is mirrored from the command wrappers onto every
 ///     method here deliberately: ASP.NET Core's gRPC endpoint metadata is gathered by reflecting on this concrete type,
-///     never the interface. Public: Yggdrasil's composition root maps this type directly.
+///     never the interface. Each method mirrors its command's operation policy alone: the account tier, or the read-only
+///     <see cref="AuthNPolicies.AccountRead" /> for <see cref="GetAccountStatus" />; no class-level <c>[Authorize]</c>, which
+///     would combine with every method's. Public: Yggdrasil's composition root maps this type directly.
 /// </summary>
 /// <param name="sender">Sends each command through the mediator pipeline.</param>
 public sealed class AccountService(ISender sender) : IAccountService
 {
 	/// <inheritdoc />
-	[Authorize(Policy = AuthNPolicies.Account)]
+	[Authorize(Policy = AuthNPolicies.AccountRead)]
 	public Task<Outcome<AccountStatusResponse>> GetAccountStatus(CancellationToken cancellationToken = default) =>
 		sender.Send(new GetAccountStatusCommand(Unit.Value), cancellationToken).AsTask();
 

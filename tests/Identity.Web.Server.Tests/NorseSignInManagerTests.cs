@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authentication;
@@ -14,9 +15,11 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Norse.Abstractions.Backend.Keys;
+using Norse.Abstractions.Components.Authorization;
 using Norse.Abstractions.Web.Server.DeferredSignIn;
 using Norse.Identity.EntityFramework;
 using Norse.Identity.Outcomes;
+using Norse.Identity.Web.Server.OpenIddict;
 using Norse.Identity.Web.Server.Tests.Passkeys;
 
 namespace Norse.Identity.Web.Server.Tests;
@@ -45,6 +48,7 @@ public sealed class NorseSignInManagerTests
 	const string CredentialJson = "{\"id\":\"credential\"}";
 	const string RequestOptionsJson = "{\"challenge\":\"request\"}";
 	const string RawAssertionState = "{\"challenge\":\"raw-assertion-state\",\"userId\":null}";
+	const string ApplicationCookie = ".AspNetCore.Identity.Application";
 
 	static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
@@ -655,6 +659,288 @@ public sealed class NorseSignInManagerTests
 			.StashSignIn(_scheme, Arg.Any<ClaimsPrincipal>(), Arg.Any<AuthenticationProperties>());
 	}
 
+	/// <summary>The five credential paths (spec §6.1), each signing in immediately and on a circuit.</summary>
+	public static TheoryData<string, bool> CredentialPaths => new()
+	{
+		{ "password", false }, { "password", true },
+		{ "authenticator", false }, { "authenticator", true },
+		{ "recovery code", false }, { "recovery code", true },
+		{ "passkey", false }, { "passkey", true },
+		{ "external login", false }, { "external login", true }
+	};
+
+	[Theory]
+	[MemberData(nameof(CredentialPaths))]
+	async Task Each_credential_path_stamps_auth_time(string path, bool responseAlreadyStarted)
+	{
+		using var harness = await TwoFactorHarness.StartAsync();
+		ArrangeStash(harness);
+		harness.Clock.Advance(TimeSpan.FromMinutes(7));
+
+		// A challenge is minted on a real request first, and the clock moves before it completes: the stamp is the
+		// completion's instant, never the mint's.
+		var probe = path switch
+		{
+			"password" => await DirectPasswordSignInAsync(harness, responseAlreadyStarted),
+			"authenticator" => await CompleteChallengeAsync(harness, PasswordSignInAsync(harness), responseAlreadyStarted,
+				(manager, token) => manager.TwoFactorChallengeSignInAsync(token, TwoFactorHarness.AuthenticatorCode,
+					rememberClient: false)),
+			"recovery code" => await CompleteChallengeAsync(harness, PasswordSignInAsync(harness), responseAlreadyStarted,
+				(manager, token) => manager.RecoveryCodeChallengeSignInAsync(token, TwoFactorHarness.RecoveryCode)),
+			"passkey" => await PasskeySignInAsync(harness, responseAlreadyStarted),
+			"external login" => await CompleteChallengeAsync(harness,
+				manager => manager.ExternalLoginSignInAsync(TwoFactorHarness.ExternalProvider,
+					TwoFactorHarness.ExternalProviderKey, isPersistent: false, bypassTwoFactor: false),
+				responseAlreadyStarted,
+				(manager, token) => manager.TwoFactorChallengeSignInAsync(token, TwoFactorHarness.AuthenticatorCode,
+					rememberClient: false)),
+			_ => throw new ArgumentOutOfRangeException(nameof(path), path, null)
+		};
+
+		probe.Exception.ShouldBeNull();
+		probe.Value.ShouldBeTrue("the sign-in succeeded");
+		ShouldCarryAuthTime(SignedIn(harness, probe, responseAlreadyStarted), NowSeconds(harness));
+	}
+
+	[Theory]
+	[InlineData(false)]
+	[InlineData(true)]
+	async Task Refresh_sign_in_carries_auth_time_and_never_stamps(bool responseAlreadyStarted)
+	{
+		using var harness = await TwoFactorHarness.StartAsync();
+		ArrangeStash(harness);
+		var (cookie, signedInAt) = await SignInCookieAsync(harness);
+		// Inside the stamp validator's interval, so only the refresh rebuilds the principal.
+		harness.Clock.Advance(TimeSpan.FromMinutes(5));
+
+		var probe = await harness.RunAsync(manager => manager.RefreshSignInAsync(harness.User), responseAlreadyStarted,
+			cookie);
+
+		probe.Exception.ShouldBeNull();
+		NowSeconds(harness).ShouldNotBe(signedInAt);
+		ShouldCarryAuthTime(SignedIn(harness, probe, responseAlreadyStarted), signedInAt);
+	}
+
+	// The landing slot the stamp point reads for the marker binding, and the parked landing, both carry a valid marker
+	// for this user, and the current cookie is bound to it, so the refresh is handed it from every direction.
+	[Theory]
+	[InlineData(false)]
+	[InlineData(true)]
+	async Task Refresh_sign_in_never_adds_norse_reauth(bool responseAlreadyStarted)
+	{
+		using var harness = await TwoFactorHarness.StartAsync();
+		ArrangeStash(harness);
+		ReauthMarker marker = new(Guid.NewGuid(), harness.User.Id, new byte[32],
+			harness.Clock.GetUtcNow() + ReauthMarkers.Lifetime);
+		var landing = "/connect/authorize?client_id=norse&norse_reauth="
+			+ new ReauthMarkers(harness.Services.GetRequiredService<IDataProtectionProvider>(), harness.Clock)
+				.Protect(marker);
+		var signedIn = await harness.RunAsync(manager => manager.Context.SignInAsync(_scheme, new ClaimsPrincipal(
+			new ClaimsIdentity(
+			[
+				new(ClaimTypes.NameIdentifier, harness.UserId),
+				new(NorseClaimTypes.AuthTime, "1700000000", ClaimValueTypes.Integer64),
+				new(NorseSignInManager.ReauthClaimType, marker.MarkerId.ToString("N"))
+			], _scheme))));
+		var cookie = TwoFactorHarness.CookieOf(signedIn.SetCookieFor(ApplicationCookie)!);
+
+		var probe = await harness.RunAsync(manager =>
+		{
+			manager.Context.Items[NorseSignInManager.ReauthLandingItemName] = landing;
+			manager.Context.Items[NorseSignInManager.ReturnUrlItemName] = landing;
+			return manager.RefreshSignInAsync(harness.User);
+		}, responseAlreadyStarted, cookie);
+
+		probe.Exception.ShouldBeNull();
+		var principal = SignedIn(harness, probe, responseAlreadyStarted);
+		principal.HasClaim(static claim => claim.Type == NorseSignInManager.ReauthClaimType).ShouldBeFalse();
+		ShouldCarryAuthTime(principal, "1700000000");
+	}
+
+	[Fact]
+	async Task A_throwing_refresh_resets_the_depth()
+	{
+		using var harness = await TwoFactorHarness.StartAsync();
+		var (cookie, signedInAt) = await SignInCookieAsync(harness);
+		harness.Clock.Advance(TimeSpan.FromMinutes(5));
+		harness.UserManager.GetTwoFactorEnabledAsync(harness.User).Returns(false);
+		// The refresh's own principal build throws; every later one succeeds.
+		harness.ClaimsFactory.CreateAsync(harness.User)
+			.Returns(_ => throw new InvalidOperationException("The refresh failed."), _ => FactoryPrincipal(harness));
+
+		var probe = await harness.RunAsync(async manager =>
+		{
+			await Should.ThrowAsync<InvalidOperationException>(() => manager.RefreshSignInAsync(harness.User));
+			return (await PasswordSignInAsync(harness)(manager)).Succeeded;
+		}, cookie: cookie);
+
+		probe.Exception.ShouldBeNull();
+		probe.Value.ShouldBeTrue();
+		NowSeconds(harness).ShouldNotBe(signedInAt);
+		ShouldCarryAuthTime(SignedIn(harness, probe, responseAlreadyStarted: false), NowSeconds(harness));
+	}
+
+	// The nested refresh runs from inside the outer one's base call, before the outer reaches the stamp point, so a
+	// flag (rather than a depth) cleared by the inner refresh would stamp the outer.
+	[Fact]
+	async Task Nested_refresh_preserves_auth_time()
+	{
+		using var harness = await TwoFactorHarness.StartAsync();
+		ArrangeStash(harness);
+		var (cookie, signedInAt) = await SignInCookieAsync(harness);
+		harness.Clock.Advance(TimeSpan.FromMinutes(5));
+		harness.UserManager.GetTwoFactorEnabledAsync(harness.User).Returns(false);
+		NorseSignInManager? nesting = null;
+		harness.UserManager.GetUserIdAsync(harness.User).Returns(async _ =>
+		{
+			if (Interlocked.Exchange(ref nesting, null) is { } manager)
+				await manager.RefreshSignInAsync(harness.User);
+			return harness.UserId;
+		});
+
+		var probe = await harness.RunAsync(async manager =>
+		{
+			nesting = manager;
+			await manager.RefreshSignInAsync(harness.User);
+			return (await PasswordSignInAsync(harness)(manager)).Succeeded;
+		}, responseAlreadyStarted: true, cookie);
+
+		probe.Exception.ShouldBeNull();
+		probe.Value.ShouldBeTrue();
+		var stashed = StashedIdentityPrincipals(harness);
+		stashed.Count.ShouldBe(3, "the nested refresh, the outer refresh, then the password sign-in");
+		ShouldCarryAuthTime(stashed[0], signedInAt);
+		ShouldCarryAuthTime(stashed[1], signedInAt);
+		ShouldCarryAuthTime(stashed[2], NowSeconds(harness));
+	}
+
+	// A cookie issued before auth_time existed reads as stale; a refresh must not launder it fresh.
+	[Theory]
+	[InlineData(false)]
+	[InlineData(true)]
+	async Task A_cookie_without_auth_time_stays_without_it_across_refresh(bool responseAlreadyStarted)
+	{
+		using var harness = await TwoFactorHarness.StartAsync();
+		ArrangeStash(harness);
+		var signedIn = await harness.RunAsync(manager =>
+			manager.Context.SignInAsync(_scheme, FactoryPrincipal(harness)));
+		var cookie = TwoFactorHarness.CookieOf(signedIn.SetCookieFor(ApplicationCookie)!);
+
+		var probe = await harness.RunAsync(manager => manager.RefreshSignInAsync(harness.User), responseAlreadyStarted,
+			cookie);
+
+		probe.Exception.ShouldBeNull();
+		SignedIn(harness, probe, responseAlreadyStarted)
+			.HasClaim(static claim => claim.Type == NorseClaimTypes.AuthTime).ShouldBeFalse();
+	}
+
+	// The controller's ruling (Task 2.2): a credential sign-in builds its principal from the claims factory, and a
+	// refresh reads the ticket, so whatever HttpContext.User carries (on the platform, Midgard's lane-stamped rebuild)
+	// never reaches the cookie.
+	[Fact]
+	async Task No_sign_in_takes_its_principal_from_HttpContext_User()
+	{
+		using var harness = await TwoFactorHarness.StartAsync();
+		var (cookie, signedInAt) = await SignInCookieAsync(harness);
+		harness.Clock.Advance(TimeSpan.FromMinutes(5));
+		ClaimsPrincipal planted = new(new ClaimsIdentity(
+		[
+			new(ClaimTypes.NameIdentifier, harness.UserId),
+			new(NorseClaimTypes.AuthTime, "1", ClaimValueTypes.Integer64),
+			new("planted", "from HttpContext.User")
+		], NorseLanes.Identity));
+
+		var credential = await harness.RunAsync(manager =>
+		{
+			manager.Context.User = planted;
+			return manager.SignInWithClaimsAsync(harness.User, isPersistent: false, additionalClaims: []);
+		});
+		var refresh = await harness.RunAsync(manager =>
+		{
+			manager.Context.User = planted;
+			return manager.RefreshSignInAsync(harness.User);
+		}, cookie: cookie);
+
+		foreach (var (probe, expected) in new[] { (credential, NowSeconds(harness)), (refresh, signedInAt) })
+		{
+			probe.Exception.ShouldBeNull();
+			var principal = SignedIn(harness, probe, responseAlreadyStarted: false);
+			principal.HasClaim(static claim => claim.Type == "planted").ShouldBeFalse();
+			ShouldCarryAuthTime(principal, expected);
+		}
+	}
+
+	static void ArrangeStash(TwoFactorHarness harness) =>
+		harness.DeferredSignIn
+			.StashSignIn(Arg.Any<string>(), Arg.Any<ClaimsPrincipal>(), Arg.Any<AuthenticationProperties>())
+			.Returns(StashedSignInKey);
+
+	// What the harness's own factory answers: a fresh principal per call, the name identifier only.
+	static ClaimsPrincipal FactoryPrincipal(TwoFactorHarness harness) =>
+		new(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, harness.UserId)], _scheme));
+
+	static string NowSeconds(TwoFactorHarness harness) =>
+		harness.Clock.GetUtcNow().ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture);
+
+	// Exactly one: Midgard's freshness handler reads two auth times as ambiguous, so stale.
+	static void ShouldCarryAuthTime(ClaimsPrincipal principal, string expected)
+	{
+		var authTime = principal.FindAll(NorseClaimTypes.AuthTime).ShouldHaveSingleItem();
+		authTime.Value.ShouldBe(expected);
+		authTime.ValueType.ShouldBe(ClaimValueTypes.Integer64);
+	}
+
+	// A credential sign-in on a real request at the clock's current instant: the cookie and its auth_time.
+	static async Task<(string Cookie, string SignedInAt)> SignInCookieAsync(TwoFactorHarness harness)
+	{
+		var signedIn = await harness.RunAsync(manager =>
+			manager.SignInWithClaimsAsync(harness.User, isPersistent: false, additionalClaims: []));
+		return (TwoFactorHarness.CookieOf(signedIn.SetCookieFor(ApplicationCookie)!), NowSeconds(harness));
+	}
+
+	// The identity principal one request signed in: the cookie it wrote, or the principal it stashed on a circuit.
+	static ClaimsPrincipal SignedIn<T>(TwoFactorHarness harness, TwoFactorHarness.Probe<T> probe,
+		bool responseAlreadyStarted) =>
+		responseAlreadyStarted ?
+			StashedIdentityPrincipals(harness)[^1] :
+			harness.Decrypt(_scheme, probe.SetCookieFor(ApplicationCookie).ShouldNotBeNull()).Principal;
+
+	static List<ClaimsPrincipal> StashedIdentityPrincipals(TwoFactorHarness harness) =>
+	[
+		.. harness.DeferredSignIn.ReceivedCalls()
+			.Where(static call => call.GetMethodInfo().Name == nameof(IDeferredSignIn.StashSignIn)
+				&& (string)call.GetArguments()[0]! == _scheme)
+			.Select(static call => (ClaimsPrincipal)call.GetArguments()[1]!)
+	];
+
+	static async Task<TwoFactorHarness.Probe<bool>> DirectPasswordSignInAsync(TwoFactorHarness harness,
+		bool responseAlreadyStarted)
+	{
+		harness.UserManager.GetTwoFactorEnabledAsync(harness.User).Returns(false);
+		return await harness.RunAsync(async manager => (await PasswordSignInAsync(harness)(manager)).Succeeded,
+			responseAlreadyStarted);
+	}
+
+	static async Task<TwoFactorHarness.Probe<bool>> CompleteChallengeAsync(TwoFactorHarness harness,
+		Func<NorseSignInManager, Task<SignInResult>> mint, bool responseAlreadyStarted,
+		Func<NorseSignInManager, string, Task<ChallengeSignInResult>> complete)
+	{
+		var token = (await harness.RunAsync(mint)).Token.ShouldNotBeNull();
+		harness.Clock.Advance(TimeSpan.FromMinutes(2));
+		return await harness.RunAsync(async manager => (await complete(manager, token)).Result.Succeeded,
+			responseAlreadyStarted);
+	}
+
+	static async Task<TwoFactorHarness.Probe<bool>> PasskeySignInAsync(TwoFactorHarness harness,
+		bool responseAlreadyStarted)
+	{
+		ArrangeAssertion(harness, signCount: 5);
+		var state = await RequestStateAsync(harness);
+		harness.Clock.Advance(TimeSpan.FromMinutes(2));
+		return await harness.RunAsync(async manager => (await AssertAsync(state)(manager)).Succeeded,
+			responseAlreadyStarted);
+	}
+
 	[Fact]
 	async Task Creation_options_protect_the_attestation_state()
 	{
@@ -953,7 +1239,8 @@ public sealed class NorseSignInManagerTests
 			NullLogger<SignInManager<NorseUser>>.Instance, Substitute.For<IAuthenticationSchemeProvider>(),
 			Substitute.For<IUserConfirmation<NorseUser>>(), Substitute.For<IDeferredSignIn>(),
 			new EphemeralDataProtectionProvider(), new PasskeyHandler<NorseUser>(userManager, passkeyOptions),
-			passkeyOptions, new InMemoryPasskeyChallengeLedger());
+			passkeyOptions, new InMemoryPasskeyChallengeLedger(), TimeProvider.System,
+			new ReauthMarkers(new EphemeralDataProtectionProvider(), TimeProvider.System));
 
 		var ceremony = await manager.CreatePasskeyRequestOptionsAsync(Cancellation);
 
@@ -1080,7 +1367,9 @@ public sealed class NorseSignInManagerTests
 							NullLogger<SignInManager<NorseUser>>.Instance, schemes, confirmation, deferredSignIn,
 							context.RequestServices.GetRequiredService<IDataProtectionProvider>(),
 							Substitute.For<IPasskeyHandler<NorseUser>>(), Options.Create(new IdentityPasskeyOptions()),
-							new InMemoryPasskeyChallengeLedger()) :
+							new InMemoryPasskeyChallengeLedger(), TimeProvider.System,
+							new ReauthMarkers(context.RequestServices.GetRequiredService<IDataProtectionProvider>(),
+								TimeProvider.System)) :
 						new SignInManager<NorseUser>(
 							userManager, accessor, claimsFactory, Options.Create(new IdentityOptions()),
 							NullLogger<SignInManager<NorseUser>>.Instance, schemes, confirmation);

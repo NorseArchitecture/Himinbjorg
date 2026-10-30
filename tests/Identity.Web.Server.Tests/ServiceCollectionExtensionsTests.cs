@@ -7,6 +7,7 @@ using System.Diagnostics.Metrics;
 using Norse.AuthN.Services;
 using Norse.Identity.EntityFramework;
 using Norse.Identity.Web.Server.Account;
+using Norse.Identity.Web.Server.OpenIddict;
 using Norse.Identity.Web.Server.Passkeys;
 using Norse.Identity.Web.Server.SignInMethods;
 using Norse.Identity.Web.Server.TwoFactor;
@@ -146,5 +147,37 @@ public sealed class ServiceCollectionExtensionsTests
 		meterProvider.ForceFlush();
 
 		exported.ShouldContain(m => m.Name == "identity_probe");
+	}
+
+	// One marker protector serves the stamp point and the authorize endpoint (spec §5.2), so NorseSignInManager takes it
+	// from DI rather than building its own.
+	[Fact]
+	void Registers_one_reauth_marker_protector_the_sign_in_manager_takes()
+	{
+		var builder = CreateBuilder();
+		using var certificate = IdentityTestCertificate.CreateFresh();
+
+		builder.AddNorseAuthenticationService("test", certificate);
+
+		builder.Services.Where(static d => d.ServiceType == typeof(ReauthMarkers)).ShouldHaveSingleItem()
+			.Lifetime.ShouldBe(ServiceLifetime.Singleton);
+		typeof(NorseSignInManager).GetConstructors().ShouldHaveSingleItem().GetParameters()
+			.Select(static parameter => parameter.ParameterType).ShouldContain(typeof(ReauthMarkers));
+	}
+
+	// PF1, closed by Task 4.5: production DI registers the one GrantTermination per scope, and both grant-boundary handlers take
+	// it by constructor, never from a locator.
+	[Fact]
+	void The_grant_boundary_handlers_take_the_production_grant_termination()
+	{
+		using var provider = BuildServices(Environments.Production);
+		using var scope = provider.CreateScope();
+
+		scope.ServiceProvider.GetRequiredService<IGrantTermination>().ShouldBeOfType<GrantTermination>();
+		scope.ServiceProvider.GetRequiredService<EndGrantOnReuse>().ShouldNotBeNull();
+		scope.ServiceProvider.GetRequiredService<RedeemTokenEntryGuarded>().ShouldNotBeNull();
+		foreach (var handler in (Type[])[typeof(EndGrantOnReuse), typeof(RedeemTokenEntryGuarded)])
+			handler.GetConstructors().ShouldHaveSingleItem().GetParameters()
+				.Select(static parameter => parameter.ParameterType).ShouldContain(typeof(IGrantTermination));
 	}
 }

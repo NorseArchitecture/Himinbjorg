@@ -58,17 +58,29 @@ sealed class FaultingSubjectKeyStore(ISubjectKeyStore inner) : ISubjectKeyStore
 	}
 }
 
-/// <summary>Fails the first non-query command whose text contains <paramref name="marker" />, before it runs.</summary>
+/// <summary>
+///     Fails the first <paramref name="failures" /> non-query commands whose text contains <paramref name="marker" />, each
+///     before it runs; every later one runs.
+/// </summary>
 /// <param name="marker">A fragment of the command text, such as the delimited table name.</param>
-sealed class FailingCommandInterceptor(string marker) : DbCommandInterceptor
+/// <param name="failures">How many matching commands fail.</param>
+sealed class FailingCommandInterceptor(string marker, int failures = 1) : DbCommandInterceptor
 {
-	int _armed = 1;
+	int _remaining = failures;
+	int _fired;
+
+	/// <summary>How many matching commands were failed.</summary>
+	public int Fired => Volatile.Read(ref _fired);
 
 	public override ValueTask<InterceptionResult<int>> NonQueryExecutingAsync(DbCommand command,
-		CommandEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default) =>
-		command.CommandText.Contains(marker, StringComparison.Ordinal) && Interlocked.Exchange(ref _armed, 0) == 1 ?
-			throw new SimulatedDbException($"Simulated failure of a command against {marker}.") :
-			ValueTask.FromResult(result);
+		CommandEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
+	{
+		if (!command.CommandText.Contains(marker, StringComparison.Ordinal) || Interlocked.Decrement(ref _remaining) < 0)
+			return ValueTask.FromResult(result);
+
+		Interlocked.Increment(ref _fired);
+		throw new SimulatedDbException($"Simulated failure of a command against {marker}.");
+	}
 }
 
 /// <summary>A non-transient database failure: no execution strategy retries it.</summary>
