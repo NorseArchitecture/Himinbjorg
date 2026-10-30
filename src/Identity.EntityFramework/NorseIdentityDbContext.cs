@@ -79,8 +79,8 @@ public sealed class NorseIdentityDbContext(DbContextOptions<NorseIdentityDbConte
 	{
 		base.OnModelCreating(builder);
 		builder.UseOpenIddict<
-			NorseOpenIddictApplication, NorseOpenIddictAuthorization,
-			NorseOpenIddictScope, NorseOpenIddictToken, Guid>();
+			NorseOpenIddictApplication, NorseOpenIddictAuthorization, NorseOpenIddictResource,
+			NorseOpenIddictScope, NorseOpenIddictSession, NorseOpenIddictToken, Guid>();
 		builder.ApplyNorseConfigurations();
 
 		// PII primitives seam (2026-08-03 spec §4.5): no struct-typed IPiiScalar<TSelf> property exists
@@ -92,13 +92,13 @@ public sealed class NorseIdentityDbContext(DbContextOptions<NorseIdentityDbConte
 		// protector) lands here, right after ApplyNorseConfigurations, the day this schema's first
 		// struct-typed PII property (an EncryptedString-shaped value object) is added -- not before.
 
-		// Temporal system-versioning: the seven entities carrying the durable identity and authorization
+		// Temporal system-versioning: the eight entities carrying the durable identity and authorization
 		// record declare ITemporalEntity, and Urðarbrunnr's chassis realizes it -- PostgreSQL in migration
 		// SQL generation, SQL Server through the realization hook read off this context's options above.
 		// NorseUser is the one split entity (the user_credentials fragment, Himinbjörg#47), and EF
 		// can't compose IsTemporal() with SplitToTable() (dotnet/efcore#30366), so it declares
 		// TemporalOnPrincipalTableOnly(): on SQL Server it is versioned engine-natively on users alone, not
-		// EF-temporal; the other six stay EF-native. Full design:
+		// EF-temporal; the other seven stay EF-native. Full design:
 		// ../Glitnir/docs/Platform/specs/2026-08-04-temporal-tables-persistence-chassis-design.md and
 		// ../Glitnir/docs/Himinbjorg/specs/2026-10-24-identity-explicit-writes-temporal-split-design.md §6.1.
 		//

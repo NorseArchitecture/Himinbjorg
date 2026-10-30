@@ -1,3 +1,4 @@
+using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
@@ -45,7 +46,8 @@ public sealed class AuthenticatorSetupTests
 	[Fact]
 	async Task A_missing_issuer_fails_at_startup()
 	{
-		using var host = BuildHost(issuer: null);
+		using var certificate = IdentityTestCertificate.CreateFresh();
+		using var host = BuildHost(issuer: null, certificate);
 
 		var failure = await Should.ThrowAsync<OptionsValidationException>(() => host.StartAsync(Cancellation));
 
@@ -55,18 +57,20 @@ public sealed class AuthenticatorSetupTests
 	[Fact]
 	void The_issuer_binds_from_its_configuration_section()
 	{
-		using var host = BuildHost(issuer: "Norse");
+		using var certificate = IdentityTestCertificate.CreateFresh();
+		using var host = BuildHost(issuer: "Norse", certificate);
 
 		host.Services.GetRequiredService<IOptions<AuthenticatorOptions>>().Value.Issuer.ShouldBe("Norse");
 	}
 
-	static IHost BuildHost(string? issuer)
+	// The caller owns the certificate and keeps it alive past StartAsync: OpenIddict's server options are validated on
+	// start, and they read it.
+	static IHost BuildHost(string? issuer, X509Certificate2 certificate)
 	{
 		var builder = Host.CreateApplicationBuilder();
 		builder.Configuration["ConnectionStrings:test"] = "Host=localhost;Database=norse_identity_test";
 		if (issuer is not null)
 			builder.Configuration[$"{AuthenticatorOptions.Section}:{nameof(AuthenticatorOptions.Issuer)}"] = issuer;
-		using var certificate = IdentityTestCertificate.CreateFresh();
 		builder.AddNorseAuthenticationService("test", certificate);
 		return builder.Build();
 	}

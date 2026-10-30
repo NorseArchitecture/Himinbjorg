@@ -1,5 +1,7 @@
+using System.Globalization;
 using System.Net;
 using System.Security.Claims;
+using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -9,12 +11,14 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
+using Microsoft.Extensions.Options;
 using Norse.Abstractions.Backend.Keys;
 using Norse.Abstractions.Components.Authorization;
 using Norse.Abstractions.Contracts;
 using Norse.AuthN.Services;
 using Norse.Identity.EntityFramework;
 using Norse.Identity.Outcomes;
+using Norse.Infrastructure.Web.Server.Authentication;
 using IAuthenticationService = Microsoft.AspNetCore.Authentication.IAuthenticationService;
 
 namespace Norse.Identity.Web.Server.Tests.Account;
@@ -44,7 +48,8 @@ public sealed class LinkExternalLoginEndpointTests : IAsyncDisposable
 
 	public LinkExternalLoginEndpointTests()
 	{
-		_principal = new(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, _user.Id.ToString())], "Test"));
+		_principal = new(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, _user.Id.ToString()), AuthTime(TimeSpan.Zero)],
+			"Test"));
 		_userManager.GetUserAsync(Arg.Any<ClaimsPrincipal>()).Returns(_user);
 		_userManager.AddLoginAsync(_user, Arg.Any<UserLoginInfo>()).Returns(IdentityResult.Success);
 		_signInManager.UserManager.GetUserId(Arg.Any<ClaimsPrincipal>())
@@ -212,7 +217,10 @@ public sealed class LinkExternalLoginEndpointTests : IAsyncDisposable
 	async Task The_manage_group_requires_the_account_policy(string path)
 	{
 		_principal = new(new ClaimsIdentity(
-			[new Claim(ClaimTypes.NameIdentifier, _user.Id.ToString()), new Claim(ClaimTypes.Role, NorseRoles.Anonymous)],
+			[
+				new Claim(ClaimTypes.NameIdentifier, _user.Id.ToString()), new Claim(ClaimTypes.Role, NorseRoles.Anonymous),
+				AuthTime(TimeSpan.FromHours(1))
+			],
 			"Test"));
 		using var client = await StartAsync();
 
@@ -221,6 +229,34 @@ public sealed class LinkExternalLoginEndpointTests : IAsyncDisposable
 		response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
 		_signInManager.DidNotReceiveWithAnyArgs().ConfigureExternalAuthenticationProperties(default, default, default);
 		await _signInManager.DidNotReceiveWithAnyArgs().GetExternalLoginInfoAsync(default);
+	}
+
+	// Freshness rides the link start alone, after the group's account policy (spec §6.3): a stale caller is redirected to
+	// sign in again, landing back on the external-logins page, and nothing is challenged.
+	[Fact]
+	async Task A_stale_link_start_redirects_to_sign_in_and_challenges_nothing()
+	{
+		_principal = new(new ClaimsIdentity(
+			[new Claim(ClaimTypes.NameIdentifier, _user.Id.ToString()), AuthTime(TimeSpan.FromMinutes(11))], "Test"));
+		using var client = await StartAsync();
+
+		using var response = await GetStartAsync(client, StartPath, "same-origin");
+
+		RedirectOf(response).ShouldBe("/Account/Login?returnUrl=%2FAccount%2FManage%2FExternalLogins");
+		await AssertChallengedNothingAsync();
+	}
+
+	// The callback is not gated: the provider's return leg finishes a link the fresh start began.
+	[Fact]
+	async Task A_stale_callback_still_adds_the_login()
+	{
+		_principal = new(new ClaimsIdentity(
+			[new Claim(ClaimTypes.NameIdentifier, _user.Id.ToString()), AuthTime(TimeSpan.FromMinutes(11))], "Test"));
+		using var client = await StartAsync();
+
+		using var response = await GetCallbackAsync(client);
+
+		RedirectOf(response).ShouldBe("/Account/Manage/ExternalLogins?status=external-login-added");
 	}
 
 	public async ValueTask DisposeAsync()
@@ -243,7 +279,15 @@ public sealed class LinkExternalLoginEndpointTests : IAsyncDisposable
 			.AddSingleton(_userManager)
 			.AddSingleton(_signInManager)
 			.AddSingleton(_authentication)
-			.AddAuthorization(options => options.AddPolicy(AuthNPolicies.Account, AuthNPolicies.ConfigureAccount));
+			.AddAuthorization(options =>
+			{
+				options.AddPolicy(AuthNPolicies.Account, AuthNPolicies.ConfigureAccount);
+				options.AddPolicy(NorsePolicies.RecentAuthentication, NorsePlatformPolicies.RecentAuthentication);
+			})
+			// Midgard's requirement handlers, RecentAuthenticationHandler among them; the substitute authentication service
+			// registered above stays the one resolved, and an inert Norse.Bearer satisfies the lanes' startup check.
+			.AddNorseAuthentication()
+			.AddScheme<AuthenticationSchemeOptions, InertHandler>(NorseSchemes.Bearer, null);
 
 		_app = builder.Build();
 		_app.Use((context, next) =>
@@ -257,6 +301,19 @@ public sealed class LinkExternalLoginEndpointTests : IAsyncDisposable
 		await _app.StartAsync(Cancellation);
 		return _app.GetTestClient();
 	}
+
+	/// <summary>A scheme that authenticates nothing; the substitute authentication service answers every call anyway.</summary>
+	sealed class InertHandler(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder)
+		: AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
+	{
+		protected override Task<AuthenticateResult> HandleAuthenticateAsync() =>
+			Task.FromResult(AuthenticateResult.NoResult());
+	}
+
+	/// <summary>An <c>auth_time</c> <paramref name="age" /> old, in integral epoch seconds.</summary>
+	static Claim AuthTime(TimeSpan age) =>
+		new(NorseClaimTypes.AuthTime, (DateTimeOffset.UtcNow - age).ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture),
+			ClaimValueTypes.Integer64);
 
 	/// <summary>The records the link endpoints logged, without the host's own.</summary>
 	FakeLogRecord[] LinkLogs() =>

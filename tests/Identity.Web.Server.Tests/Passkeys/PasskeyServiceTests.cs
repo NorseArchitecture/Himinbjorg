@@ -1,5 +1,6 @@
 using System.Reflection;
 using Microsoft.AspNetCore.Authorization;
+using Norse.Abstractions.Components.Authorization;
 using Norse.Abstractions.Web.Server.Mediator;
 using Norse.AuthN.Services;
 using Norse.Identity.Web.Server.Passkeys;
@@ -33,7 +34,9 @@ public sealed class PasskeyServiceTests
 		methods.Select(static method => method.Name).ShouldBe(
 			typeof(IPasskeyService).GetMethods().Select(static method => method.Name), true);
 		methods.ShouldAllBe(static method => method.GetCustomAttribute<AuthorizeAttribute>()!.Policy == AuthNPolicies.Account);
-		_commands.ShouldAllBe(static command => command.GetCustomAttribute<AuthorizeAttribute>()!.Policy == AuthNPolicies.Account);
+		// The operation policy; the gated commands stack freshness beside it (CommandPolicyTests pins which).
+		_commands.ShouldAllBe(static command => command.GetCustomAttributes<AuthorizeAttribute>()
+			.Single(authorize => authorize.Policy != NorsePolicies.RecentAuthentication).Policy == AuthNPolicies.Account);
 	}
 
 	[Fact]

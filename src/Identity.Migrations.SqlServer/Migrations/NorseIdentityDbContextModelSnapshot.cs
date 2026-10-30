@@ -17,13 +17,13 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261028091802_InitialCreate";
+    public override string LastMigrationId => "20261030043157_InitialCreate";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
 #pragma warning disable 612, 618
         modelBuilder
-            .HasAnnotation("ProductVersion", "11.0.0-rc.2.26504.105")
+            .HasAnnotation("ProductVersion", "11.0.0-rc.3.26522.148")
             .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
         SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -88,25 +88,21 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .HasMaxLength(-1)
                     .HasColumnType("nvarchar(max)");
 
-                b.Property<string>("Permissions")
-                    .HasMaxLength(-1)
-                    .HasColumnType("nvarchar(max)");
+                b.PrimitiveCollection<string>("Permissions")
+                    .HasColumnType("json");
 
-                b.Property<string>("PostLogoutRedirectUris")
-                    .HasMaxLength(-1)
-                    .HasColumnType("nvarchar(max)");
+                b.PrimitiveCollection<string>("PostLogoutRedirectUris")
+                    .HasColumnType("json");
 
                 b.Property<string>("Properties")
                     .HasMaxLength(-1)
                     .HasColumnType("nvarchar(max)");
 
-                b.Property<string>("RedirectUris")
-                    .HasMaxLength(-1)
-                    .HasColumnType("nvarchar(max)");
+                b.PrimitiveCollection<string>("RedirectUris")
+                    .HasColumnType("json");
 
-                b.Property<string>("Requirements")
-                    .HasMaxLength(-1)
-                    .HasColumnType("nvarchar(max)");
+                b.PrimitiveCollection<string>("Requirements")
+                    .HasColumnType("json");
 
                 b.Property<string>("Settings")
                     .HasMaxLength(-1)
@@ -165,9 +161,8 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .HasMaxLength(-1)
                     .HasColumnType("nvarchar(max)");
 
-                b.Property<string>("Scopes")
-                    .HasMaxLength(-1)
-                    .HasColumnType("nvarchar(max)");
+                b.PrimitiveCollection<string>("Scopes")
+                    .HasColumnType("json");
 
                 b.Property<string>("Status")
                     .HasMaxLength(50)
@@ -186,6 +181,73 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                 b.HasIndex("ApplicationId", "Status", "Subject", "Type");
 
                 b.ToTable("Authorizations");
+            });
+
+        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseOpenIddictResource", b =>
+            {
+                b.Property<Guid>("Id")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("uniqueidentifier");
+
+                b.Property<string>("ConcurrencyToken")
+                    .IsConcurrencyToken()
+                    .HasMaxLength(50)
+                    .HasColumnType("nvarchar(50)");
+
+                b.Property<string>("Description")
+                    .HasMaxLength(1000)
+                    .HasColumnType("nvarchar(1000)");
+
+                b.Property<string>("Descriptions")
+                    .HasMaxLength(-1)
+                    .HasColumnType("nvarchar(max)");
+
+                b.Property<string>("DisplayName")
+                    .HasMaxLength(200)
+                    .HasColumnType("nvarchar(200)");
+
+                b.Property<string>("DisplayNames")
+                    .HasMaxLength(-1)
+                    .HasColumnType("nvarchar(max)");
+
+                b.Property<string>("Name")
+                    .HasMaxLength(200)
+                    .HasColumnType("nvarchar(200)");
+
+                b.Property<string>("Properties")
+                    .HasMaxLength(-1)
+                    .HasColumnType("nvarchar(max)");
+
+                b.Property<DateTime>("SystemPeriodEnd")
+                    .ValueGeneratedOnAddOrUpdate()
+                    .HasColumnType("datetime2")
+                    .HasColumnName("SystemPeriodEnd");
+
+                b.Property<DateTime>("SystemPeriodStart")
+                    .ValueGeneratedOnAddOrUpdate()
+                    .HasColumnType("datetime2")
+                    .HasColumnName("SystemPeriodStart");
+
+                b.HasKey("Id");
+
+                b.HasIndex("Name")
+                    .IsUnique()
+                    .HasFilter("[Name] IS NOT NULL");
+
+                b.ToTable("Resources");
+
+                b
+                    .ToTable(tb => tb.IsTemporal(ttb =>
+                        {
+                            ttb.UseHistoryTable("ResourcesHistory");
+                            ttb
+                                .HasPeriodStart("SystemPeriodStart")
+                                .HasColumnName("SystemPeriodStart");
+                            ttb
+                                .HasPeriodEnd("SystemPeriodEnd")
+                                .HasColumnName("SystemPeriodEnd");
+                        }))
+                    .HasAnnotation("Norse:Temporal", true);
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseOpenIddictScope", b =>
@@ -223,9 +285,8 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .HasMaxLength(-1)
                     .HasColumnType("nvarchar(max)");
 
-                b.Property<string>("Resources")
-                    .HasMaxLength(-1)
-                    .HasColumnType("nvarchar(max)");
+                b.PrimitiveCollection<string>("Resources")
+                    .HasColumnType("json");
 
                 b.Property<DateTime>("SystemPeriodEnd")
                     .ValueGeneratedOnAddOrUpdate()
@@ -257,6 +318,53 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                                 .HasColumnName("SystemPeriodEnd");
                         }))
                     .HasAnnotation("Norse:Temporal", true);
+            });
+
+        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseOpenIddictSession", b =>
+            {
+                b.Property<Guid>("Id")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("uniqueidentifier");
+
+                b.Property<Guid?>("ApplicationId")
+                    .HasColumnType("uniqueidentifier");
+
+                b.Property<Guid?>("AuthorizationId")
+                    .HasColumnType("uniqueidentifier");
+
+                b.Property<string>("ConcurrencyToken")
+                    .IsConcurrencyToken()
+                    .HasMaxLength(50)
+                    .HasColumnType("nvarchar(50)");
+
+                b.Property<DateTime?>("CreationDate")
+                    .HasColumnType("datetime2");
+
+                b.Property<string>("LoginId")
+                    .HasMaxLength(100)
+                    .HasColumnType("nvarchar(100)");
+
+                b.Property<string>("Properties")
+                    .HasMaxLength(-1)
+                    .HasColumnType("nvarchar(max)");
+
+                b.Property<string>("Status")
+                    .HasMaxLength(50)
+                    .HasColumnType("nvarchar(50)");
+
+                b.Property<string>("Subject")
+                    .HasMaxLength(400)
+                    .HasColumnType("nvarchar(400)");
+
+                b.HasKey("Id");
+
+                b.HasIndex("ApplicationId");
+
+                b.HasIndex("AuthorizationId");
+
+                b.HasIndex("LoginId");
+
+                b.ToTable("Sessions");
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseOpenIddictToken", b =>
@@ -297,6 +405,9 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .HasMaxLength(100)
                     .HasColumnType("nvarchar(100)");
 
+                b.Property<Guid?>("SessionId")
+                    .HasColumnType("uniqueidentifier");
+
                 b.Property<string>("Status")
                     .HasMaxLength(50)
                     .HasColumnType("nvarchar(50)");
@@ -316,6 +427,8 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                 b.HasIndex("ReferenceId")
                     .IsUnique()
                     .HasFilter("[ReferenceId] IS NOT NULL");
+
+                b.HasIndex("SessionId");
 
                 b.HasIndex("ApplicationId", "Status", "Subject", "Type");
 
@@ -765,6 +878,21 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                 b.Navigation("Application");
             });
 
+        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseOpenIddictSession", b =>
+            {
+                b.HasOne("Norse.Identity.EntityFramework.NorseOpenIddictApplication", "Application")
+                    .WithMany("Sessions")
+                    .HasForeignKey("ApplicationId");
+
+                b.HasOne("Norse.Identity.EntityFramework.NorseOpenIddictAuthorization", "Authorization")
+                    .WithMany("Sessions")
+                    .HasForeignKey("AuthorizationId");
+
+                b.Navigation("Application");
+
+                b.Navigation("Authorization");
+            });
+
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseOpenIddictToken", b =>
             {
                 b.HasOne("Norse.Identity.EntityFramework.NorseOpenIddictApplication", "Application")
@@ -775,9 +903,15 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
                     .WithMany("Tokens")
                     .HasForeignKey("AuthorizationId");
 
+                b.HasOne("Norse.Identity.EntityFramework.NorseOpenIddictSession", "Session")
+                    .WithMany("Tokens")
+                    .HasForeignKey("SessionId");
+
                 b.Navigation("Application");
 
                 b.Navigation("Authorization");
+
+                b.Navigation("Session");
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseRoleClaim", b =>
@@ -867,10 +1001,19 @@ partial class NorseIdentityDbContextModelSnapshot : ModelSnapshot
             {
                 b.Navigation("Authorizations");
 
+                b.Navigation("Sessions");
+
                 b.Navigation("Tokens");
             });
 
         modelBuilder.Entity("Norse.Identity.EntityFramework.NorseOpenIddictAuthorization", b =>
+            {
+                b.Navigation("Sessions");
+
+                b.Navigation("Tokens");
+            });
+
+        modelBuilder.Entity("Norse.Identity.EntityFramework.NorseOpenIddictSession", b =>
             {
                 b.Navigation("Tokens");
             });

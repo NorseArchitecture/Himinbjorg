@@ -8,7 +8,7 @@ namespace Norse.Identity.Migrations.Tests;
 
 /// <summary>
 ///     The temporal apparatus against a real <c>postgres:19rc1</c> server: <c>InitialCreate</c> applies
-///     clean and the full apparatus stands for the seven ruled tables — and for nothing else. This realm
+///     clean and the full apparatus stands for the eight ruled tables — and for nothing else. This realm
 ///     keeps exactly one <c>InitialCreate</c> per provider (squashed in place, never stacked), so the
 ///     apparatus arrives at table birth through the chassis's <c>CreateTable</c> path (spec §3.1), not
 ///     through the §3.3 enable transition. Scaffolded SQL that reads right and refuses to apply is the
@@ -19,20 +19,21 @@ namespace Norse.Identity.Migrations.Tests;
 public sealed class NorseIdentityTemporalApparatusContainerTests(PostgresContainerFixture fixture)
 {
 	// The durable identity and authorization record (Himinbjörg#47 open question 4, ruled 2026-08-05; the
-	// 2026-10-24 explicit-writes spec §3.1 took user_logins out), by physical table name. The entity-side pin
-	// lives in Identity.EntityFramework.Tests.
+	// 2026-10-24 explicit-writes spec §3.1 took user_logins out; the Train 4 spec §4.3 added resources), by
+	// physical table name. The entity-side pin lives in Identity.EntityFramework.Tests.
 	static readonly string[] _temporalTables =
 	[
-		"applications", "role_claims", "roles", "scopes", "user_claims", "user_roles", "users"
+		"applications", "resources", "role_claims", "roles", "scopes", "user_claims", "user_roles", "users"
 	];
 
 	// Secret stores, counters, and prunable runtime state -- user_credentials is the users fragment holding the
 	// credential churn and lookup hashes, and user_logins left the temporal set by the same spec. The challenge ledger
-	// and the verification cursor (T3-32/T3-28) are runtime state, never history.
+	// and the verification cursor (T3-32/T3-28) are runtime state, never history, and so are OpenIddict 8's sessions
+	// (Train 4 spec §4.3), bulk-pruned like authorizations and tokens.
 	static readonly string[] _plainTables =
 	[
-		"authorizations", "consumed_passkey_challenges", "subject_keys", "tokens", "user_credentials", "user_logins",
-		"user_passkeys", "user_tokens", "verification_cursors"
+		"authorizations", "consumed_passkey_challenges", "sessions", "subject_keys", "tokens", "user_credentials",
+		"user_logins", "user_passkeys", "user_tokens", "verification_cursors"
 	];
 
 	// EF's own bookkeeping table, under the naming convention.
@@ -41,7 +42,7 @@ public sealed class NorseIdentityTemporalApparatusContainerTests(PostgresContain
 	static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
 	[Fact]
-	async Task MigrateAsync_stands_up_the_temporal_apparatus_on_the_seven_ruled_tables()
+	async Task MigrateAsync_stands_up_the_temporal_apparatus_on_the_eight_ruled_tables()
 	{
 		await using var context = await MigrateAsync();
 

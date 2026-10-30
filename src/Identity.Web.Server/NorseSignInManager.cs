@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -8,9 +9,11 @@ using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using Norse.Abstractions.Backend.Keys;
+using Norse.Abstractions.Components.Authorization;
 using Norse.Abstractions.Web.Server.DeferredSignIn;
 using Norse.Identity.EntityFramework;
 using Norse.Identity.Outcomes;
+using Norse.Identity.Web.Server.OpenIddict;
 
 namespace Norse.Identity.Web.Server;
 
@@ -32,8 +35,9 @@ namespace Norse.Identity.Web.Server;
 ///     <see cref="DeferredRememberClientKeyItemName" /> for the remember-machine cookie) for the caller to read
 ///     back. Every other call path (WASM/MAUI over gRPC-Web, any static-SSR request) is a real, distinct HTTP
 ///     request with <c>Response.HasStarted == false</c> and behaves exactly as the unmodified base class would.
-///     <see cref="SignInManager{TUser}.RefreshSignInAsync" /> needs no override of its own: the decompile shows it funnels through
-///     <see cref="SignInWithClaimsAsync(NorseUser, AuthenticationProperties?, IEnumerable{Claim})" />.
+///     <see cref="RefreshSignInAsync" /> funnels through
+///     <see cref="SignInWithClaimsAsync(NorseUser, AuthenticationProperties?, IEnumerable{Claim})" /> (decompiled RC3), and its
+///     override only tracks the refresh depth the stamp point reads.
 ///     This list has grown by exactly this kind of gap before -- <see cref="SignInOrTwoFactorAsync" /> shipped
 ///     uncovered at first -- so treat "every seam" as a standing claim to re-verify, not a settled fact, the
 ///     next time a new ASP.NET Core Identity entry point is wired here.
@@ -64,6 +68,17 @@ namespace Norse.Identity.Web.Server;
 ///         <see cref="PasskeyAssertionPurpose" />, and each assertion state is burned in the one-shot ledger before the
 ///         handler sees it (T3-32).
 ///     </para>
+///     <para>
+///         That overload is also the stamp point (spec §6.1, T4-2): every sign-in that presents a credential (password,
+///         two-factor completion, recovery code, passkey, external login and registration's own sign-in) stamps
+///         <see cref="NorseClaimTypes.AuthTime" /> from the clock, while a refresh carries the current ticket's value
+///         unchanged, or none, and never stamps. A credential sign-in whose landing is an authorize request carrying a
+///         genuine, unexpired <see cref="ReauthMarker" /> for this user (or for no user) is also stamped with
+///         <see cref="ReauthClaimType" />, that marker's id (spec §5.2). The stamp point reads the landing from one slot,
+///         <see cref="ReauthLandingItemName" />, filled in exactly two places, each clearing it in a <c>finally</c> (T4-1):
+///         <see cref="SignInOrTwoFactorAsync" />'s direct branch copies the parked landing, and the two-factor completion
+///         resolves the challenge's.
+///     </para>
 ///     Lives in <c>Identity.Web.Server</c>, not the base <c>Identity</c> project -- <c>Identity</c> is shared
 ///     with <c>Identity.Migrations</c> (a console tool), and everything this type touches
 ///     (<see cref="HttpContext" />, <see cref="AuthenticationProperties" />, <see cref="IDeferredSignIn" />) is an
@@ -81,7 +96,9 @@ public sealed partial class NorseSignInManager(
 	IDataProtectionProvider dataProtectionProvider,
 	IPasskeyHandler<NorseUser> passkeyHandler,
 	IOptions<IdentityPasskeyOptions> passkeyOptions,
-	IPasskeyChallengeLedger passkeyChallengeLedger)
+	IPasskeyChallengeLedger passkeyChallengeLedger,
+	TimeProvider timeProvider,
+	ReauthMarkers reauthMarkers)
 	: SignInManager<NorseUser>(userManager, contextAccessor, claimsFactory, optionsAccessor, logger, schemes,
 		confirmation)
 {
@@ -110,6 +127,19 @@ public sealed partial class NorseSignInManager(
 	internal const string ReturnUrlItemName = "Norse.Identity.ReturnUrl";
 
 	/// <summary>
+	///     The <c>HttpContext.Items</c> slot carrying the landing of the credential sign-in in progress, the one input
+	///     the stamp point reads for the <see cref="ReauthClaimType" /> binding (T4-1). Filled only by
+	///     <see cref="SignInOrTwoFactorAsync" />'s direct branch and the two-factor completion, each for its one sign-in.
+	/// </summary>
+	internal const string ReauthLandingItemName = "Norse.Identity.ReauthLanding";
+
+	/// <summary>
+	///     The transient re-authentication binding (spec §6.1): only the stamp point issues it, only on a credential
+	///     sign-in, and never a refresh. Its value is the bound marker's id, <c>"N"</c>-formatted.
+	/// </summary>
+	internal const string ReauthClaimType = "norse_reauth";
+
+	/// <summary>
 	///     The data-protection purpose of a passkey registration's ceremony state; a state protected under any other
 	///     purpose -- a sign-in's included -- fails attestation.
 	/// </summary>
@@ -126,6 +156,10 @@ public sealed partial class NorseSignInManager(
 	///     credential, and is logged instead.
 	/// </summary>
 	internal const string AttestationFailedMessage = "The passkey could not be verified. Try again.";
+
+	// The base RefreshSignInAsync itself calls SignInWithClaimsAsync, so the stamp point tells a refresh from a credential
+	// presentation by depth (T4-2); a counter, not a flag, so a nested refresh returning leaves the outer one a refresh.
+	int _refreshDepth;
 
 	readonly ITimeLimitedDataProtector _challengeProtector =
 		dataProtectionProvider.CreateProtector(TwoFactorChallenge.Purpose).ToTimeLimitedDataProtector();
@@ -147,24 +181,55 @@ public sealed partial class NorseSignInManager(
 			additionalClaims).ConfigureAwait(false);
 
 	/// <summary>
-	///     Signs in normally when the response can still write a cookie; otherwise stashes the sign-in via
+	///     The stamp point: stamps or carries <see cref="NorseClaimTypes.AuthTime" /> (<see cref="StampAsync" />), then
+	///     signs in normally when the response can still write a cookie; otherwise stashes the sign-in via
 	///     <see cref="IDeferredSignIn" /> and records the completion key on <see cref="DeferredSignInKeyItemName" />.
 	/// </summary>
 	public override async Task SignInWithClaimsAsync(NorseUser user, AuthenticationProperties? authenticationProperties,
 		IEnumerable<Claim> additionalClaims)
 	{
+		var claims = await StampAsync(user, additionalClaims).ConfigureAwait(false);
 		if (!Context.Response.HasStarted)
 		{
-			await base.SignInWithClaimsAsync(user, authenticationProperties, additionalClaims).ConfigureAwait(false);
+			await base.SignInWithClaimsAsync(user, authenticationProperties, claims).ConfigureAwait(false);
 			return;
 		}
 
 		var principal = await CreateUserPrincipalAsync(user).ConfigureAwait(false);
-		((ClaimsIdentity)principal.Identity!).AddClaims(additionalClaims);
+		((ClaimsIdentity)principal.Identity!).AddClaims(claims);
 		var key = deferredSignIn.StashSignIn(AuthenticationScheme, principal,
 			authenticationProperties ?? new AuthenticationProperties());
 		Context.Items[DeferredSignInKeyItemName] = key;
 	}
+
+	/// <summary>
+	///     Re-issues the cookie for the signed-in <paramref name="user" /> through the base, as a refresh: the stamp point
+	///     carries the current ticket's <see cref="NorseClaimTypes.AuthTime" /> instead of stamping one, and never adds
+	///     <see cref="ReauthClaimType" />. The depth is restored however the base call ends.
+	/// </summary>
+	public override async Task RefreshSignInAsync(NorseUser user)
+	{
+		_refreshDepth++;
+		try
+		{
+			await base.RefreshSignInAsync(user).ConfigureAwait(false);
+		}
+		finally
+		{
+			_refreshDepth--;
+		}
+	}
+
+	/// <summary>
+	///     The current principal's <see cref="NorseClaimTypes.AuthTime" />, re-issued, when it carries exactly one;
+	///     otherwise <see langword="null" />, so an absent or ambiguous value stays stale (Midgard reads two as stale) and
+	///     is never laundered fresh. Shared by the refresh and the security-stamp validator's rebuild.
+	/// </summary>
+	/// <param name="current">The principal being rebuilt: the ticket's, never <c>HttpContext.User</c>.</param>
+	internal static Claim? CarriedAuthTime(ClaimsPrincipal? current) =>
+		current?.FindAll(NorseClaimTypes.AuthTime).Take(2).ToList() is [var authTime] ?
+			new(NorseClaimTypes.AuthTime, authTime.Value, authTime.ValueType) :
+			null;
 
 	/// <summary>
 	///     Signs out normally when the response can still write a cookie; otherwise stashes the sign-out via
@@ -201,7 +266,8 @@ public sealed partial class NorseSignInManager(
 	// returned. Neither the private state nor the cookie is reachable from here, so the challenge leaves as a
 	// token instead and the base is never called on this branch, on any path.
 	/// <summary>
-	///     Delegates to the base class unless a second factor is genuinely required; then mints a
+	///     Delegates to the base class unless a second factor is genuinely required, with the landing parked on
+	///     <see cref="ReturnUrlItemName" /> copied onto <see cref="ReauthLandingItemName" /> for that one sign-in; then mints a
 	///     <see cref="TwoFactorChallenge" /> bound to the user's current security stamp and carrying the landing parked
 	///     on <see cref="ReturnUrlItemName" /> (taken and removed; the app root when none is parked), parks its token on
 	///     <see cref="TwoFactorChallengeItemName" />, and answers <see cref="SignInResult.TwoFactorRequired" />
@@ -214,8 +280,20 @@ public sealed partial class NorseSignInManager(
 			&& await IsTwoFactorEnabledAsync(user).ConfigureAwait(false)
 			&& !await IsTwoFactorClientRememberedAsync(user).ConfigureAwait(false);
 		if (!requiresTwoFactor)
-			return await base.SignInOrTwoFactorAsync(user, isPersistent, loginProvider, bypassTwoFactor)
-				.ConfigureAwait(false);
+		{
+			// T4-1, the first fill site: the base takes the direct path straight to the stamp point.
+			if (Context.Items[ReturnUrlItemName] is string parked)
+				Context.Items[ReauthLandingItemName] = parked;
+			try
+			{
+				return await base.SignInOrTwoFactorAsync(user, isPersistent, loginProvider, bypassTwoFactor)
+					.ConfigureAwait(false);
+			}
+			finally
+			{
+				Context.Items.Remove(ReauthLandingItemName);
+			}
+		}
 
 		var returnUrl = Context.Items[ReturnUrlItemName] as string
 			?? UriHelper.BuildRelative(Context.Request.PathBase, "/");
@@ -600,8 +678,46 @@ public sealed partial class NorseSignInManager(
 			await Context.SignOutAsync(IdentityConstants.ExternalScheme).ConfigureAwait(false);
 		if (rememberClient)
 			await RememberTwoFactorClientAsync(user).ConfigureAwait(false);
-		await SignInWithClaimsAsync(user, isPersistent, claims).ConfigureAwait(false);
+		// T4-1, the second fill site: the landing sealed in the challenge, resolved before the sign-in it serves (spec
+		// §5.2) and cleared however that sign-in ends. The returned landing is the challenge's, unchanged.
+		Context.Items[ReauthLandingItemName] = ReturnUrls.Resolve(challenge.ReturnUrl, Context.Request.PathBase);
+		try
+		{
+			await SignInWithClaimsAsync(user, isPersistent, claims).ConfigureAwait(false);
+		}
+		finally
+		{
+			Context.Items.Remove(ReauthLandingItemName);
+		}
+
 		return new(SignInResult.Success, challenge.ReturnUrl);
+	}
+
+	// The stamp point's claims (T4-2). The two claim types it owns are never taken from a caller. At depth 0 the sign-in
+	// presents a credential, so auth_time is now, in integral epoch seconds. In a refresh it is carried from the ticket the
+	// base just authenticated (the handler caches that result for the request), never from HttpContext.User, which on the
+	// platform is Midgard's lane-stamped rebuild; and a refresh never binds a re-authentication. At depth 0 the landing
+	// slot, and nothing else, decides norse_reauth (spec §5.2): a genuine, unexpired marker naming this user or no user.
+	async Task<List<Claim>> StampAsync(NorseUser user, IEnumerable<Claim> additionalClaims)
+	{
+		List<Claim> claims =
+			[.. additionalClaims.Where(static claim => claim.Type is not (NorseClaimTypes.AuthTime or ReauthClaimType))];
+		if (_refreshDepth == 0)
+		{
+			claims.Add(new(NorseClaimTypes.AuthTime,
+				timeProvider.GetUtcNow().ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture),
+				ClaimValueTypes.Integer64));
+			if (Context.Items[ReauthLandingItemName] is string landing
+				&& reauthMarkers.TryReadFromLanding(landing, Context.Request.PathBase, out var marker)
+				&& (marker.UserId is null || marker.UserId == user.Id))
+				claims.Add(new(ReauthClaimType, marker.MarkerId.ToString("N", CultureInfo.InvariantCulture)));
+			return claims;
+		}
+
+		var current = await Context.AuthenticateAsync(AuthenticationScheme).ConfigureAwait(false);
+		if (CarriedAuthTime(current.Principal) is { } authTime)
+			claims.Add(authTime);
+		return claims;
 	}
 
 	// Only a completed sign-in carries the challenge's landing.

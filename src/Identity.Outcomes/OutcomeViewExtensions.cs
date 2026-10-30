@@ -26,4 +26,28 @@ public static class OutcomeViewExtensions
 		public OpenIddictApplicationManagerOutcomeView Outcome =>
 			new(manager);
 	}
+
+	/// <param name="manager">The manager to view.</param>
+	extension(IOpenIddictAuthorizationManager manager)
+	{
+		/// <summary>The manager, answering <c>Outcome</c>.</summary>
+		public OpenIddictAuthorizationManagerOutcomeView Outcome =>
+			new(manager);
+	}
+
+	/// <param name="manager">The manager to view.</param>
+	extension(IOpenIddictTokenManager manager)
+	{
+		/// <summary>The manager, answering <c>Outcome</c>.</summary>
+		public OpenIddictTokenManagerOutcomeView Outcome =>
+			new(manager);
+	}
+
+	/// <param name="manager">The manager to view.</param>
+	extension(IOpenIddictSessionManager manager)
+	{
+		/// <summary>The manager, answering <c>Outcome</c>.</summary>
+		public OpenIddictSessionManagerOutcomeView Outcome =>
+			new(manager);
+	}
 }

@@ -18,11 +18,11 @@ public sealed class NorseOpenIddictScope
 		builder.Property(static s => s.Description).HasMaxLength(1000);
 		builder.Property(static s => s.DisplayName).HasMaxLength(200);
 
-		// JSON-serialized localized/collection columns OpenIddict itself leaves unbounded by omission
-		// (verified against openiddict-core tag 7.5.0) -- genuinely unbounded, not merely unconfigured.
+		// JSON-string value converters OpenIddict 8 leaves unbounded by omission (verified against openiddict-core
+		// 8.0.0-preview.4) -- genuinely unbounded, not merely unconfigured. Resources is a string[] primitive
+		// collection, never a string column, so it takes no length.
 		builder.Property(static s => s.Descriptions).HasMaxLength(-1);
 		builder.Property(static s => s.DisplayNames).HasMaxLength(-1);
 		builder.Property(static s => s.Properties).HasMaxLength(-1);
-		builder.Property(static s => s.Resources).HasMaxLength(-1);
 	}
 }

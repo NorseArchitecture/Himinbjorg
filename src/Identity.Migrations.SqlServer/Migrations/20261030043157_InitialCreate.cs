@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Norse.Identity.Migrations.SqlServer.Migrations;
 
 /// <inheritdoc />
-public partial class _20261028091802_InitialCreate : Migration
+public partial class _20261030043157_InitialCreate : Migration
 {
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder)
@@ -29,11 +29,11 @@ public partial class _20261028091802_InitialCreate : Migration
                 DisplayName = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
                 DisplayNames = table.Column<string>(type: "nvarchar(max)", maxLength: -1, nullable: true),
                 JsonWebKeySet = table.Column<string>(type: "nvarchar(max)", maxLength: -1, nullable: true),
-                Permissions = table.Column<string>(type: "nvarchar(max)", maxLength: -1, nullable: true),
-                PostLogoutRedirectUris = table.Column<string>(type: "nvarchar(max)", maxLength: -1, nullable: true),
+                Permissions = table.Column<string>(type: "json", nullable: true),
+                PostLogoutRedirectUris = table.Column<string>(type: "json", nullable: true),
                 Properties = table.Column<string>(type: "nvarchar(max)", maxLength: -1, nullable: true),
-                RedirectUris = table.Column<string>(type: "nvarchar(max)", maxLength: -1, nullable: true),
-                Requirements = table.Column<string>(type: "nvarchar(max)", maxLength: -1, nullable: true),
+                RedirectUris = table.Column<string>(type: "json", nullable: true),
+                Requirements = table.Column<string>(type: "json", nullable: true),
                 Settings = table.Column<string>(type: "nvarchar(max)", maxLength: -1, nullable: true)
             },
             constraints: table =>
@@ -57,6 +57,33 @@ public partial class _20261028091802_InitialCreate : Migration
             {
                 table.PrimaryKey("PK_ConsumedPasskeyChallenges", x => x.ChallengeHash);
             });
+
+        migrationBuilder.CreateTable(
+            name: "Resources",
+            columns: table => new
+            {
+                Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                SystemPeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    .Annotation("SqlServer:TemporalIsPeriodEndColumn", true),
+                SystemPeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    .Annotation("SqlServer:TemporalIsPeriodStartColumn", true),
+                ConcurrencyToken = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
+                Description = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
+                Descriptions = table.Column<string>(type: "nvarchar(max)", maxLength: -1, nullable: true),
+                DisplayName = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
+                DisplayNames = table.Column<string>(type: "nvarchar(max)", maxLength: -1, nullable: true),
+                Name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
+                Properties = table.Column<string>(type: "nvarchar(max)", maxLength: -1, nullable: true)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("PK_Resources", x => x.Id);
+            })
+            .Annotation("SqlServer:IsTemporal", true)
+            .Annotation("SqlServer:TemporalHistoryTableName", "ResourcesHistory")
+            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
+            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
 
         migrationBuilder.CreateTable(
             name: "Roles",
@@ -97,7 +124,7 @@ public partial class _20261028091802_InitialCreate : Migration
                 DisplayNames = table.Column<string>(type: "nvarchar(max)", maxLength: -1, nullable: true),
                 Name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
                 Properties = table.Column<string>(type: "nvarchar(max)", maxLength: -1, nullable: true),
-                Resources = table.Column<string>(type: "nvarchar(max)", maxLength: -1, nullable: true)
+                Resources = table.Column<string>(type: "json", nullable: true)
             },
             constraints: table =>
             {
@@ -166,7 +193,7 @@ public partial class _20261028091802_InitialCreate : Migration
                 ConcurrencyToken = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
                 CreationDate = table.Column<DateTime>(type: "datetime2", nullable: true),
                 Properties = table.Column<string>(type: "nvarchar(max)", maxLength: -1, nullable: true),
-                Scopes = table.Column<string>(type: "nvarchar(max)", maxLength: -1, nullable: true),
+                Scopes = table.Column<string>(type: "json", nullable: true),
                 Status = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
                 Subject = table.Column<string>(type: "nvarchar(400)", maxLength: 400, nullable: true),
                 Type = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true)
@@ -359,12 +386,42 @@ public partial class _20261028091802_InitialCreate : Migration
             });
 
         migrationBuilder.CreateTable(
+            name: "Sessions",
+            columns: table => new
+            {
+                Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                ApplicationId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                AuthorizationId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                ConcurrencyToken = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
+                CreationDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                LoginId = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                Properties = table.Column<string>(type: "nvarchar(max)", maxLength: -1, nullable: true),
+                Status = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
+                Subject = table.Column<string>(type: "nvarchar(400)", maxLength: 400, nullable: true)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("PK_Sessions", x => x.Id);
+                table.ForeignKey(
+                    name: "FK_Sessions_Applications_ApplicationId",
+                    column: x => x.ApplicationId,
+                    principalTable: "Applications",
+                    principalColumn: "Id");
+                table.ForeignKey(
+                    name: "FK_Sessions_Authorizations_AuthorizationId",
+                    column: x => x.AuthorizationId,
+                    principalTable: "Authorizations",
+                    principalColumn: "Id");
+            });
+
+        migrationBuilder.CreateTable(
             name: "Tokens",
             columns: table => new
             {
                 Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                 ApplicationId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                 AuthorizationId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                SessionId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                 ConcurrencyToken = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
                 CreationDate = table.Column<DateTime>(type: "datetime2", nullable: true),
                 ExpirationDate = table.Column<DateTime>(type: "datetime2", nullable: true),
@@ -389,6 +446,11 @@ public partial class _20261028091802_InitialCreate : Migration
                     column: x => x.AuthorizationId,
                     principalTable: "Authorizations",
                     principalColumn: "Id");
+                table.ForeignKey(
+                    name: "FK_Tokens_Sessions_SessionId",
+                    column: x => x.SessionId,
+                    principalTable: "Sessions",
+                    principalColumn: "Id");
             });
 
         migrationBuilder.CreateIndex(
@@ -409,6 +471,13 @@ public partial class _20261028091802_InitialCreate : Migration
             column: "ExpiresAt");
 
         migrationBuilder.CreateIndex(
+            name: "IX_Resources_Name",
+            table: "Resources",
+            column: "Name",
+            unique: true,
+            filter: "[Name] IS NOT NULL");
+
+        migrationBuilder.CreateIndex(
             name: "IX_RoleClaims_RoleId",
             table: "RoleClaims",
             column: "RoleId");
@@ -427,6 +496,21 @@ public partial class _20261028091802_InitialCreate : Migration
             filter: "[Name] IS NOT NULL");
 
         migrationBuilder.CreateIndex(
+            name: "IX_Sessions_ApplicationId",
+            table: "Sessions",
+            column: "ApplicationId");
+
+        migrationBuilder.CreateIndex(
+            name: "IX_Sessions_AuthorizationId",
+            table: "Sessions",
+            column: "AuthorizationId");
+
+        migrationBuilder.CreateIndex(
+            name: "IX_Sessions_LoginId",
+            table: "Sessions",
+            column: "LoginId");
+
+        migrationBuilder.CreateIndex(
             name: "IX_Tokens_ApplicationId_Status_Subject_Type",
             table: "Tokens",
             columns: new[] { "ApplicationId", "Status", "Subject", "Type" });
@@ -442,6 +526,11 @@ public partial class _20261028091802_InitialCreate : Migration
             column: "ReferenceId",
             unique: true,
             filter: "[ReferenceId] IS NOT NULL");
+
+        migrationBuilder.CreateIndex(
+            name: "IX_Tokens_SessionId",
+            table: "Tokens",
+            column: "SessionId");
 
         migrationBuilder.CreateIndex(
             name: "IX_UserClaims_UserId_ClaimType_ClaimValueHash",
@@ -481,6 +570,14 @@ public partial class _20261028091802_InitialCreate : Migration
     {
         migrationBuilder.DropTable(
             name: "ConsumedPasskeyChallenges");
+
+        migrationBuilder.DropTable(
+            name: "Resources")
+            .Annotation("SqlServer:IsTemporal", true)
+            .Annotation("SqlServer:TemporalHistoryTableName", "ResourcesHistory")
+            .Annotation("SqlServer:TemporalHistoryTableSchema", null)
+            .Annotation("SqlServer:TemporalPeriodEndColumnName", "SystemPeriodEnd")
+            .Annotation("SqlServer:TemporalPeriodStartColumnName", "SystemPeriodStart");
 
         migrationBuilder.DropTable(
             name: "RoleClaims")
@@ -537,7 +634,7 @@ public partial class _20261028091802_InitialCreate : Migration
             name: "VerificationCursors");
 
         migrationBuilder.DropTable(
-            name: "Authorizations");
+            name: "Sessions");
 
         migrationBuilder.DropTable(
             name: "Roles")
@@ -550,6 +647,9 @@ public partial class _20261028091802_InitialCreate : Migration
         migrationBuilder.DropTable(
             name: "Users")
             .Annotation("Norse:TemporalPrincipalTableOnly", true);
+
+        migrationBuilder.DropTable(
+            name: "Authorizations");
 
         migrationBuilder.DropTable(
             name: "Applications")

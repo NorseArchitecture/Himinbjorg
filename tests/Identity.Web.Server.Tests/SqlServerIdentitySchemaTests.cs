@@ -1,4 +1,9 @@
+using System.Globalization;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Norse.Identity.EntityFramework;
+using OpenIddict.Abstractions;
 
 namespace Norse.Identity.Web.Server.Tests;
 
@@ -22,17 +27,17 @@ public sealed class SqlServerIdentitySchemaTests(SqlServerIdentityFixture fixtur
 {
 	const string UntestableReason = "Requires a running Docker daemon on a host other than Windows on ARM.";
 
-	// The durable identity and authorization record (spec §3.1): Users through Urðarbrunnr's principal-table-only
-	// seam, the other six through EF-native temporal.
+	// The durable identity and authorization record (spec §3.1; Resources from the Train 4 spec §4.3): Users through
+	// Urðarbrunnr's principal-table-only seam, the other seven through EF-native temporal.
 	static readonly string[] _temporalTables =
-		["Applications", "RoleClaims", "Roles", "Scopes", "UserClaims", "UserRoles", "Users"];
+		["Applications", "Resources", "RoleClaims", "Roles", "Scopes", "UserClaims", "UserRoles", "Users"];
 
 	// Secret stores, counters, and prunable runtime state (spec §3.1; the challenge ledger and the verification
-	// cursor, T3-32/T3-28), plus EF's own bookkeeping table.
+	// cursor, T3-32/T3-28; OpenIddict 8's sessions, Train 4 spec §4.3), plus EF's own bookkeeping table.
 	static readonly string[] _plainTables =
 	[
-		"Authorizations", "ConsumedPasskeyChallenges", "SubjectKeys", "Tokens", "UserCredentials", "UserLogins",
-		"UserPasskeys", "UserTokens", "VerificationCursors", "__EFMigrationsHistory"
+		"Authorizations", "ConsumedPasskeyChallenges", "Sessions", "SubjectKeys", "Tokens", "UserCredentials",
+		"UserLogins", "UserPasskeys", "UserTokens", "VerificationCursors", "__EFMigrationsHistory"
 	];
 
 	public static bool IsTestable => SqlServerIdentityFixture.IsTestable;
@@ -40,7 +45,7 @@ public sealed class SqlServerIdentitySchemaTests(SqlServerIdentityFixture fixtur
 	static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
 	[Fact(SkipUnless = nameof(IsTestable), Skip = UntestableReason)]
-	async Task Exactly_the_seven_ruled_tables_are_system_versioned_each_into_its_own_history()
+	async Task Exactly_the_eight_ruled_tables_are_system_versioned_each_into_its_own_history()
 	{
 		fixture.SkipUnlessAvailable();
 		var (context, _) = await fixture.CreateScopeAsync();
@@ -169,6 +174,88 @@ public sealed class SqlServerIdentitySchemaTests(SqlServerIdentityFixture fixtur
 			.SingleAsync(Cancellation);
 
 		dataType.ShouldBe("json");
+	}
+
+	// The H1 spike (Train 4 spec §4.2): OpenIddict 8 types what were JSON strings, and engine-native system versioning
+	// must carry those columns into history unchanged. Written through the stock managers, the store's own write path,
+	// and read back through EF-native TemporalAll(), so every version materializes through OpenIddict's mapping.
+	[Fact(SkipUnless = nameof(IsTestable), Skip = UntestableReason)]
+	async Task Json_typed_columns_survive_system_versioning()
+	{
+		fixture.SkipUnlessAvailable();
+		using var scope = fixture.CreateOwnedScope();
+		var applications = scope.ServiceProvider.GetRequiredService<IOpenIddictApplicationManager>();
+		var scopes = scope.ServiceProvider.GetRequiredService<IOpenIddictScopeManager>();
+		var resources = scope.ServiceProvider.GetRequiredService<IOpenIddictResourceManager>();
+		var suffix = Guid.NewGuid().ToString("N");
+		var property = JsonElement.Parse("""{"k": 1}""");
+		string[] redirectUris = ["https://one.example/callback", "https://two.example/callback"];
+
+		OpenIddictApplicationDescriptor applicationDescriptor = new()
+		{
+			ClientId = $"spike-{suffix}",
+			ClientType = OpenIddictConstants.ClientTypes.Public,
+			RedirectUris = { new(redirectUris[0]), new(redirectUris[1]) },
+			Permissions = { OpenIddictConstants.Permissions.Endpoints.Authorization },
+			Properties = { ["spike"] = property }
+		};
+		var application = await applications.CreateAsync(applicationDescriptor, Cancellation);
+		applicationDescriptor.Permissions.Add(OpenIddictConstants.Permissions.Endpoints.Token);
+		await applications.UpdateAsync(application, applicationDescriptor, Cancellation);
+
+		OpenIddictScopeDescriptor scopeDescriptor = new()
+		{
+			Name = $"spike-scope-{suffix}",
+			Resources = { "spike-api" },
+			Properties = { ["spike"] = property }
+		};
+		var openIddictScope = await scopes.CreateAsync(scopeDescriptor, Cancellation);
+		scopeDescriptor.Resources.Add("spike-api-2");
+		await scopes.UpdateAsync(openIddictScope, scopeDescriptor, Cancellation);
+
+		OpenIddictResourceDescriptor resourceDescriptor = new()
+		{
+			Name = $"urn:norse:spike-resource:{suffix}",
+			DisplayNames = { [CultureInfo.InvariantCulture] = "Spike" },
+			Properties = { ["spike"] = property }
+		};
+		var resource = await resources.CreateAsync(resourceDescriptor, Cancellation);
+		resourceDescriptor.Description = "updated";
+		await resources.UpdateAsync(resource, resourceDescriptor, Cancellation);
+
+		var (context, _) = await fixture.CreateScopeAsync();
+		var applicationId = ((NorseOpenIddictApplication)application).Id;
+		var applicationVersions = await context.Set<NorseOpenIddictApplication>().TemporalAll()
+			.Where(a => a.Id == applicationId)
+			.OrderBy(static a => EF.Property<DateTime>(a, "SystemPeriodStart"))
+			.ToListAsync(Cancellation);
+		applicationVersions.Count.ShouldBe(2);
+		applicationVersions.ShouldAllBe(a => a.RedirectUris!.Order(StringComparer.Ordinal).SequenceEqual(redirectUris));
+		applicationVersions.ShouldAllBe(static a => a.Properties!["spike"].GetRawText() == """{"k":1}""");
+		applicationVersions[0].Permissions.ShouldBe([OpenIddictConstants.Permissions.Endpoints.Authorization]);
+		applicationVersions[1].Permissions!.Order(StringComparer.Ordinal).ShouldBe(
+			[OpenIddictConstants.Permissions.Endpoints.Authorization, OpenIddictConstants.Permissions.Endpoints.Token]);
+
+		var scopeId = ((NorseOpenIddictScope)openIddictScope).Id;
+		var scopeVersions = await context.Set<NorseOpenIddictScope>().TemporalAll()
+			.Where(s => s.Id == scopeId)
+			.OrderBy(static s => EF.Property<DateTime>(s, "SystemPeriodStart"))
+			.ToListAsync(Cancellation);
+		scopeVersions.Count.ShouldBe(2);
+		scopeVersions.ShouldAllBe(static s => s.Properties!["spike"].GetRawText() == """{"k":1}""");
+		scopeVersions[0].Resources.ShouldBe(["spike-api"]);
+		scopeVersions[1].Resources!.Order(StringComparer.Ordinal).ShouldBe(["spike-api", "spike-api-2"]);
+
+		var resourceId = ((NorseOpenIddictResource)resource).Id;
+		var resourceVersions = await context.Set<NorseOpenIddictResource>().TemporalAll()
+			.Where(r => r.Id == resourceId)
+			.OrderBy(static r => EF.Property<DateTime>(r, "SystemPeriodStart"))
+			.ToListAsync(Cancellation);
+		resourceVersions.Count.ShouldBe(2);
+		resourceVersions.ShouldAllBe(static r => r.Properties!["spike"].GetRawText() == """{"k":1}""");
+		resourceVersions.ShouldAllBe(static r => r.DisplayNames!.Single().Value == "Spike");
+		resourceVersions[0].Description.ShouldBeNull();
+		resourceVersions[1].Description.ShouldBe("updated");
 	}
 
 	/// <summary>A table's GENERATED ALWAYS period columns, each with its role and whether it is HIDDEN.</summary>

@@ -1,6 +1,12 @@
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
+using Norse.Abstractions.Components.Authorization;
 using Norse.Identity.EntityFramework;
+using Norse.Identity.Web.Server.OpenIddict;
+using OpenIddict.Abstractions;
+using OpenIddict.Server;
 
 namespace Norse.Identity.Web.Server;
 
@@ -33,7 +39,7 @@ static class IdentityBuilderExtensions
 		///     (spec §2.3). Callers own its lifetime; this method does not dispose it.
 		/// </param>
 		/// <param name="accessTokenLifetime">
-		///     Overrides OpenIddict's default access token lifetime. Omitted in production — exists so
+		///     Overrides the access token lifetime, 10 minutes otherwise (spec §5.1). Omitted in production — exists so
 		///     Task 11's expired-token test can mint a token that is already expired by the time it's used,
 		///     without hand-constructing a JWT outside OpenIddict's own issuance path.
 		/// </param>
@@ -73,24 +79,76 @@ static class IdentityBuilderExtensions
 			// client needs (this is the identity cookie) without naming the framework underneath it.
 			services.ConfigureApplicationCookie(options => options.Cookie.Name = "Norse.Identity");
 
+			// ValidateOnStart on all three builders (spec §5.1): a broken OpenIddict configuration fails the host before it
+			// serves, not at the first token request.
 			services.AddNorseOpenIddictCore()
+				.AddCore(static core => core.ValidateOnStart())
 				.AddServer(o =>
 				{
+					// Spec §5.1: authorization code + PKCE (S256 only) and refresh for first-party public clients, beside the
+					// machine lane's client_credentials; the authorize and token endpoints are Norse's (passthrough), revocation
+					// is OpenIddict's own (v8 has no revocation passthrough: RFC 7009 handling under the grant boundary). Rolling
+					// refresh tokens are OpenIddict's default and stay on, with zero reuse leeway.
 					o.AllowClientCredentialsFlow()
-						.SetTokenEndpointUris("/connect/token")
+						.AllowAuthorizationCodeFlow()
+						.AllowRefreshTokenFlow()
+						.RequireProofKeyForCodeExchange()
+						// Relative without a leading slash, so OpenIddict resolves each under the live PathBase: it joins a relative
+						// endpoint URI onto scheme://host/PathBase/ with new Uri(base, relative), and a leading slash would replace
+						// the PathBase, so no request under a PathBase would ever match (decompiled preview.4, InferEndpointType).
+						.SetAuthorizationEndpointUris("connect/authorize")
+						.SetTokenEndpointUris("connect/token")
+						.SetRevocationEndpointUris("connect/revoke")
+						.RegisterScopes(OpenIddictConstants.Scopes.OpenId, OpenIddictConstants.Scopes.OfflineAccess)
+						.SetAuthorizationCodeLifetime(TimeSpan.FromMinutes(5))
+						.SetAccessTokenLifetime(accessTokenLifetime ?? TimeSpan.FromMinutes(10))
+						.SetIdentityTokenLifetime(TimeSpan.FromMinutes(10))
+						.SetRefreshTokenLifetime(TimeSpan.FromDays(14))
+						.SetRefreshTokenReuseLeeway(TimeSpan.Zero)
+						// OpenIddict accepts plain and S256 by default and has no builder method that narrows the set.
+						.Configure(static server =>
+						{
+							server.CodeChallengeMethods.Clear();
+							server.CodeChallengeMethods.Add(OpenIddictConstants.CodeChallengeMethods.Sha256);
+						})
 						.DisableAccessTokenEncryption()
 						.AddSigningCertificate(signingCertificate)
 						.AddEncryptionCertificate(signingCertificate)
-						.UseAspNetCore(a => a.EnableTokenEndpointPassthrough());
-					if (accessTokenLifetime is { } lifetime)
-						o.SetAccessTokenLifetime(lifetime);
+						.AddNorseGrantBoundary()
+						.AddNorseErrorSuppression()
+						.UseAspNetCore(a => a
+							.EnableAuthorizationEndpointPassthrough()
+							.EnableTokenEndpointPassthrough())
+						.ValidateOnStart();
 				})
 				.AddValidation(o =>
 				{
+					// One validation scheme accepts both audiences, so every bearer-admitting policy pins its own (spec §7.4).
 					o.UseLocalServer();
-					o.AddAudiences("Norse.Facade");
-					o.UseAspNetCore();
+					o.AddAudiences(NorseAudiences.Facade, NorseAudiences.User);
+					// The Authorization header is the only bearer channel: OAuth 2.1 forbids query-string tokens, and a form-body
+					// token is the same leak on a POST.
+					o.UseAspNetCore()
+						.DisableAccessTokenExtractionFromQueryString()
+						.DisableAccessTokenExtractionFromBodyForm();
+					o.AddNorseErrorSuppression();
+					o.ValidateOnStart();
 				});
+
+			// Spec §5.6: nothing else removes OpenIddict's runtime rows. The minimum age's floor is the refresh lifetime the
+			// server above is configured with, read from its own options, never a copy of the constant.
+			services.AddOptions<OpenIddictPruningOptions>()
+				.BindConfiguration(OpenIddictPruningOptions.Section)
+				.Validate(static pruning => pruning.Interval > TimeSpan.Zero,
+					$"{OpenIddictPruningOptions.Section}:{nameof(OpenIddictPruningOptions.Interval)} must be positive.")
+				.Validate(static pruning => pruning.Interval <= OpenIddictPruningOptions.MaxInterval,
+					$"{OpenIddictPruningOptions.Section}:{nameof(OpenIddictPruningOptions.Interval)} must be at most {OpenIddictPruningOptions.MaxInterval}.")
+				.Validate<IOptions<OpenIddictServerOptions>>(
+					static (pruning, server) => server.Value.RefreshTokenLifetime is { } lifetime && pruning.MinimumAge >= lifetime,
+					$"{OpenIddictPruningOptions.Section}:{nameof(OpenIddictPruningOptions.MinimumAge)} must be at least the OpenIddict server's refresh token lifetime, which must be finite.")
+				.ValidateOnStart();
+			services.TryAddSingleton(TimeProvider.System);
+			services.AddHostedService<OpenIddictPruningService>();
 
 			return identityBuilder;
 		}

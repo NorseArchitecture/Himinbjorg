@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Norse.Abstractions.Contracts;
 using Norse.Primitives;
 using OpenIddict.Abstractions;
+using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace Norse.Identity.Outcomes.Tests;
 
@@ -74,6 +75,17 @@ public sealed class OpenIddictApplicationManagerOutcomeViewTests
 
 		Value(await _manager.Outcome.GetClientTypeAsync(_application, Cancellation)).ShouldBe("confidential");
 		Category(await _manager.Outcome.GetClientTypeAsync(untyped, Cancellation)).ShouldBe(ErrorCategory.NotFound);
+	}
+
+	[Fact]
+	async Task GetConsentTypeAsync_answers_the_type_or_NotFound()
+	{
+		object untyped = new();
+		_manager.GetConsentTypeAsync(_application, Arg.Any<CancellationToken>()).Returns(ConsentTypes.Implicit);
+		_manager.GetConsentTypeAsync(untyped, Arg.Any<CancellationToken>()).Returns((string?)null);
+
+		Value(await _manager.Outcome.GetConsentTypeAsync(_application, Cancellation)).ShouldBe(ConsentTypes.Implicit);
+		Category(await _manager.Outcome.GetConsentTypeAsync(untyped, Cancellation)).ShouldBe(ErrorCategory.NotFound);
 	}
 
 	[Fact]

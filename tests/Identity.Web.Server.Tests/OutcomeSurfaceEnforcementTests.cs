@@ -4,7 +4,13 @@ using System.Reflection.Emit;
 using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
 using System.Reflection.PortableExecutable;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using Norse.Abstractions.Components.Authorization;
 using Norse.Identity.EntityFramework;
 using Norse.Identity.Migrations;
 using Norse.Identity.Outcomes;
@@ -58,11 +64,14 @@ public sealed class OutcomeSurfaceEnforcementTests
 	///     <see langword="null" /> for every failure, losing an indeterminate commit; Norse callers replace codes through
 	///     <c>.Outcome.ReplaceRecoveryCodesAsync</c>. The five base passkey members (T3-15) park the ceremony state in
 	///     the partial two-factor cookie, a write a circuit cannot make; Norse callers run the ceremonies through
-	///     <see cref="NorseSignInManager" />'s own, distinctly named members, via <c>.Outcome</c>.
+	///     <see cref="NorseSignInManager" />'s own, distinctly named members, via <c>.Outcome</c>. <c>IsSignedIn</c> matches an
+	///     identity by <c>AuthenticationType</c> against <c>IdentityConstants.ApplicationScheme</c>, and Midgard stamps every
+	///     identity with its lane instead, so it answers <see langword="false" /> for every signed-in caller on the platform.
 	/// </summary>
 	static readonly ImmutableHashSet<string> _bannedByName =
 	[
 		"GenerateNewTwoFactorRecoveryCodesAsync",
+		"IsSignedIn",
 		"MakePasskeyCreationOptionsAsync",
 		"PerformPasskeyAttestationAsync",
 		"MakePasskeyRequestOptionsAsync",
@@ -84,6 +93,55 @@ public sealed class OutcomeSurfaceEnforcementTests
 
 		offenses.ShouldBeEmpty(
 			$"Reach Identity and OpenIddict through .Outcome instead:{Environment.NewLine}{string.Join(Environment.NewLine, offenses)}");
+	}
+
+	/// <summary>
+	///     The scan is not vacuous for Train 4's doors (OpenIddict step-up spec §5.8): the authorize and exchange endpoints,
+	///     the grant termination, the pruner and the external-login endpoints (the link start's freshness included) are
+	///     scanned types of <c>Identity.Web.Server</c>, and each reaches Identity or OpenIddict through an <c>.Outcome</c> view,
+	///     so the main scan's empty offense list covers them.
+	/// </summary>
+	[Fact]
+	void The_scan_reaches_the_openiddict_endpoints_the_pruner_and_the_external_login_endpoints()
+	{
+		var viewCallers = OutcomeViewCallers(typeof(LoginHandler).Assembly.Location);
+
+		string[] doors =
+		[
+			"Norse.Identity.Web.Server.OpenIddict.OpenIddictAuthorizeEndpoint",
+			"Norse.Identity.Web.Server.OpenIddictExchangeEndpoint",
+			"Norse.Identity.Web.Server.OpenIddict.GrantTermination",
+			"Norse.Identity.Web.Server.OpenIddict.OpenIddictPruningService",
+			"Microsoft.AspNetCore.Routing.ExternalLoginEndpointRouteBuilderExtensions"
+		];
+		doors.ShouldBeSubsetOf(viewCallers);
+	}
+
+	/// <summary>Every scanned owner whose IL calls a member of the <c>Norse.Identity.Outcomes</c> view surface.</summary>
+	static ImmutableHashSet<string> OutcomeViewCallers(string assemblyPath)
+	{
+		using var stream = File.OpenRead(assemblyPath);
+		using PEReader pe = new(stream);
+		var reader = pe.GetMetadataReader();
+		NameProvider names = new(reader);
+		HashSet<string> callers = [];
+		foreach (var typeHandle in reader.TypeDefinitions)
+		{
+			var type = reader.GetTypeDefinition(typeHandle);
+			var ownerName = names.Of(Outermost(reader, type));
+			foreach (var methodHandle in type.GetMethods())
+			{
+				var method = reader.GetMethodDefinition(methodHandle);
+				if (method.RelativeVirtualAddress == 0)
+					continue;
+				if (Callees(pe.GetMethodBody(method.RelativeVirtualAddress).GetILReader())
+					.Any(callee => Signature(reader, names, callee).DeclaringType
+						.StartsWith("Norse.Identity.Outcomes.", StringComparison.Ordinal)))
+					callers.Add(ownerName);
+			}
+		}
+
+		return [.. callers];
 	}
 
 	/// <summary>
@@ -127,6 +185,165 @@ public sealed class OutcomeSurfaceEnforcementTests
 		passkeyMembers.ShouldBeSubsetOf(_bannedByName);
 	}
 
+	/// <summary>
+	///     The controller's ruling (Task 2.2): <c>IsSignedIn</c> is banned by name, it still names a real
+	///     <c>SignInManager&lt;TUser&gt;</c> member, and the reason holds: a lane-stamped identity cookie principal reads as
+	///     signed out.
+	/// </summary>
+	[Fact]
+	void IsSignedIn_is_banned_because_it_never_sees_a_lane_stamped_principal()
+	{
+		using var userManager = MockUserManager.Create();
+		SignInManager<NorseUser> signInManager = new(userManager, new HttpContextAccessor(),
+			Substitute.For<IUserClaimsPrincipalFactory<NorseUser>>(), Options.Create(new IdentityOptions()),
+			NullLogger<SignInManager<NorseUser>>.Instance, Substitute.For<IAuthenticationSchemeProvider>(),
+			Substitute.For<IUserConfirmation<NorseUser>>());
+		ClaimsPrincipal stamped = new(new ClaimsIdentity([new(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString())],
+			NorseLanes.Identity));
+
+		typeof(SignInManager<NorseUser>).GetMethod(nameof(SignInManager<NorseUser>.IsSignedIn)).ShouldNotBeNull();
+		_bannedByName.ShouldContain(nameof(SignInManager<NorseUser>.IsSignedIn));
+		stamped.Identity!.IsAuthenticated.ShouldBeTrue();
+		signInManager.IsSignedIn(stamped).ShouldBeFalse();
+	}
+
+
+	/// <summary>
+	///     The controller's ruling (Task 2.2, widened in Task 4.4): no path signs a principal in from the request's ambient
+	///     principal, which on the platform is Midgard's lane-stamped rebuild, not the cookie's ticket. Credential sign-ins
+	///     build the principal from the claims factory and a refresh reads the ticket (<see cref="NorseSignInManagerTests" />
+	///     pins both by behavior); structurally, no type that hands a <see cref="ClaimsPrincipal" /> to a sign-in
+	///     (<c>SignInAsync</c>, <c>SignIn</c>, <c>StashSignIn</c>) reads one from an ambient source: <c>HttpContext.User</c>,
+	///     <c>AuthenticationStateProvider.GetAuthenticationStateAsync</c>, a schemeless <c>AuthenticateAsync</c> (the default
+	///     scheme, whatever a host makes it), an <c>AuthenticateAsync</c> whose scheme argument (the instruction just before
+	///     the call) is not the Identity cookie's scheme (<see cref="IdentityConstants.ApplicationScheme" />, or the sign-in
+	///     manager's own <c>AuthenticationScheme</c>, which is that constant), or a minimal-API handler's
+	///     <see cref="ClaimsPrincipal" /> parameter (bound from <c>HttpContext.User</c>). Exactly one principal source is
+	///     allowed: authenticating the Identity cookie by name, as the authorize endpoint and the sign-in manager's refresh do.
+	///     The scan is not vacuous: the sign-in manager's stash and the authorize endpoint are found as signers, and
+	///     <see cref="Every_ambient_principal_source_is_caught" /> proves each source is detected.
+	/// </summary>
+	[Fact]
+	void No_type_that_signs_a_principal_in_reads_an_ambient_principal()
+	{
+		var (signers, offenders) = ScanPrincipalSignIns(typeof(LoginHandler).Assembly.Location);
+
+		signers.ShouldContain(typeof(NorseSignInManager).FullName!);
+		signers.ShouldContain("Norse.Identity.Web.Server.OpenIddict.OpenIddictAuthorizeEndpoint");
+		offenders.ShouldBeEmpty(
+			$"Build the principal from the claims factory or the ticket instead:{Environment.NewLine}{string.Join(Environment.NewLine, offenders)}");
+	}
+
+	/// <summary>The canaries (<c>PrincipalSourceCanaries</c>): every ambient source is caught, the allowed one is not.</summary>
+	[Fact]
+	void Every_ambient_principal_source_is_caught()
+	{
+		var (signers, offenders) = ScanPrincipalSignIns(typeof(PrincipalSourceCanaries.ReadsHttpContextUser).Assembly.Location);
+
+		string[] canaries =
+		[
+			typeof(PrincipalSourceCanaries.ReadsHttpContextUser).FullName!,
+			typeof(PrincipalSourceCanaries.ReadsAuthenticationState).FullName!,
+			typeof(PrincipalSourceCanaries.AuthenticatesTheDefaultScheme).FullName!,
+			typeof(PrincipalSourceCanaries.AuthenticatesAnotherScheme).FullName!,
+			typeof(PrincipalSourceCanaries.AuthenticatesAnotherSchemeBesideTheConstant).FullName!,
+			typeof(PrincipalSourceCanaries.BindsAMinimalApiPrincipal).FullName!
+		];
+		foreach (var canary in canaries)
+			offenders.ShouldContain(canary);
+		signers.ShouldContain(typeof(PrincipalSourceCanaries.AuthenticatesTheIdentityCookie).FullName!);
+		offenders.ShouldNotContain(typeof(PrincipalSourceCanaries.AuthenticatesTheIdentityCookie).FullName!);
+	}
+
+	static readonly ImmutableHashSet<string> _principalSignIns = ["SignInAsync", "SignIn", "StashSignIn"];
+
+	static readonly ImmutableHashSet<string> _minimalApiMaps =
+		["Map", "MapGet", "MapPost", "MapPut", "MapDelete", "MapPatch", "MapMethods", "MapFallback"];
+
+	const string Principal = "System.Security.Claims.ClaimsPrincipal";
+
+	// Judged by the outermost type, like the main scan: a state machine's MoveNext reads what its method reads.
+	static (ImmutableHashSet<string> Signers, string[] Offenders) ScanPrincipalSignIns(string assemblyPath)
+	{
+		using var stream = File.OpenRead(assemblyPath);
+		using PEReader pe = new(stream);
+		var reader = pe.GetMetadataReader();
+		NameProvider names = new(reader);
+		HashSet<string> signers = [];
+		HashSet<string> readers = [];
+		foreach (var typeHandle in reader.TypeDefinitions)
+		{
+			var type = reader.GetTypeDefinition(typeHandle);
+			var ownerName = names.Of(Outermost(reader, type));
+			foreach (var methodHandle in type.GetMethods())
+			{
+				var method = reader.GetMethodDefinition(methodHandle);
+				if (method.RelativeVirtualAddress == 0)
+					continue;
+				var instructions = Instructions(pe.GetMethodBody(method.RelativeVirtualAddress).GetILReader());
+				var maps = false;
+				List<MethodDefinitionHandle> delegates = [];
+				for (var index = 0; index < instructions.Count; index++)
+				{
+					var (opCode, handle) = instructions[index];
+					if (opCode.OperandType != OperandType.InlineMethod)
+						continue;
+					var (declaringType, name, _, parameters) = Signature(reader, names, handle);
+					if (_principalSignIns.Contains(name) && parameters.Contains(Principal))
+						signers.Add(ownerName);
+					if ((declaringType == "Microsoft.AspNetCore.Http.HttpContext" && name == "get_User")
+						|| (declaringType == "Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider"
+							&& name == "GetAuthenticationStateAsync")
+						|| (declaringType == "Microsoft.AspNetCore.Authentication.AuthenticationHttpContextExtensions"
+							&& name == "AuthenticateAsync"
+							&& (parameters.Length != 2 || ArgumentBefore(reader, names, instructions, index) is not { } scheme
+								|| !IsIdentityCookieScheme(reader, names, scheme))))
+						readers.Add(ownerName);
+					if (declaringType.StartsWith("Microsoft.AspNetCore.Builder.", StringComparison.Ordinal) && _minimalApiMaps.Contains(name))
+						maps = true;
+					if ((opCode == OpCodes.Ldftn || opCode == OpCodes.Ldvirtftn) && handle.Kind == HandleKind.MethodDefinition)
+						delegates.Add((MethodDefinitionHandle)handle);
+				}
+
+				// A minimal-API handler binds a ClaimsPrincipal parameter from HttpContext.User: its own type reads it.
+				if (!maps)
+					continue;
+				foreach (var target in delegates)
+				{
+					var definition = reader.GetMethodDefinition(target);
+					if (definition.DecodeSignature(names, null).ParameterTypes.Contains(Principal))
+						readers.Add(names.Of(Outermost(reader, reader.GetTypeDefinition(definition.GetDeclaringType()))));
+				}
+			}
+		}
+
+		return ([.. signers], [.. signers.Intersect(readers, StringComparer.Ordinal).Order(StringComparer.Ordinal)]);
+	}
+
+	/// <summary>The declaring type and name of the field <paramref name="handle" /> names.</summary>
+	static (string DeclaringType, string Name) Field(MetadataReader reader, NameProvider names, EntityHandle handle)
+	{
+		switch (handle.Kind)
+		{
+			case HandleKind.FieldDefinition:
+				var field = reader.GetFieldDefinition((FieldDefinitionHandle)handle);
+				return (names.Of(reader.GetTypeDefinition(field.GetDeclaringType())), reader.GetString(field.Name));
+			case HandleKind.MemberReference:
+				var member = reader.GetMemberReference((MemberReferenceHandle)handle);
+				if (member.GetKind() != MemberReferenceKind.Field)
+					return (string.Empty, string.Empty);
+				var declaringType = member.Parent.Kind switch
+				{
+					HandleKind.TypeReference => names.GetTypeFromReference(reader, (TypeReferenceHandle)member.Parent, 0),
+					HandleKind.TypeDefinition => names.GetTypeFromDefinition(reader, (TypeDefinitionHandle)member.Parent, 0),
+					_ => string.Empty
+				};
+				return (declaringType, reader.GetString(member.Name));
+			default:
+				return (string.Empty, string.Empty);
+		}
+	}
+
 	static IEnumerable<string> Scan(string assemblyPath)
 	{
 		using var stream = File.OpenRead(assemblyPath);
@@ -158,9 +375,17 @@ public sealed class OutcomeSurfaceEnforcementTests
 	}
 
 	/// <summary>The method tokens an IL body references: <c>call</c>, <c>callvirt</c>, <c>newobj</c>, <c>ldftn</c> and kin.</summary>
-	static List<EntityHandle> Callees(BlobReader il)
+	static List<EntityHandle> Callees(BlobReader il) =>
+		[.. Instructions(il).Where(static instruction => instruction.OpCode.OperandType == OperandType.InlineMethod)
+			.Select(static instruction => instruction.Handle)];
+
+	/// <summary>
+	///     Every instruction of an IL body, in order: its opcode and, for a method or field operand, that token (otherwise a
+	///     nil handle).
+	/// </summary>
+	static List<(OpCode OpCode, EntityHandle Handle)> Instructions(BlobReader il)
 	{
-		List<EntityHandle> callees = [];
+		List<(OpCode, EntityHandle)> instructions = [];
 		while (il.RemainingBytes > 0)
 		{
 			var first = il.ReadByte();
@@ -168,12 +393,13 @@ public sealed class OutcomeSurfaceEnforcementTests
 				(short)(0xFE00 | il.ReadByte()) :
 				first;
 			var opCode = _opCodes[value];
-			if (opCode.OperandType == OperandType.InlineMethod)
+			if (opCode.OperandType is OperandType.InlineMethod or OperandType.InlineField)
 			{
-				callees.Add(MetadataTokens.EntityHandle(il.ReadInt32()));
+				instructions.Add((opCode, MetadataTokens.EntityHandle(il.ReadInt32())));
 				continue;
 			}
 
+			instructions.Add((opCode, default));
 			// Computed before it is added: `il.Offset += …` reads Offset first, so the switch count ReadInt32 consumes
 			// would be lost and the walk would land inside the jump table (an invalid opcode under Release IL).
 			var operandBytes = opCode.OperandType switch
@@ -188,21 +414,51 @@ public sealed class OutcomeSurfaceEnforcementTests
 			il.Offset += operandBytes;
 		}
 
-		return callees;
+		return instructions;
 	}
+
+	/// <summary>
+	///     The instruction that pushes the last argument of the call at <paramref name="index" />: the one immediately before it,
+	///     stepping back over a code-coverage hit probe (<c>ldsfld Tracker.Begin; ldc.i4 n; add; ldc.i4.1; stind.i1</c>), which
+	///     the CI's static instrumentation writes into the very assembly this scan reads and which pushes nothing.
+	/// </summary>
+	static (OpCode OpCode, EntityHandle Handle)? ArgumentBefore(
+		MetadataReader reader, NameProvider names, List<(OpCode OpCode, EntityHandle Handle)> instructions, int index)
+	{
+		var at = index - 1;
+		if (at >= 4
+			&& instructions[at].OpCode == OpCodes.Stind_I1
+			&& instructions[at - 1].OpCode == OpCodes.Ldc_I4_1
+			&& instructions[at - 2].OpCode == OpCodes.Add
+			&& instructions[at - 3].OpCode == OpCodes.Ldc_I4
+			&& instructions[at - 4].OpCode == OpCodes.Ldsfld
+			&& Field(reader, names, instructions[at - 4].Handle).DeclaringType
+				.StartsWith("Microsoft.CodeCoverage.Instrumentation.", StringComparison.Ordinal))
+			at -= 5;
+		return at >= 0 ?
+			instructions[at] :
+			null;
+	}
+
+	/// <summary>
+	///     Whether <paramref name="instruction" />, the one immediately before an <c>AuthenticateAsync(HttpContext, string)</c>
+	///     call (past any coverage probe) and so the instruction that pushes its scheme argument, loads the Identity cookie's scheme:
+	///     <see cref="IdentityConstants.ApplicationScheme" />, or the sign-in manager's own <c>AuthenticationScheme</c>, which is
+	///     that constant (the refresh reads the ticket it is re-issuing). Loading the constant anywhere else in the method
+	///     allows nothing.
+	/// </summary>
+	static bool IsIdentityCookieScheme(MetadataReader reader, NameProvider names, (OpCode OpCode, EntityHandle Handle) instruction) =>
+		(instruction.OpCode == OpCodes.Ldsfld
+			&& Field(reader, names, instruction.Handle) is ("Microsoft.AspNetCore.Identity.IdentityConstants", "ApplicationScheme"))
+		|| ((instruction.OpCode == OpCodes.Call || instruction.OpCode == OpCodes.Callvirt)
+			&& Signature(reader, names, instruction.Handle) is var (declaring, member, _, _)
+			&& declaring.StartsWith("Microsoft.AspNetCore.Identity.SignInManager`1", StringComparison.Ordinal)
+			&& member == "get_AuthenticationScheme");
 
 	/// <summary>The banned member <paramref name="callee" /> names, or <see langword="null" /> when it is allowed.</summary>
 	static string? Describe(MetadataReader reader, NameProvider names, EntityHandle callee)
 	{
-		if (callee.Kind == HandleKind.MethodSpecification)
-			callee = reader.GetMethodSpecification((MethodSpecificationHandle)callee).Method;
-
-		var (declaringType, name, returnType) = callee.Kind switch
-		{
-			HandleKind.MethodDefinition => Definition(reader, names, (MethodDefinitionHandle)callee),
-			HandleKind.MemberReference => Reference(reader, names, (MemberReferenceHandle)callee),
-			_ => (string.Empty, string.Empty, string.Empty)
-		};
+		var (declaringType, name, returnType, _) = Signature(reader, names, callee);
 		var genericType = declaringType.Split('<')[0];
 		var banned = (_identityManagers.Contains(genericType)
 				&& (_rawResults.Any(returnType.Contains) || _bannedByName.Contains(name)))
@@ -217,21 +473,36 @@ public sealed class OutcomeSurfaceEnforcementTests
 			|| type.StartsWith("OpenIddict.Core.OpenIddict", StringComparison.Ordinal))
 		&& type.Split('`')[0].EndsWith("Manager", StringComparison.Ordinal);
 
-	static (string DeclaringType, string Name, string ReturnType) Definition(MetadataReader reader, NameProvider names,
-		MethodDefinitionHandle handle)
+	/// <summary>The declaring type, name, return type and parameter types of the method <paramref name="callee" /> names.</summary>
+	static (string DeclaringType, string Name, string ReturnType, ImmutableArray<string> Parameters) Signature(
+		MetadataReader reader, NameProvider names, EntityHandle callee)
+	{
+		if (callee.Kind == HandleKind.MethodSpecification)
+			callee = reader.GetMethodSpecification((MethodSpecificationHandle)callee).Method;
+
+		return callee.Kind switch
+		{
+			HandleKind.MethodDefinition => Definition(reader, names, (MethodDefinitionHandle)callee),
+			HandleKind.MemberReference => Reference(reader, names, (MemberReferenceHandle)callee),
+			_ => (string.Empty, string.Empty, string.Empty, [])
+		};
+	}
+
+	static (string DeclaringType, string Name, string ReturnType, ImmutableArray<string> Parameters) Definition(
+		MetadataReader reader, NameProvider names, MethodDefinitionHandle handle)
 	{
 		var method = reader.GetMethodDefinition(handle);
 		var signature = method.DecodeSignature(names, null);
 		return (names.Of(reader.GetTypeDefinition(method.GetDeclaringType())), reader.GetString(method.Name),
-			signature.ReturnType);
+			signature.ReturnType, signature.ParameterTypes);
 	}
 
-	static (string DeclaringType, string Name, string ReturnType) Reference(MetadataReader reader, NameProvider names,
-		MemberReferenceHandle handle)
+	static (string DeclaringType, string Name, string ReturnType, ImmutableArray<string> Parameters) Reference(
+		MetadataReader reader, NameProvider names, MemberReferenceHandle handle)
 	{
 		var member = reader.GetMemberReference(handle);
 		if (member.GetKind() != MemberReferenceKind.Method)
-			return (string.Empty, string.Empty, string.Empty);
+			return (string.Empty, string.Empty, string.Empty, []);
 		var parent = member.Parent;
 		var declaringType = parent.Kind switch
 		{
@@ -241,7 +512,8 @@ public sealed class OutcomeSurfaceEnforcementTests
 				.DecodeSignature(names, null),
 			_ => string.Empty
 		};
-		return (declaringType, reader.GetString(member.Name), member.DecodeMethodSignature(names, null).ReturnType);
+		var signature = member.DecodeMethodSignature(names, null);
+		return (declaringType, reader.GetString(member.Name), signature.ReturnType, signature.ParameterTypes);
 	}
 
 	static TypeDefinition Outermost(MetadataReader reader, TypeDefinition type)

@@ -1,9 +1,12 @@
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Norse.Abstractions.Components.Authorization;
 using Norse.Abstractions.Contracts;
+using Norse.Abstractions.Web.Server.Mediator;
 using Norse.AuthN.Components.Shared;
 using Norse.AuthN.Services;
 using Norse.Identity.EntityFramework;
@@ -68,6 +71,10 @@ public static partial class ExternalLoginEndpointRouteBuilderExtensions
 
 			// A GET, so a plain link starts it (Heimdall's external-logins page), under the same fail-closed check as
 			// the sign-in start; a refused start, or a name that is no displayed external scheme, challenges nothing.
+			// Linking a sign-in method needs a recent authentication (spec §6.3): the endpoint declares its landing, and
+			// the freshness filter evaluates the policy after the group's account policy, redirecting a stale caller to
+			// sign in again. Never RequireAuthorization: the middleware would fold freshness into the account policy and
+			// answer a stale caller a bare 403 instead of the hop.
 			manageGroup.MapGet(ExternalLoginRoutes.LinkStart, async Task<Results<ChallengeHttpResult, RedirectHttpResult>> (
 				HttpContext context,
 				[FromServices] SignInManager<NorseUser> signInManager,
@@ -85,7 +92,9 @@ public static partial class ExternalLoginEndpointRouteBuilderExtensions
 				var properties = signInManager.ConfigureExternalAuthenticationProperties(provider, redirectUrl,
 					signInManager.UserManager.GetUserId(context.User));
 				return TypedResults.Challenge(properties, [provider!]);
-			});
+			})
+				.WithMetadata(new ReauthenticationLandingAttribute(ExternalLoginsRoute))
+				.AddEndpointFilter(RequireRecentAuthenticationAsync);
 
 			// The provider's return leg: no gRPC answer exists here, so the outcome rides the status key on the redirect.
 			// The external cookie is cleared on every exit, so a leftover one can never be consumed by the login flow.
@@ -111,6 +120,36 @@ public static partial class ExternalLoginEndpointRouteBuilderExtensions
 			return accountGroup.ExcludeFromDescription();
 		}
 	}
+
+	/// <summary>
+	///     The link start's freshness gate, the HTTP twin of Midgard's mediator mapping (spec §6.3): it runs only once the
+	///     group's account policy has admitted the caller, evaluates <see cref="NorsePolicies.RecentAuthentication" />, and
+	///     answers the one failure reason Midgard's requirement reports for a stale <c>auth_time</c>
+	///     (<see cref="NorseErrorCodes.ReauthenticationRequired" />) with a redirect to sign in again, landing back on the
+	///     endpoint's declared <see cref="ReauthenticationLandingAttribute" />. Any other freshness failure is a bare forbid.
+	/// </summary>
+	static async ValueTask<object?> RequireRecentAuthenticationAsync(EndpointFilterInvocationContext invocation,
+		EndpointFilterDelegate next)
+	{
+		var context = invocation.HttpContext;
+		var freshness = await context.RequestServices.GetRequiredService<IAuthorizationService>()
+			.AuthorizeAsync(context.User, NorsePolicies.RecentAuthentication).ConfigureAwait(false);
+		if (freshness.Succeeded)
+			return await next(invocation).ConfigureAwait(false);
+
+		var landing = context.GetEndpoint()?.Metadata.GetMetadata<ReauthenticationLandingAttribute>();
+		return landing is not null && freshness.Failure?.FailureReasons
+			.Any(static reason => reason.Message == NorseErrorCodes.ReauthenticationRequired) is true ?
+			TypedResults.LocalRedirect(ReauthenticationUrl(context.Request.PathBase, landing.Path)) :
+			TypedResults.Forbid();
+	}
+
+	/// <summary>
+	///     The sign-in hop for <paramref name="landing" />, built exactly as Midgard's mediator builds
+	///     <c>Problem.NextUrl</c> (PF4): <c>/app/Account/Login?returnUrl=%2Fapp%2FAccount%2FManage%2FExternalLogins</c>.
+	/// </summary>
+	static string ReauthenticationUrl(PathString pathBase, string landing) =>
+		pathBase.Add("/Account/Login").ToUriComponent() + QueryString.Create("returnUrl", pathBase + landing).ToUriComponent();
 
 	/// <summary>
 	///     Whether <paramref name="provider" /> names a displayed external scheme: the manager answers only schemes with a

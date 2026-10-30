@@ -38,11 +38,11 @@ CREATE TABLE applications (
     display_name character varying(200),
     display_names text,
     json_web_key_set text,
-    permissions text,
-    post_logout_redirect_uris text,
+    permissions text[],
+    post_logout_redirect_uris text[],
     properties text,
-    redirect_uris text,
-    requirements text,
+    redirect_uris text[],
+    requirements text[],
     settings text,
     CONSTRAINT pk_applications PRIMARY KEY (id)
 );
@@ -62,11 +62,11 @@ CREATE TABLE "public"."applications_history" (
 	"display_name" character varying(200),
 	"display_names" text,
 	"json_web_key_set" text,
-	"permissions" text,
-	"post_logout_redirect_uris" text,
+	"permissions" text[],
+	"post_logout_redirect_uris" text[],
 	"properties" text,
-	"redirect_uris" text,
-	"requirements" text,
+	"redirect_uris" text[],
+	"requirements" text[],
 	"settings" text,
 	"system_period" tstzrange NOT NULL,
 	PRIMARY KEY ("id", "system_period" WITHOUT OVERLAPS)
@@ -121,6 +121,79 @@ CREATE TABLE consumed_passkey_challenges (
     expires_at timestamp with time zone NOT NULL,
     CONSTRAINT pk_consumed_passkey_challenges PRIMARY KEY (challenge_hash)
 );
+
+
+CREATE TABLE resources (
+    id uuid NOT NULL,
+    concurrency_token character varying(50),
+    description character varying(1000),
+    descriptions text,
+    display_name character varying(200),
+    display_names text,
+    name character varying(200),
+    properties text,
+    CONSTRAINT pk_resources PRIMARY KEY (id)
+);
+
+
+ALTER TABLE "public"."resources" ADD COLUMN system_period tstzrange NOT NULL;
+
+
+CREATE TABLE "public"."resources_history" (
+	"id" uuid NOT NULL,
+	"concurrency_token" character varying(50),
+	"description" character varying(1000),
+	"descriptions" text,
+	"display_name" character varying(200),
+	"display_names" text,
+	"name" character varying(200),
+	"properties" text,
+	"system_period" tstzrange NOT NULL,
+	PRIMARY KEY ("id", "system_period" WITHOUT OVERLAPS)
+);
+
+
+CREATE FUNCTION "public"."resources_versioning"() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog AS $norse$
+DECLARE ts timestamptz;
+BEGIN
+	IF TG_OP = 'INSERT' THEN
+		IF NEW.system_period IS NOT NULL THEN
+			RAISE EXCEPTION 'system_period on "%.%" is database-owned; it cannot be written by clients.', TG_TABLE_SCHEMA, TG_TABLE_NAME;
+		END IF;
+		NEW.system_period := pg_catalog.tstzrange(pg_catalog.clock_timestamp(), 'infinity');
+		RETURN NEW;
+	END IF;
+	IF TG_OP = 'UPDATE' AND NEW.system_period IS DISTINCT FROM OLD.system_period THEN
+		RAISE EXCEPTION 'system_period on "%.%" is database-owned; it cannot be written by clients.', TG_TABLE_SCHEMA, TG_TABLE_NAME;
+	END IF;
+	IF TG_OP = 'UPDATE' AND ROW(OLD."id", OLD."concurrency_token", OLD."description", OLD."descriptions", OLD."display_name", OLD."display_names", OLD."name", OLD."properties") IS NOT DISTINCT FROM ROW(NEW."id", NEW."concurrency_token", NEW."description", NEW."descriptions", NEW."display_name", NEW."display_names", NEW."name", NEW."properties") THEN
+		RETURN NEW;
+	END IF;
+	ts := greatest(pg_catalog.clock_timestamp(), pg_catalog.lower(OLD.system_period) + interval '1 microsecond');
+	INSERT INTO "public"."resources_history" ("id", "concurrency_token", "description", "descriptions", "display_name", "display_names", "name", "properties", system_period)
+		VALUES (OLD."id", OLD."concurrency_token", OLD."description", OLD."descriptions", OLD."display_name", OLD."display_names", OLD."name", OLD."properties", pg_catalog.tstzrange(pg_catalog.lower(OLD.system_period), ts));
+	IF TG_OP = 'UPDATE' THEN
+		NEW.system_period := pg_catalog.tstzrange(ts, 'infinity');
+		RETURN NEW;
+	END IF;
+	RETURN OLD;
+END $norse$;
+REVOKE EXECUTE ON FUNCTION "public"."resources_versioning"() FROM PUBLIC;
+
+
+CREATE TRIGGER "resources_versioning_insert" BEFORE INSERT ON "public"."resources"
+	FOR EACH ROW EXECUTE FUNCTION "public"."resources_versioning"();
+CREATE TRIGGER "resources_versioning_update" BEFORE UPDATE ON "public"."resources"
+	FOR EACH ROW EXECUTE FUNCTION "public"."resources_versioning"();
+CREATE TRIGGER "resources_versioning_delete" BEFORE DELETE ON "public"."resources"
+	FOR EACH ROW EXECUTE FUNCTION "public"."resources_versioning"();
+
+
+CREATE VIEW "public"."resources_timeline" AS
+SELECT "id", "concurrency_token", "description", "descriptions", "display_name", "display_names", "name", "properties", system_period FROM "public"."resources"
+UNION ALL
+SELECT "id", "concurrency_token", "description", "descriptions", "display_name", "display_names", "name", "properties", system_period FROM "public"."resources_history";
 
 
 CREATE TABLE roles (
@@ -197,7 +270,7 @@ CREATE TABLE scopes (
     display_names text,
     name character varying(200),
     properties text,
-    resources text,
+    resources text[],
     CONSTRAINT pk_scopes PRIMARY KEY (id)
 );
 
@@ -214,7 +287,7 @@ CREATE TABLE "public"."scopes_history" (
 	"display_names" text,
 	"name" character varying(200),
 	"properties" text,
-	"resources" text,
+	"resources" text[],
 	"system_period" tstzrange NOT NULL,
 	PRIMARY KEY ("id", "system_period" WITHOUT OVERLAPS)
 );
@@ -362,7 +435,7 @@ CREATE TABLE authorizations (
     concurrency_token character varying(50),
     creation_date timestamp with time zone,
     properties text,
-    scopes text,
+    scopes text[],
     status character varying(50),
     subject character varying(400),
     type character varying(50),
@@ -613,10 +686,27 @@ CREATE TABLE user_tokens (
 );
 
 
+CREATE TABLE sessions (
+    id uuid NOT NULL,
+    application_id uuid,
+    authorization_id uuid,
+    concurrency_token character varying(50),
+    creation_date timestamp with time zone,
+    login_id character varying(100),
+    properties text,
+    status character varying(50),
+    subject character varying(400),
+    CONSTRAINT pk_sessions PRIMARY KEY (id),
+    CONSTRAINT fk_sessions_applications_application_id FOREIGN KEY (application_id) REFERENCES applications (id),
+    CONSTRAINT fk_sessions_authorizations_authorization_id FOREIGN KEY (authorization_id) REFERENCES authorizations (id)
+);
+
+
 CREATE TABLE tokens (
     id uuid NOT NULL,
     application_id uuid,
     authorization_id uuid,
+    session_id uuid,
     concurrency_token character varying(50),
     creation_date timestamp with time zone,
     expiration_date timestamp with time zone,
@@ -629,7 +719,8 @@ CREATE TABLE tokens (
     type character varying(150),
     CONSTRAINT pk_tokens PRIMARY KEY (id),
     CONSTRAINT fk_tokens_applications_application_id FOREIGN KEY (application_id) REFERENCES applications (id),
-    CONSTRAINT fk_tokens_authorizations_authorization_id FOREIGN KEY (authorization_id) REFERENCES authorizations (id)
+    CONSTRAINT fk_tokens_authorizations_authorization_id FOREIGN KEY (authorization_id) REFERENCES authorizations (id),
+    CONSTRAINT fk_tokens_sessions_session_id FOREIGN KEY (session_id) REFERENCES sessions (id)
 );
 
 
@@ -642,6 +733,9 @@ CREATE INDEX ix_authorizations_application_id_status_subject_type ON authorizati
 CREATE INDEX ix_consumed_passkey_challenges_expires_at ON consumed_passkey_challenges (expires_at);
 
 
+CREATE UNIQUE INDEX ix_resources_name ON resources (name);
+
+
 CREATE INDEX ix_role_claims_role_id ON role_claims (role_id);
 
 
@@ -651,6 +745,15 @@ CREATE UNIQUE INDEX role_name_index ON roles (normalized_name);
 CREATE UNIQUE INDEX ix_scopes_name ON scopes (name);
 
 
+CREATE INDEX ix_sessions_application_id ON sessions (application_id);
+
+
+CREATE INDEX ix_sessions_authorization_id ON sessions (authorization_id);
+
+
+CREATE INDEX ix_sessions_login_id ON sessions (login_id);
+
+
 CREATE INDEX ix_tokens_application_id_status_subject_type ON tokens (application_id, status, subject, type);
 
 
@@ -658,6 +761,9 @@ CREATE INDEX ix_tokens_authorization_id ON tokens (authorization_id);
 
 
 CREATE UNIQUE INDEX ix_tokens_reference_id ON tokens (reference_id);
+
+
+CREATE INDEX ix_tokens_session_id ON tokens (session_id);
 
 
 CREATE UNIQUE INDEX ix_user_claims_user_id_claim_type_claim_value_hash ON user_claims (user_id, claim_type, claim_value_hash);

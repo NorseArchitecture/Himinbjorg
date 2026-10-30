@@ -19,6 +19,9 @@ namespace Norse.Identity.Web.Server.Store;
 ///     can't return, and the recovery-code swap must guard on the stored ciphertext, which a converted parameter
 ///     never reproduces. The stranded-account verification's statements (T3-28) live here too: its cursor sits in
 ///     <c>norse_identity</c> beside the accounts it walks and is written only by explicit statement, never tracked.
+///     The grant statements (2026-10-29 OpenIddict spec §5.5) live here too: the guarded redemption and the
+///     authorization's revocation are each one conditional statement over OpenIddict's own tables, which no
+///     OpenIddict store method can express.
 /// </summary>
 /// <remarks>
 ///     Only identifiers and parameter names are ever interpolated into the text; every value travels as a
@@ -86,6 +89,20 @@ static class ProviderStatements
 			[nameof(VerificationCursor.LastId)] = "last_id",
 			[nameof(VerificationCursor.Version)] = "version",
 			[nameof(VerificationCursor.UpdatedAt)] = "updated_at"
+		}),
+		new("tokens", new Dictionary<string, string>
+		{
+			[nameof(NorseOpenIddictToken.Id)] = "id",
+			[nameof(NorseOpenIddictToken.AuthorizationId)] = "authorization_id",
+			[nameof(NorseOpenIddictToken.Status)] = "status",
+			[nameof(NorseOpenIddictToken.RedemptionDate)] = "redemption_date",
+			[nameof(NorseOpenIddictToken.ConcurrencyToken)] = "concurrency_token"
+		}),
+		new("authorizations", new Dictionary<string, string>
+		{
+			[nameof(NorseOpenIddictAuthorization.Id)] = "id",
+			[nameof(NorseOpenIddictAuthorization.Status)] = "status",
+			[nameof(NorseOpenIddictAuthorization.ConcurrencyToken)] = "concurrency_token"
 		}),
 		"\"Value\"",
 		"RETURNING {0}",
@@ -161,6 +178,20 @@ static class ProviderStatements
 			[nameof(VerificationCursor.LastId)] = "[LastId]",
 			[nameof(VerificationCursor.Version)] = "[Version]",
 			[nameof(VerificationCursor.UpdatedAt)] = "[UpdatedAt]"
+		}),
+		new("[Tokens]", new Dictionary<string, string>
+		{
+			[nameof(NorseOpenIddictToken.Id)] = "[Id]",
+			[nameof(NorseOpenIddictToken.AuthorizationId)] = "[AuthorizationId]",
+			[nameof(NorseOpenIddictToken.Status)] = "[Status]",
+			[nameof(NorseOpenIddictToken.RedemptionDate)] = "[RedemptionDate]",
+			[nameof(NorseOpenIddictToken.ConcurrencyToken)] = "[ConcurrencyToken]"
+		}),
+		new("[Authorizations]", new Dictionary<string, string>
+		{
+			[nameof(NorseOpenIddictAuthorization.Id)] = "[Id]",
+			[nameof(NorseOpenIddictAuthorization.Status)] = "[Status]",
+			[nameof(NorseOpenIddictAuthorization.ConcurrencyToken)] = "[ConcurrencyToken]"
 		}),
 		"[Value]",
 		"",
@@ -804,6 +835,65 @@ static class ProviderStatements
 	}
 
 	/// <summary>
+	///     The guarded redemption (2026-10-29 OpenIddict spec §5.5), verbatim: moves the token from <c>valid</c> to
+	///     <c>redeemed</c>, stamping the redemption date and a fresh concurrency token, only while it is still bound to
+	///     <paramref name="authorization" /> and that authorization is still <c>valid</c>, in one statement.
+	/// </summary>
+	/// <param name="context">The context.</param>
+	/// <param name="token">The presented token.</param>
+	/// <param name="authorization">The authorization the presented token carries.</param>
+	/// <param name="now">The redemption time.</param>
+	/// <param name="cancellationToken">The cancellation token.</param>
+	/// <returns>The number of rows redeemed: 1, or 0 when the token or its authorization is no longer valid.</returns>
+	public static Task<int> RedeemGrantTokenAsync(DbContext context, Guid token, Guid authorization, DateTimeOffset now,
+		CancellationToken cancellationToken = default)
+	{
+		var dialect = DialectOf(context);
+		var (tokens, authorizations) = (dialect.GrantTokens, dialect.Authorizations);
+		using Binder bind = new(context, context.Set<NorseOpenIddictToken>().EntityType);
+		string
+			status = tokens.Columns[nameof(NorseOpenIddictToken.Status)],
+			owner = bind.Value(nameof(NorseOpenIddictToken.AuthorizationId), authorization),
+			redeemedAt = bind.Value(nameof(NorseOpenIddictToken.RedemptionDate), now.UtcDateTime),
+			fresh = bind.Value(nameof(NorseOpenIddictToken.ConcurrencyToken), FreshConcurrencyToken());
+		var sql = $"""
+			UPDATE {tokens.Name} SET {status} = 'redeemed', {tokens.Columns[nameof(NorseOpenIddictToken.RedemptionDate)]} = {redeemedAt}, {tokens.Columns[nameof(NorseOpenIddictToken.ConcurrencyToken)]} = {fresh}
+			WHERE {tokens.Columns[nameof(NorseOpenIddictToken.Id)]} = {bind.Value(nameof(NorseOpenIddictToken.Id), token)} AND {status} = 'valid'
+			  AND {tokens.Columns[nameof(NorseOpenIddictToken.AuthorizationId)]} = {owner}
+			  AND EXISTS (SELECT 1 FROM {authorizations.Name} WHERE {authorizations.Columns[nameof(NorseOpenIddictAuthorization.Id)]} = {owner} AND {authorizations.Columns[nameof(NorseOpenIddictAuthorization.Status)]} = 'valid')
+			""";
+		return context.Database.ExecuteSqlRawAsync(sql, bind.Parameters, cancellationToken);
+	}
+
+	/// <summary>
+	///     A grant's durable end (2026-10-29 OpenIddict spec §5.5, <c>EndGrant</c> step 1): the authorization moves from
+	///     <c>valid</c> to <c>revoked</c> with a fresh concurrency token. Conditional, so idempotent: an authorization
+	///     already revoked matches nothing.
+	/// </summary>
+	/// <param name="context">The context.</param>
+	/// <param name="authorization">The authorization.</param>
+	/// <param name="cancellationToken">The cancellation token.</param>
+	/// <returns>The number of rows revoked: 1, or 0 when the authorization was not <c>valid</c>.</returns>
+	public static Task<int> RevokeAuthorizationAsync(DbContext context, Guid authorization,
+		CancellationToken cancellationToken = default)
+	{
+		var authorizations = DialectOf(context).Authorizations;
+		using Binder bind = new(context, context.Set<NorseOpenIddictAuthorization>().EntityType);
+		string
+			status = authorizations.Columns[nameof(NorseOpenIddictAuthorization.Status)],
+			fresh = bind.Value(nameof(NorseOpenIddictAuthorization.ConcurrencyToken), FreshConcurrencyToken());
+		var sql = $"""
+			UPDATE {authorizations.Name} SET {status} = 'revoked', {authorizations.Columns[nameof(NorseOpenIddictAuthorization.ConcurrencyToken)]} = {fresh}
+			WHERE {authorizations.Columns[nameof(NorseOpenIddictAuthorization.Id)]} = {bind.Value(nameof(NorseOpenIddictAuthorization.Id), authorization)} AND {status} = 'valid'
+			""";
+		return context.Database.ExecuteSqlRawAsync(sql, bind.Parameters, cancellationToken);
+	}
+
+	/// <summary>A new concurrency token in OpenIddict's own shape, a fresh GUID's text, as its stores write one.</summary>
+	static string FreshConcurrencyToken() =>
+		Guid.NewGuid().ToString();
+
+	/// <summary>
 	///     Stranded (T3-28): no password and no external login, over <see cref="StrandedFrom" />'s aliases. A passkey
 	///     deliberately does not count as a credential here: a passkey is never an account's sole credential, so a
 	///     passkey-only account is itself an invariant violation and is reported.
@@ -843,7 +933,7 @@ static class ProviderStatements
 			$"{tokens.Columns[nameof(NorseUserToken.Name)]} = {bind.Value(nameof(NorseUserToken.Name), key.Name)}"
 		]);
 
-	static Dialect DialectOf(NorseIdentityDbContext context) =>
+	static Dialect DialectOf(DbContext context) =>
 		context.Database.ProviderName == NorseDbContextOptionsExtensions.SqlServerProviderName ?
 			_sqlServer :
 			_postgreSql;
@@ -854,7 +944,7 @@ static class ProviderStatements
 	/// </summary>
 	/// <param name="context">The context whose connection makes the parameters.</param>
 	/// <param name="entity">The entity whose properties the values belong to.</param>
-	sealed class Binder(NorseIdentityDbContext context, IEntityType entity) : IDisposable
+	sealed class Binder(DbContext context, IEntityType entity) : IDisposable
 	{
 		readonly DbCommand _factory = context.Database.GetDbConnection().CreateCommand();
 		readonly List<DbParameter> _parameters = [];
@@ -952,6 +1042,10 @@ static class ProviderStatements
 	/// </param>
 	/// <param name="Users">The <c>users</c> principal table, by <see cref="NorseUser" /> property name (its id only).</param>
 	/// <param name="Cursors">The <c>verification_cursors</c> table, by <see cref="VerificationCursor" /> property name.</param>
+	/// <param name="GrantTokens">OpenIddict's <c>tokens</c> table, by <see cref="NorseOpenIddictToken" /> property name.</param>
+	/// <param name="Authorizations">
+	///     OpenIddict's <c>authorizations</c> table, by <see cref="NorseOpenIddictAuthorization" /> property name.
+	/// </param>
 	/// <param name="ClaimHash">A format over a claim-value expression that hashes it as the stored column does.</param>
 	/// <param name="PasskeySignCount">A format over the passkey document reading its sign count as a <c>bigint</c>.</param>
 	/// <param name="PasskeyAssertion">
@@ -972,7 +1066,7 @@ static class ProviderStatements
 	/// <param name="Limit">A format over the row limit, after <c>ORDER BY</c> (PostgreSQL).</param>
 	/// <param name="Flag">A format over a predicate that selects it as a boolean column.</param>
 	sealed record Dialect(Table Credentials, Table Tokens, Table Claims, Table Logins, Table Roles,
-		Table Passkeys, Table Challenges, Table Users, Table Cursors, string ValueAlias, string Returning, string Output,
+		Table Passkeys, Table Challenges, Table Users, Table Cursors, Table GrantTokens, Table Authorizations, string ValueAlias, string Returning, string Output,
 		string BinaryCollation, string ClaimHash, string PasskeySignCount, string PasskeyAssertion, bool Merges,
 		string LockHint, string LockSuffix, string StrandedAlias, string Top, string Limit, string Flag);
 }

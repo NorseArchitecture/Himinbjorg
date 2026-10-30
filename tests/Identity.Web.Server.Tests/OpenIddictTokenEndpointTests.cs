@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text.Json.Serialization;
 using Microsoft.IdentityModel.JsonWebTokens;
+using Norse.Abstractions.Components.Authorization;
 using OpenIddict.Abstractions;
 
 namespace Norse.Identity.Web.Server.Tests;
@@ -53,7 +54,7 @@ public sealed class OpenIddictTokenEndpointTests(PostgresIdentityFixture fixture
 
 		var jwt = new JsonWebToken(payload.AccessToken);
 		jwt.GetClaim(OpenIddictConstants.Claims.Subject).Value.ShouldBe("test-machine-client");
-		jwt.Audiences.ShouldContain("Norse.Facade");
+		jwt.Audiences.ShouldContain(NorseAudiences.Facade);
 
 		// ClaimTypes.NameIdentifier's full URI form -- ASP.NET Core's default claim-type mapping, which
 		// OpenIddict's own JWT serializer does not override for claims added via AddClaim/SetDestinations.

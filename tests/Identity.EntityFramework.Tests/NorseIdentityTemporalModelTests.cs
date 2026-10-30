@@ -22,13 +22,15 @@ public sealed class NorseIdentityTemporalModelTests
 	static readonly Lazy<IModel> _postgresModel = new(() => BuildModel(NorsePostgresEfProvider.Instance));
 
 	/// <summary>
-	///     The seven ruled temporal entities, in the order the ruling lists them (2026-10-24 explicit-writes spec
-	///     §3.1 took <see cref="NorseUserLogin" /> out).
+	///     The eight ruled temporal entities, in the order the ruling lists them (2026-10-24 explicit-writes spec
+	///     §3.1 took <see cref="NorseUserLogin" /> out; the 2026-10-29 Train 4 spec §4.3 added
+	///     <see cref="NorseOpenIddictResource" />).
 	/// </summary>
 	static readonly Type[] _temporalEntities =
 	[
 		typeof(NorseUser), typeof(NorseRole), typeof(NorseUserClaim), typeof(NorseRoleClaim),
-		typeof(NorseUserRole), typeof(NorseOpenIddictApplication), typeof(NorseOpenIddictScope)
+		typeof(NorseUserRole), typeof(NorseOpenIddictApplication), typeof(NorseOpenIddictScope),
+		typeof(NorseOpenIddictResource)
 	];
 
 	static IModel SqlServerModel => _sqlServerModel.Value;
@@ -52,6 +54,8 @@ public sealed class NorseIdentityTemporalModelTests
 	[InlineData(typeof(NorseUserRole), "user_roles")]
 	[InlineData(typeof(NorseOpenIddictApplication), "applications")]
 	[InlineData(typeof(NorseOpenIddictScope), "scopes")]
+	// Part of the durable authorization record, like applications and scopes (Train 4 spec §4.3).
+	[InlineData(typeof(NorseOpenIddictResource), "resources")]
 	void The_durable_identity_and_authorization_record_carries_the_temporal_stamp(Type entityType, string table)
 	{
 		foreach (var model in new[] { PostgresModel, SqlServerModel })
@@ -73,6 +77,8 @@ public sealed class NorseIdentityTemporalModelTests
 	[InlineData(typeof(NorseOpenIddictAuthorization))]
 	// One-time codes and refresh tokens, redeemed by UPDATE and pruned.
 	[InlineData(typeof(NorseOpenIddictToken))]
+	// OpenIddict 8 sessions: bulk-pruned runtime state, like authorizations and tokens (Train 4 spec §4.3).
+	[InlineData(typeof(NorseOpenIddictSession))]
 	// External-login links: out of the temporal set by the 2026-10-24 explicit-writes spec §3.1, which
 	// supersedes the 2026-08-05 ruling that kept a disconnected link as identity record.
 	[InlineData(typeof(NorseUserLogin))]
@@ -90,7 +96,7 @@ public sealed class NorseIdentityTemporalModelTests
 	}
 
 	[Fact]
-	void Exactly_the_seven_ruled_entities_carry_the_stamp_and_nothing_else()
+	void Exactly_the_eight_ruled_entities_carry_the_stamp_and_nothing_else()
 	{
 		// The per-case theories above pin the named entities; this one closes the model, so a schema
 		// addition that arrives already marked has to pass through the ruling to get here.

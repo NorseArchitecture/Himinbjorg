@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -5,6 +6,7 @@ using Norse.AuthN.Services;
 using Norse.Identity.EntityFramework;
 using Norse.Identity.Web.Server.Account;
 using Norse.Identity.Web.Server.Disclosure;
+using Norse.Identity.Web.Server.OpenIddict;
 using Norse.Identity.Web.Server.Passkeys;
 using Norse.Identity.Web.Server.SignInMethods;
 using Norse.Identity.Web.Server.TwoFactor;
@@ -16,6 +18,12 @@ namespace Norse.Identity.Web.Server;
 /// <summary>Composition-root wiring for Identity.Web.Server's gRPC authentication service.</summary>
 public static class ServiceCollectionExtensions
 {
+	/// <summary>
+	///     The bearer source Midgard's two lanes authenticate by name (Midgard's <c>NorseSchemes.Bearer</c>, spec §7.1). Spelled
+	///     here because this realm cannot reference Midgard (NORSE071); a test pins it to Midgard's constant.
+	/// </summary>
+	internal const string BearerScheme = "Norse.Bearer";
+
 	extension(IHostApplicationBuilder builder)
 	{
 		/// <summary>
@@ -79,8 +87,33 @@ public static class ServiceCollectionExtensions
 				.AddNorseIdentity(signingCertificate, accessTokenLifetime)
 				.AddSignInManager<NorseSignInManager>();
 
-			// The ledger prunes by the clock; a host that registers its own clock keeps it.
+			// Norse.Bearer, the one bearer source Midgard's Norse.Machine and Norse.User lanes authenticate by name and delegate
+			// challenge and forbid to (spec §7.1): a forward to the one OpenIddict validation scheme that authenticates before
+			// it challenges (BearerChallengeHandler, #49). AddAuthentication() with no configuration leaves every default
+			// scheme as the composition root sets it.
+			builder.Services.AddAuthentication()
+				.AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, BearerChallengeHandler>(BearerScheme, null);
+
+			// auth_time is when a credential was presented, not when the principal was rebuilt (spec §6.1): the stamp validator's
+			// periodic rebuild carries it from the ticket, as NorseSignInManager's refresh does, and carries nothing transient. A
+			// handler configured before this one still runs first.
+			builder.Services.Configure<SecurityStampValidatorOptions>(static options =>
+			{
+				var previous = options.OnRefreshingPrincipal;
+				options.OnRefreshingPrincipal = async context =>
+				{
+					if (previous is not null)
+						await previous(context).ConfigureAwait(false);
+					if (NorseSignInManager.CarriedAuthTime(context.CurrentPrincipal) is { } authTime
+						&& context.NewPrincipal?.Identity is ClaimsIdentity identity)
+						identity.AddClaim(authTime);
+				};
+			});
+
+			// The ledger and the auth_time stamp read the clock; a host that registers its own clock keeps it. One marker protector
+			// serves the stamp point and the authorize endpoint (spec §5.2).
 			builder.Services.TryAddSingleton(TimeProvider.System);
+			builder.Services.TryAddSingleton<ReauthMarkers>();
 			builder.Services.AddOptions<AuthenticatorOptions>()
 				.BindConfiguration(AuthenticatorOptions.Section)
 				.ValidateDataAnnotations()
